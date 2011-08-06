@@ -4,9 +4,10 @@
 var	toString = Object.prototype.toString,
 	hasOwn = Object.prototype.hasOwnProperty,
 	trim = String.prototype.trim ?
-		function ( text ) { return text == null ? '' : String.prototype.trim.call( text ); }:
-		function ( text ) { return text == null ? '' : text.toString().replace( /^\s+/, '' ).replace( /\s+$/, '' ); };
-
+		function ( text ) { return text == null ? '' : String.prototype.trim.call( text ); } :
+		function ( text ) { return text == null ? '' : text.toString().replace( /^\s+/, '' ).replace( /\s+$/, '' ); },
+	slice = Array.prototype.slice;
+	
 /**
  * Calls the specified native function if it exists and returns its result; if no such function exists on
  * `obj` as registered in `__native.fn`, returns our unique `noop` (as opposed to `null` or `undefined`,
@@ -14,7 +15,7 @@ var	toString = Object.prototype.toString,
  */
 function __native ( item, obj /* , ... */ ) {
 	var n = __native.fn[item];
-	return n && obj[item] === n ? n.apply( obj, slice( arguments, 2 ) ) : noop;
+	return n && obj[item] === n ? n.apply( obj, slice.call( arguments, 2 ) ) : noop;
 }
 __native.fn = {
 	forEach: Array.prototype.forEach
@@ -169,10 +170,6 @@ function forEach ( obj, fn, context ) {
 	}
 	return obj;
 }
-
-function concat () { return Array.prototype.concat.apply( [], arguments ); }
-
-function slice ( array, begin, end ) { return Array.prototype.slice.call( array, begin, end ); }
 
 /**
  * Extracts elements of nested arrays

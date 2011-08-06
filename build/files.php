@@ -3,5 +3,6 @@ $files = array(
 	'core',
 	'deferral',
 	'promise',
-	'when'
+	'when',
+	'operation-queue'
 );

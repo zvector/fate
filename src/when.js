@@ -1,10 +1,10 @@
 /**
  * Binds together the fate of all the deferrals submitted as arguments, returning a promise that will be
- * fulfilled only after all the individual deferrals are fulfilled, or will be forfeited immediately after
- * any one deferral is forfeited.
+ * affirmed only after all the individual deferrals are affirmed, or will be negated immediately after
+ * any one deferral is negated.
  */
 function when ( arg /*...*/ ) {
-	var	args = flatten( slice( arguments ) ),
+	var	args = flatten( slice.call( arguments ) ),
 		length = args.length || 1,
 		unresolvedCount = length,
 		i = 0,
@@ -12,20 +12,20 @@ function when ( arg /*...*/ ) {
 			arg instanceof Deferral ?
 				arg
 				:
-				( deferral = new Deferral ).fulfill( deferral, arg )
+				( deferral = new Deferral ).affirm( deferral, arg )
 			:
 			new Deferral;
 	
-	function fulfill () {
-		--unresolvedCount || deferral.fulfill( deferral, arguments );
+	function affirm () {
+		--unresolvedCount || deferral.affirm( deferral, arguments );
 	}
 	
 	if ( length > 1 ) {
 		for ( ; i < length; i++ ) {
 			arg = args[i];
 			arg instanceof Deferral || arg instanceof Promise ||
-				( arg = args[i] = ( new Deferral ).fulfill( deferral, arg ) );
-			arg.then( fulfill, deferral.forfeit );
+				( arg = args[i] = ( new Deferral ).affirm( deferral, arg ) );
+			arg.then( affirm, deferral.negate );
 		}
 	}
 	

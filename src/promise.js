@@ -1,25 +1,34 @@
 /**
- * `Promise` is a limited interface into a `Deferral` instance. Consumers of the promise may add
- * callbacks to the represented deferral, and may check its resolved/fulfilled states, but cannot affect
- * the deferral itself as would be done with the deferral's `fulfill` and `forfeit` methods.
+ * `Promise` is a limited interface into a `Deferral` instance. It exposes a subset of the deferral's
+ * methods, such that consumers of the promise may use it to add callbacks to the represented deferral,
+ * and to query the deferral's state, but are prevented from affecting its state as would be done with
+ * the deferral's `affirm` and `negate` methods.
  */
 function Promise ( deferral ) {
-	var promise = this,
+	var self = this,
 		i = Promise.methods.length;
 	while ( i-- ) {
 		( function ( name ) {
-			promise[name] = function () {
-				deferral[name].apply( deferral, arguments );
-				return promise;
+			self[ name ] = function () {
+				deferral[ name ].apply( deferral, arguments );
+				return self;
 			};
 		})( Promise.methods[i] );
 	}
 }
-extend( Promise, {
-	methods: 'isResolved isFulfilled done fail then always'.split(' '),
+extend( true, Promise, {
+	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),
 	
-	/** Weakly duck-types an object against `Promise`, checking for `then()` */
-	resembles: function ( obj ) {
-		return obj && isFunction( obj.then );
+	/**
+	 * Used to test whether an object is or might be able to act as a Promise. This may be thought of as
+	 * a weak conformity check, perhaps somewhat like the converse of a theoretical `resembles` function;
+	 * e.g., as `example.resembles( Archetype )`, so it follows that `Archetype.influences( example )`.
+	 */
+	influences: function ( obj ) {
+		return obj && (
+			obj instanceof Promise ||
+			obj instanceof Deferral ||
+			isFunction( obj.then ) && isFunction( obj.promise )
+		);
 	}
 });
