@@ -165,7 +165,7 @@ extend( true, Deferral, {
 					isFunction( fn ) ?
 						function () {
 							var result = fn.apply( this, arguments ),
-								promise = result && Promise.influences( result ) ?
+								promise = result && Promise.resembles( result ) ?
 									result.promise() : undefined;
 							promise ? // result && isFunction( result.promise ) ?
 								promise.then( next.affirm, next.negate ) : // result.promise().then( next.affirm, next.negate ) :

@@ -403,7 +403,7 @@ extend( true, Deferral, {
 					isFunction( fn ) ?
 						function () {
 							var result = fn.apply( this, arguments ),
-								promise = result && Promise.influences( result ) ?
+								promise = result && Promise.resembles( result ) ?
 									result.promise() : undefined;
 							promise ? // result && isFunction( result.promise ) ?
 								promise.then( next.affirm, next.negate ) : // result.promise().then( next.affirm, next.negate ) :
@@ -447,12 +447,8 @@ function Promise ( deferral ) {
 extend( true, Promise, {
 	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),
 	
-	/**
-	 * Used to test whether an object is or might be able to act as a Promise. This may be thought of as
-	 * a weak conformity check, perhaps somewhat like the converse of a theoretical `resembles` function;
-	 * e.g., as `example.resembles( Archetype )`, so it follows that `Archetype.influences( example )`.
-	 */
-	influences: function ( obj ) {
+	// Used to test whether an object is or might be able to act as a Promise.
+	resembles: function ( obj ) {
 		return obj && (
 			obj instanceof Promise ||
 			obj instanceof Deferral ||
@@ -499,26 +495,47 @@ function when ( arg /*...*/ ) {
 
 function OperationQueue ( operations ) {
 	var	self = this,
-		queue = Array.prototype.slice.call( operations ),
-		deferral = new Deferral;
+		queue = slice.call( operations ),
+		deferral = new Deferral,
+		running = false,
+		pausePending = false,
+		args;
 	
 	function continuation () {
+		var result;
 		if ( isFunction( this ) ) {
-			this.apply( self, arguments ).then( function () {
-				continuation.apply( queue.shift(), arguments );
-			});
+			result = this.apply( self, arguments );
+			if ( Promise.resembles( result ) ) {
+				result.then( function () {
+					args = slice.call( arguments );
+					pausePending && ( running = pausePending = false );
+					running && continuation.apply( queue.shift(), arguments );
+				});
+			} else {
+				args = slice.call( arguments );
+				running && continuation.apply( queue.shift(), isArray( result ) ? result : [ result ] );
+			}
 		} else {
 			deferral.affirm( self, arguments );
 		}
 	}
 	function start () {
-		this.start = noop, this.stop = stop;
-		continuation.apply( queue.shift(), arguments );
-		return this.promise();
+		running = true, this.start = noop, this.pause = pause, this.resume = resume, this.stop = stop;
+		continuation.apply( queue.shift(), args = slice.call( arguments ) );
+		return this;
+	}
+	function pause () {
+		pausePending = true, this.resume = resume, this.pause = noop;
+		return this;
+	}
+	function resume () {
+		running = true, pausePending = false, this.pause = pause, this.resume = noop;
+		continuation.apply( queue.shift(), args );
+		return this;
 	}
 	function stop () {
-		this.start = start, this.stop = noop;
-		return this.promise();
+		running = pausePending = false, this.pause = this.resume = this.stop = noop;
+		return this;
 	}
 	
 	forEach( 'push pop shift unshift reverse splice'.split(' '), function ( method ) {
@@ -536,7 +553,13 @@ function OperationQueue ( operations ) {
 			return deferral.promise();
 		},
 		start: start,
-		stop: noop
+		pause: noop,
+		resume: noop,
+		stop: noop,
+		isRunning: ( function () {
+			function f () { return running; }
+			return ( f.valueOf = f );
+		})
 	});
 }
 

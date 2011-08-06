@@ -19,12 +19,8 @@ function Promise ( deferral ) {
 extend( true, Promise, {
 	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),
 	
-	/**
-	 * Used to test whether an object is or might be able to act as a Promise. This may be thought of as
-	 * a weak conformity check, perhaps somewhat like the converse of a theoretical `resembles` function;
-	 * e.g., as `example.resembles( Archetype )`, so it follows that `Archetype.influences( example )`.
-	 */
-	influences: function ( obj ) {
+	// Used to test whether an object is or might be able to act as a Promise.
+	resembles: function ( obj ) {
 		return obj && (
 			obj instanceof Promise ||
 			obj instanceof Deferral ||

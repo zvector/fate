@@ -110,9 +110,33 @@ asyncTest( "pipe", function () {
 });
 
 
+/*
+ * This test runs a set of arguments (an Array vector [ 1, 7, -5 ]) through an `OperationQueue`.
+ * Each operation in the sequence will process the argument set and return a new vector, which is
+ * then provided to the next operation using continuation passing style. The `OperationQueue`
+ * object exposes a `promise` method that returns a `Promise` to an internal `Deferral`, which
+ * will be resolved once all the operations have finished and the queue is empty.
+ * 
+ * Functions supplied as operations may be synchronous, directly returning the array of arguments
+ * to be passed; or they may be asynchronous, returning a `Promise` to a `Deferral` that is
+ * `affirm`ed once it's ready.
+ * 
+ * Synchronous operations can be faster since they continue immediately, however they also incur an
+ * ever increasing memory overhead as they are strung together, since immediate continuations will
+ * accumulate on the stack, and JavaScript does not do any tail-call optimization. Also, because
+ * contiguous synchronous operations are processed within a single turn of the event loop, too long
+ * a sequence may result in noticeable interruptions in the UI and elsewhere.
+ * 
+ * Asynchronous operations advance the queue no faster than the runtime's event loop, but this has
+ * the advantage of not polluting the stack or retarding the event loop.
+ * 
+ * Synchronous and asynchronous operations can be mixed together arbitrarily to provide built-in
+ * granular control over this balance of immediacy versus stack space.
+ */
 asyncTest( "OperationQueue", function () {
 	var opQueue = new OperationQueue([
-		// a list of functions that return a promise
+		
+		// First, some async functions, which employ a Deferral and return a Promise
 		function () {
 			var	args = Array.prototype.slice.call( arguments ),
 				deferral = new Deferral;
@@ -120,7 +144,7 @@ asyncTest( "OperationQueue", function () {
 				equal( args.join(), '1,7,-5', "first op: + [1,1,1]" );
 				$.each( args, function ( i, value ) { args[i] = value + 1; } );
 				deferral.affirm( opQueue, args );
-			}, 80 );
+			}, 800 );
 			return deferral.promise();
 		},
 		function () {
@@ -130,7 +154,7 @@ asyncTest( "OperationQueue", function () {
 				equal( args.join(), '2,8,-4', "second op: * 0.5" );
 				$.each( args, function ( i, value ) { args[i] = value / 2; } );
 				deferral.affirm( opQueue, args );
-			}, 40 );
+			}, 400 );
 			return deferral.promise();
 		},
 		function () {
@@ -140,39 +164,31 @@ asyncTest( "OperationQueue", function () {
 				equal( args.join(), '1,4,-2', "third op: - [1,1,1]" );
 				$.each( args, function ( i, value ) { args[i] = value - 1; } );
 				deferral.affirm( opQueue, args );
-			}, 20 );
+			}, 120 );
 			return deferral.promise();
+		},
+		
+		// Next, some synchronous functions that return `args` directly for immediate continuation
+		function () {
+			var	args = Array.prototype.slice.call( arguments );
+			equal( args.join(), '0,3,-3', "fourth op: * 2" );
+			return $.each( args, function ( i, value ) { args[i] = value * 2; } );
 		},
 		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				equal( args.join(), '0,3,-3', "fourth op: * 2" );
-				$.each( args, function ( i, value ) { args[i] = value * 2; } );
-				deferral.affirm( opQueue, args );
-			}, 10 );
-			return deferral.promise();
+			var	args = Array.prototype.slice.call( arguments );
+			equal( args.join(), '0,6,-6', "fifth op: + [1,3,10]" );
+			return args[0] += 1, args[1] += 3, args[2] += 10, args;
 		},
 		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				equal( args.join(), '0,6,-6', "fifth op: + [1,3,10]" );
-				args[0] += 1, args[1] += 3, args[2] += 10;
-				deferral.affirm( opQueue, args );
-			}, 80 );
-			return deferral.promise();
+			var	args = Array.prototype.slice.call( arguments );
+			equal( args.join(), '1,9,4', "sixth op: sqrt" );
+			return $.each( args, function ( i, value ) { args[i] = Math.sqrt( value ); } );
 		},
-		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				equal( args.join(), '1,9,4', "sixth op: sqrt" );
-				$.each( args, function ( i, value ) { args[i] = Math.sqrt( value ); } );
-				deferral.affirm( opQueue, args );
-			}, 40 );
-			return deferral.promise();
-		},
+		
+		// Without tail-call optimization, synchronous operations pressurize the stack. (Set a breakpoint
+		// inside each of the last few operations and notice the references to `continuation` accumulating
+		// in the stack.) So let's go back to using async operations, which allows the event loop to turn
+		// and relieves the pressure.
 		function () {
 			var	args = Array.prototype.slice.call( arguments ),
 				deferral = new Deferral;
@@ -180,7 +196,7 @@ asyncTest( "OperationQueue", function () {
 				equal( args.join(), '1,3,2', "seventh op: - [1,1,1]" );
 				$.each( args, function ( i, value ) { args[i] = value - 1; } );
 				deferral.affirm( opQueue, args );
-			}, 20 );
+			}, 0 );
 			return deferral.promise();
 		},
 		function () {
@@ -190,18 +206,37 @@ asyncTest( "OperationQueue", function () {
 				equal( args.join(), '0,2,1', "eighth op: * 2" );
 				$.each( args, function ( i, value ) { args[i] = value * 2; } );
 				deferral.affirm( opQueue, args );
-			}, 10 );
+			}, 1000 );
 			return deferral.promise();
 		}
-		// ...
+		
+		// etc.
 	]);
-
+	
+	/*
+	 * With the operations in place, we can now simply feed the queue a set of initial values, and await
+	 * its final result.
+	 */
 	opQueue
 		.start( 1, 7, -5 )
-		.then( function ( x, y, z ) {
-			equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "complete" );
-		})
-		.always( start );
+		.promise()
+			.then( function ( x, y, z ) {
+				equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
+			})
+			.always( start );
+	
+	/*
+	 * But before we set it completely loose, let's suspend the queue after it's 1000 ms along; this
+	 * should occur during the second operation, so the queue will pause after that completes in another
+	 * 200 ms, and then be ready to resume with the third operation when we call `resume` 1800 ms later.
+	 */
+	setTimeout( function () {
+		opQueue.pause();
+	}, 1000 );
+	setTimeout( function () {
+		opQueue.resume();
+	}, 3000 );
+	
 });
 
 })();
