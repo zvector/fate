@@ -11,11 +11,16 @@ function OperationQueue ( operations ) {
 		if ( isFunction( this ) ) {
 			result = this.apply( self, arguments );
 			if ( Promise.resembles( result ) ) {
-				result.then( function () {
-					args = slice.call( arguments );
-					pausePending && ( running = pausePending = false );
-					running && continuation.apply( queue.shift(), args );
-				});
+				result.then(
+					function () {
+						args = slice.call( arguments );
+						pausePending && ( running = pausePending = false );
+						running && continuation.apply( queue.shift(), args );
+					},
+					function () {
+						deferral.negate( self, args );
+					}
+				);
 			} else {
 				args = slice.call( arguments );
 				running && continuation.apply( queue.shift(), isArray( result ) ? result : [ result ] );
@@ -57,6 +62,7 @@ function OperationQueue ( operations ) {
 		promise: function () {
 			return deferral.promise();
 		},
+		inter: function () { return slice.call( args ); },
 		start: start,
 		pause: noop,
 		resume: noop,

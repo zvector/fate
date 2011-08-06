@@ -2,6 +2,20 @@
 
 module( "Deferral" );
 
+asyncTest( "promise()", function () {
+	var d = new Deferral,
+		p1 = d.promise(),
+		p2 = p1.promise();
+	ok( p1.serves( d ), "deferral.promise().serves( deferral )" );
+	ok( p2.serves( d ), "deferral.promise().promise().serves( deferral )" );
+	ok( Promise.resembles( { then: function () {}, promise: function () {} } ), "Promise.resembles generic promise-like object" );
+	ok( Promise.resembles( jQuery.Deferred() ), "Promise.resembles jQuery.Deferred()" );
+	ok( Promise.resembles( jQuery.Deferred().promise() ), "Promise.resembles jQuery.Deferred().promise()" );
+	ok( !p1.isResolved() && !p2.isResolved(), "initially unresolved" );
+	ok( ( d.affirm(), p1.isResolved() && p2.isAffirmed() && !p1.isNegated() ), "deferral.affirm reflected in promises" )
+	start();
+});
+
 asyncTest( "when(), all affirmed", function () {
 	var	result, aside,
 		d1 = new Deferral(),
@@ -141,28 +155,28 @@ asyncTest( "OperationQueue", function () {
 			var	args = Array.prototype.slice.call( arguments ),
 				deferral = new Deferral;
 			setTimeout( function () {
-				equal( args.join(), '1,7,-5', "first op: + [1,1,1]" );
 				$.each( args, function ( i, value ) { args[i] = value + 1; } );
+				equal( args.join(), '2,8,-4', "first op: + [1,1,1]" );
 				deferral.affirm( opQueue, args );
-			}, 800 );
+			}, 80 );
 			return deferral.promise();
 		},
 		function () {
 			var	args = Array.prototype.slice.call( arguments ),
 				deferral = new Deferral;
 			setTimeout( function () {
-				equal( args.join(), '2,8,-4', "second op: * 0.5" );
 				$.each( args, function ( i, value ) { args[i] = value / 2; } );
+				equal( args.join(), '1,4,-2', "second op: * 0.5" );
 				deferral.affirm( opQueue, args );
-			}, 400 );
+			}, 200 );
 			return deferral.promise();
 		},
 		function () {
 			var	args = Array.prototype.slice.call( arguments ),
 				deferral = new Deferral;
 			setTimeout( function () {
-				equal( args.join(), '1,4,-2', "third op: - [1,1,1]" );
 				$.each( args, function ( i, value ) { args[i] = value - 1; } );
+				equal( args.join(), '0,3,-3', "third op: - [1,1,1]" );
 				deferral.affirm( opQueue, args );
 			}, 120 );
 			return deferral.promise();
@@ -171,30 +185,33 @@ asyncTest( "OperationQueue", function () {
 		// Next, some synchronous functions that return `args` directly for immediate continuation
 		function () {
 			var	args = Array.prototype.slice.call( arguments );
-			equal( args.join(), '0,3,-3', "fourth op: * 2" );
-			return $.each( args, function ( i, value ) { args[i] = value * 2; } );
+			$.each( args, function ( i, value ) { args[i] = value * 2; } );
+			equal( args.join(), '0,6,-6', "fourth op: * 2" );
+			return args;
 		},
 		function () {
 			var	args = Array.prototype.slice.call( arguments );
-			equal( args.join(), '0,6,-6', "fifth op: + [1,3,10]" );
-			return args[0] += 1, args[1] += 3, args[2] += 10, args;
+			args[0] += 1, args[1] += 3, args[2] += 10;
+			equal( args.join(), '1,9,4', "fifth op: + [1,3,10]" );
+			return args;
 		},
 		function () {
 			var	args = Array.prototype.slice.call( arguments );
-			equal( args.join(), '1,9,4', "sixth op: sqrt" );
-			return $.each( args, function ( i, value ) { args[i] = Math.sqrt( value ); } );
+			$.each( args, function ( i, value ) { args[i] = Math.sqrt( value ); } );
+			equal( args.join(), '1,3,2', "sixth op: sqrt" );
+			return args;
 		},
 		
 		// Without tail-call optimization, synchronous operations pressurize the stack. (Set a breakpoint
 		// inside each of the last few operations and notice the references to `continuation` accumulating
-		// in the stack.) So let's go back to using async operations, which allows the event loop to turn
-		// and relieves the pressure.
+		// in the stack.) So let's go back to using async operations, which allows the event loop to turn,
+		// thereby relieving the pressure.
 		function () {
 			var	args = Array.prototype.slice.call( arguments ),
 				deferral = new Deferral;
 			setTimeout( function () {
-				equal( args.join(), '1,3,2', "seventh op: - [1,1,1]" );
 				$.each( args, function ( i, value ) { args[i] = value - 1; } );
+				equal( args.join(), '0,2,1', "seventh op: - [1,1,1]" );
 				deferral.affirm( opQueue, args );
 			}, 0 );
 			return deferral.promise();
@@ -203,8 +220,8 @@ asyncTest( "OperationQueue", function () {
 			var	args = Array.prototype.slice.call( arguments ),
 				deferral = new Deferral;
 			setTimeout( function () {
-				equal( args.join(), '0,2,1', "eighth op: * 2" );
 				$.each( args, function ( i, value ) { args[i] = value * 2; } );
+				equal( args.join(), '0,4,2', "eighth op: * 2" );
 				deferral.affirm( opQueue, args );
 			}, 1000 );
 			return deferral.promise();
@@ -226,16 +243,18 @@ asyncTest( "OperationQueue", function () {
 			.always( start );
 	
 	/*
-	 * But before we set it completely loose, let's suspend the queue after it's 1000 ms along; this
+	 * But before we set it completely loose, let's suspend the queue after it's 100 ms along; this
 	 * should occur during the second operation, so the queue will pause after that completes in another
-	 * 200 ms, and then be ready to resume with the third operation when we call `resume` 1800 ms later.
+	 * 20 ms, and then be ready to resume with the third operation when we call `resume` 180 ms later.
 	 */
 	setTimeout( function () {
 		opQueue.pause();
-	}, 1000 );
+		equal( opQueue.inter().join(), '2,8,-4', "Intermediate value when pause command is issued" );
+	}, 100 );
 	setTimeout( function () {
+		equal( opQueue.inter().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
 		opQueue.resume();
-	}, 3000 );
+	}, 300 );
 	
 });
 

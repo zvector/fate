@@ -10,11 +10,14 @@ function Promise ( deferral ) {
 	while ( i-- ) {
 		( function ( name ) {
 			self[ name ] = function () {
-				deferral[ name ].apply( deferral, arguments );
-				return self;
+				var result = deferral[ name ].apply( deferral, arguments );
+				return result === deferral ? self : result;
 			};
 		})( Promise.methods[i] );
 	}
+	this.serves = function ( master ) {
+		return master === deferral;
+	};
 }
 extend( true, Promise, {
 	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),

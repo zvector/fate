@@ -1,7 +1,7 @@
 /**
- * Binds together the fate of all the deferrals submitted as arguments, returning a promise that will be
- * affirmed only after all the individual deferrals are affirmed, or will be negated immediately after
- * any one deferral is negated.
+ * Binds together the fate of all the deferrals submitted as arguments. Returns a promise which will be
+ * either affirmed after each individual deferral is affirmed, or negated immediately after any one
+ * deferral is negated.
  */
 function when ( arg /*...*/ ) {
 	var	args = flatten( slice.call( arguments ) ),

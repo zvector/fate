@@ -438,11 +438,14 @@ function Promise ( deferral ) {
 	while ( i-- ) {
 		( function ( name ) {
 			self[ name ] = function () {
-				deferral[ name ].apply( deferral, arguments );
-				return self;
+				var result = deferral[ name ].apply( deferral, arguments );
+				return result === deferral ? self : result;
 			};
 		})( Promise.methods[i] );
 	}
+	this.serves = function ( master ) {
+		return master === deferral;
+	};
 }
 extend( true, Promise, {
 	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),
@@ -459,9 +462,9 @@ extend( true, Promise, {
 
 
 /**
- * Binds together the fate of all the deferrals submitted as arguments, returning a promise that will be
- * affirmed only after all the individual deferrals are affirmed, or will be negated immediately after
- * any one deferral is negated.
+ * Binds together the fate of all the deferrals submitted as arguments. Returns a promise which will be
+ * either affirmed after each individual deferral is affirmed, or negated immediately after any one
+ * deferral is negated.
  */
 function when ( arg /*...*/ ) {
 	var	args = flatten( slice.call( arguments ) ),
@@ -506,11 +509,16 @@ function OperationQueue ( operations ) {
 		if ( isFunction( this ) ) {
 			result = this.apply( self, arguments );
 			if ( Promise.resembles( result ) ) {
-				result.then( function () {
-					args = slice.call( arguments );
-					pausePending && ( running = pausePending = false );
-					running && continuation.apply( queue.shift(), arguments );
-				});
+				result.then(
+					function () {
+						args = slice.call( arguments );
+						pausePending && ( running = pausePending = false );
+						running && continuation.apply( queue.shift(), args );
+					},
+					function () {
+						deferral.negate( self, args );
+					}
+				);
 			} else {
 				args = slice.call( arguments );
 				running && continuation.apply( queue.shift(), isArray( result ) ? result : [ result ] );
@@ -552,6 +560,7 @@ function OperationQueue ( operations ) {
 		promise: function () {
 			return deferral.promise();
 		},
+		inter: function () { return slice.call( args ); },
 		start: start,
 		pause: noop,
 		resume: noop,
