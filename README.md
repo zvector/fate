@@ -20,10 +20,10 @@ Using deferrals facilitates the use of **continuations** to create an `Operation
 
 Functions supplied as operations may be synchronous, in which case they must return the array of arguments to be relayed on to the next operation; or they may be asynchronous, returning a `Promise` to a `Deferral` that will be `affirm`ed at some point in the future.
 
-#### Caveats with synchronous and asynchronous operations
+#### Considerations of synchronous versus asynchronous
 
-Synchronous operations can be processed more quickly since they continue immediately, however they also incur an ever increasing memory overhead as they are strung together, since immediate continuations will accumulate on the stack, and JavaScript does not employ tail-call optimization. Also, because contiguous synchronous operations are processed within a single turn of the event loop, too long a sequence may result in noticeable interruptions to user experience.
+A sequence of synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single *frame*, or turn of the event loop, too long a sequence may result in noticeable interruptions to user experience.
 
-Asynchronous operations advance the queue no faster than the runtime's event loop, but this has the advantage of not polluting the stack and not prolonging a single turn of the event loop.
+Asynchronous operations advance the queue no faster than one operation per frame, but this has the advantages of not polluting the stack and not prolonging the duration of the frame in which it's executing.
 
 Synchronous and asynchronous operations can be mixed together arbitrarily to provide granular control over this balance of immediacy versus resource consumption.
