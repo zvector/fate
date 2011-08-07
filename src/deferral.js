@@ -57,11 +57,10 @@ extend( true, Deferral, {
 				var	context = callbacks.context || deferral,
 					args = callbacks.args;
 				try {
-					// isFunction( fn ) ? fn.apply( callbacks.context || deferral, callbacks.args ) :
 					isFunction( fn ) ? fn.apply( context, args ) :
 					isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( fn );
 				} catch ( nothing ) {}
-				return deferral; // !!fn;
+				return deferral;
 			};
 		},
 		
@@ -166,8 +165,8 @@ extend( true, Deferral, {
 							var result = fn.apply( this, arguments ),
 								promise = result && Promise.resembles( result ) ?
 									result.promise() : undefined;
-							promise ? // result && isFunction( result.promise ) ?
-								promise.then( next.affirm, next.negate ) : // result.promise().then( next.affirm, next.negate ) :
+							promise ?
+								promise.then( next.affirm, next.negate ) :
 								next[ resolver ]( this === self ? next : this, [ result ] );
 						} :
 						next[ resolver ]
