@@ -1,7 +1,7 @@
 function OperationQueue ( operations ) {
 	var	self = this,
 		queue = slice.call( operations ),
-		deferral = new Deferral,
+		deferral,
 		running = false,
 		pausePending = false,
 		args;
@@ -26,30 +26,36 @@ function OperationQueue ( operations ) {
 				running && continuation.apply( queue.shift(), isArray( result ) ? result : [ result ] );
 			}
 		} else {
+			self.stop();
 			deferral.affirm( self, arguments );
 		}
 	}
 	function start () {
-		running = true, this.start = noop, this.pause = pause, this.resume = resume, this.stop = stop;
+		deferral = new Deferral;
+		running = true;
+		this.start = noop, this.pause = pause, this.resume = resume, this.stop = stop;
 		continuation.apply( queue.shift(), args = slice.call( arguments ) );
 		return this;
 	}
 	function pause () {
-		pausePending = true, this.resume = resume, this.pause = noop;
+		pausePending = true;
+		this.resume = resume, this.pause = noop;
 		return this;
 	}
 	function resume () {
-		running = true, pausePending = false, this.pause = pause, this.resume = noop;
+		running = true, pausePending = false;
+		this.pause = pause, this.resume = noop;
 		continuation.apply( queue.shift(), args );
 		return this;
 	}
 	function stop () {
-		running = pausePending = false, this.pause = this.resume = this.stop = noop;
+		running = pausePending = false;
+		this.start = start, this.pause = this.resume = this.stop = noop;
 		return this;
 	}
 	
 	forEach( 'push pop shift unshift reverse splice'.split(' '), function ( method ) {
-		this[ method ] = function () {
+		self[ method ] = function () {
 			return Array.prototype[ method ].apply( queue, arguments );
 		};
 	});
@@ -70,6 +76,6 @@ function OperationQueue ( operations ) {
 		isRunning: ( function () {
 			function f () { return running; }
 			return ( f.valueOf = f );
-		})
+		})()
 	});
 }

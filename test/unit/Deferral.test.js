@@ -239,8 +239,34 @@ asyncTest( "OperationQueue", function () {
 		.promise()
 			.then( function ( x, y, z ) {
 				equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
+				
+				// We could now reuse the OpQ ...
+				setTimeout( function () {
+					opQueue.push(
+						function () {
+							var args = Array.prototype.slice.call( arguments );
+							$.each( args, function ( i, value ) { args[i] += 1; } );
+							equal( args.join(), '1,5,3', "first op of second run: + [1,1,1]" );
+							return args;
+						},
+						function ( x, y, z ) {
+							var result = [ x*x, y*y, z*z ];
+							equal( result.join(), '1,25,9', "second op: Math.square" );
+							return result;
+						}
+					);
+					opQueue
+						.start( x, y, z ) // [0, 4, 2]
+						.promise()
+							.then( function ( x, y, z ) {
+								equal( Array.prototype.slice.call( arguments ).join(), '1,25,9', "Complete, again" );
+							})
+							.always( start )
+					;
+				}, 0 );
 			})
-			.always( start );
+			// .always( start )
+		;
 	
 	/*
 	 * But before we set it completely loose, let's suspend the queue after it's 100 ms along; this

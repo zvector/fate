@@ -61,7 +61,7 @@ extend( true, Deferral, {
 					isFunction( fn ) ? fn.apply( context, args ) :
 					isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( fn );
 				} catch ( nothing ) {}
-				return !!fn;
+				return deferral; // !!fn;
 			};
 		},
 		
@@ -103,12 +103,11 @@ extend( true, Deferral, {
 					 * `no` will be either called immediately or discarded.
 					 */
 					this[as] = Deferral.privileged.invoke( this, callbacks );
-					this[not] = this.resolve = noop;
+					this[not] = this.resolve = getThis;
 					
 					callbacks.context = context, callbacks.args = args;
 					Deferral.privileged.invokeAll( this, callbacks )( callbacks[as] );
 					
-					delete callbacks.context, delete callbacks.args;
 					delete callbacks[as], delete callbacks[not];
 					
 					return this;
@@ -119,17 +118,17 @@ extend( true, Deferral, {
 	prototype: {
 		/** Determines whether the deferral has been affirmed. */
 		isAffirmed: function () {
-			return this.no === noop ? true : this.yes === noop ? false : undefined;
+			return this.no === getThis ? true : this.yes === getThis ? false : undefined;
 		},
 		
 		/** Determines whether the deferral has been negated. */
 		isNegated: function () {
-			return this.yes === noop ? true : this.no === noop ? false : undefined;
+			return this.yes === getThis ? true : this.no === getThis ? false : undefined;
 		},
 		
 		/** Determines whether the deferral has been either affirmed or negated. */
 		isResolved: function () {
-			return this.yes === noop || this.no === noop;
+			return this.yes === getThis || this.no === getThis;
 		},
 		
 		/** Unified interface for adding `yes` and `no` callbacks. */

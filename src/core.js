@@ -27,6 +27,9 @@ __native.fn = {
  */
 function noop () {}
 
+/** */
+function getThis () { return this; }
+
 /**
  * Safer alternative to `typeof`
  */
