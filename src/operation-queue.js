@@ -1,10 +1,11 @@
 function OperationQueue ( operations ) {
 	var	self = this,
 		queue = slice.call( operations ),
+		operation,
+		args,
 		deferral,
 		running = false,
-		pausePending = false,
-		args;
+		pausePending = false;
 	
 	function continuation () {
 		var result;
@@ -15,7 +16,7 @@ function OperationQueue ( operations ) {
 					function () {
 						args = slice.call( arguments );
 						pausePending && ( running = pausePending = false );
-						running && continuation.apply( queue.shift(), args );
+						running && continuation.apply( operation = queue.shift(), args );
 					},
 					function () {
 						deferral.negate( self, args );
@@ -23,34 +24,33 @@ function OperationQueue ( operations ) {
 				);
 			} else {
 				args = slice.call( arguments );
-				running && continuation.apply( queue.shift(), isArray( result ) ? result : [ result ] );
+				running && continuation.apply( operation = queue.shift(), isArray( result ) ? result : [ result ] );
 			}
 		} else {
-			self.stop();
-			deferral.affirm( self, arguments );
+			deferral.affirm( self.stop(), arguments );
 		}
 	}
 	function start () {
 		deferral = new Deferral;
 		running = true;
-		this.start = noop, this.pause = pause, this.resume = resume, this.stop = stop;
-		continuation.apply( queue.shift(), args = slice.call( arguments ) );
+		this.start = getThis, this.pause = pause, this.resume = resume, this.stop = stop;
+		continuation.apply( operation = queue.shift(), args = slice.call( arguments ) );
 		return this;
 	}
 	function pause () {
 		pausePending = true;
-		this.resume = resume, this.pause = noop;
+		this.resume = resume, this.pause = getThis;
 		return this;
 	}
 	function resume () {
 		running = true, pausePending = false;
-		this.pause = pause, this.resume = noop;
-		continuation.apply( queue.shift(), args );
+		this.pause = pause, this.resume = getThis;
+		continuation.apply( operation = queue.shift(), args );
 		return this;
 	}
 	function stop () {
 		running = pausePending = false;
-		this.start = start, this.pause = this.resume = this.stop = noop;
+		this.start = start, this.pause = this.resume = this.stop = getThis;
 		return this;
 	}
 	
@@ -68,11 +68,12 @@ function OperationQueue ( operations ) {
 		promise: function () {
 			return deferral.promise();
 		},
-		inter: function () { return slice.call( args ); },
+		operation: function () { return operation; },
+		args: function () { return slice.call( args ); },
 		start: start,
-		pause: noop,
-		resume: noop,
-		stop: noop,
+		pause: getThis,
+		resume: getThis,
+		stop: getThis,
 		isRunning: ( function () {
 			function f () { return running; }
 			return ( f.valueOf = f );

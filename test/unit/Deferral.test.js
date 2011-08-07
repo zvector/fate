@@ -202,9 +202,9 @@ asyncTest( "OperationQueue", function () {
 			return args;
 		},
 		
-		// Without tail-call optimization, synchronous operations pressurize the stack. (Set a breakpoint
-		// inside each of the last few operations and notice the references to `continuation` accumulating
-		// in the stack.) So let's go back to using async operations, which allows the event loop to turn,
+		// Since JS has no tail-call optimization, synchronous operations consume stack space. (Set a
+		// breakpoint inside each of the last few operations and notice the references to `continuation`
+		// accumulating.) So let's go back to using async operations, which allows the event loop to turn,
 		// thereby relieving the pressure.
 		function () {
 			var	args = Array.prototype.slice.call( arguments ),
@@ -240,7 +240,7 @@ asyncTest( "OperationQueue", function () {
 			.then( function ( x, y, z ) {
 				equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
 				
-				// We could now reuse the OpQ ...
+				// The queue has been emptied and stopped, but on the next frame we can make use of it again
 				setTimeout( function () {
 					opQueue.push(
 						function () {
@@ -255,18 +255,18 @@ asyncTest( "OperationQueue", function () {
 							return result;
 						}
 					);
+					ok( opQueue.length == 2, "Second run prepared" );
 					opQueue
 						.start( x, y, z ) // [0, 4, 2]
 						.promise()
 							.then( function ( x, y, z ) {
-								equal( Array.prototype.slice.call( arguments ).join(), '1,25,9', "Complete, again" );
+								equal( Array.prototype.slice.call( arguments ).join(), '1,25,9', "Second run complete" );
 							})
 							.always( start )
 					;
 				}, 0 );
 			})
-			// .always( start )
-		;
+	;
 	
 	/*
 	 * But before we set it completely loose, let's suspend the queue after it's 100 ms along; this
@@ -275,10 +275,10 @@ asyncTest( "OperationQueue", function () {
 	 */
 	setTimeout( function () {
 		opQueue.pause();
-		equal( opQueue.inter().join(), '2,8,-4', "Intermediate value when pause command is issued" );
+		equal( opQueue.args().join(), '2,8,-4', "Intermediate value when pause command is issued" );
 	}, 100 );
 	setTimeout( function () {
-		equal( opQueue.inter().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
+		equal( opQueue.args().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
 		opQueue.resume();
 	}, 300 );
 	
