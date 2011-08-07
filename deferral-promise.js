@@ -198,7 +198,7 @@ function flatten ( array ) {
 function keys ( obj ) {
 	var key, result = [];
 	for ( key in obj ) if ( hasOwn.call( obj, key ) ) {
-		result.push( i );
+		result.push( key );
 	}
 	return result;
 }
@@ -240,53 +240,42 @@ function nullHash( keys ) { return nullify( invert( keys ) ); }
 
 
 /**
- * A deferral is a stateful callback device used to manage the eventualities of asynchronous operations.
- * 
- * In a deferral's initial 'unresolved' state, callbacks may be registered to either of two queues, named
- * 'yes' or 'no'. The functions in one of these queues will be executed later, pending a transition of
- * the deferral to one of two 'resolved' substates: 'affirmed' or 'negated'; this resolution transition
- * is effected by the deferral's `affirm` and `negate` methods, respectively. Both 'resolved' substates
- * are final, in that once a deferral is 'affirmed' or 'negated', it cannot be transitioned back to any
- * other state; furthermore, subsequent callbacks registered to the 'yes' or 'no' queues will be either
- * executed immediately or ignored, as appropriate.
- * 
- * At any time a deferral can issue a Promise. This is a subinterface bound to the deferral that allows
- * holders of the promise to make additions to its callback queues (`yes`, `no`, `then`, `always`), as
- * well as to query the associated deferral's state (`isResolved`, `isAffirmed`, `isNegated`), but not to
- * directly alter the deferral's state, as is done with the deferral's methods `affirm` and `negate`.
+`Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
+
+@param Array map : Hashmap whose entries represent the set of resolved substates for the deferral;
+		keys specify a name for the substate's callback queue, and values specify a name for the
+		resolution method used to transition to that substate and execute its associated callbacks.
+@param Function fn : A function that will be executed immediately in the context of the deferral.
  */
-function Deferral ( fn ) {
-	var	callbacks, bind, resolve;
+function Deferral ( map, fn ) {
+	var	self = this,
+		callbacks,
+		resolution,
+		register, resolve;
+	
+	function setResolution ( name ) { return name in map && ( resolution = name ); }
+	
+	map === undefined && ( map = { yes: 'affirm', no: 'negate' } );
 	
 	( this.empty = function () {
-		callbacks = { yes: [], no: [] };
+		callbacks = {};
+		each( map, function ( key ) { callbacks[ key ] = []; });
 		return this;
 	})();
+	this.map = function () { return extend( {}, map ); };
+	this.resolution = function () { return resolution; };
 	
-	bind = Deferral.privileged.bind( callbacks );
-	resolve = Deferral.privileged.resolve( callbacks );
-	extend( this, {
-		/** Adds a function to the `yes` queue, to be executed pending `affirm()`. */
-		yes: bind( 'yes' ),
-		
-		/** Adds a function to the `no` queue, to be executed pending `negate()`. */
-		no: bind( 'no' ),
-		
-		/**
-		 * Resolves the deferral by transitioning its state to 'affirmed' and `apply`ing the functions in
-		 * its `yes` callback queue.
-		 */
-		affirm: resolve( 'yes' ),
-		
-		/**
-		 * Resolves the deferral by transitioning its state to 'negated' and `apply`ing the functions in
-		 * its `no` callback queue.
-		 */
-		negate: resolve( 'no' )
+	register = Deferral.privileged.register( callbacks );
+	resolve = Deferral.privileged.resolve( callbacks, setResolution );
+	
+	each( map, function ( name, resolver ) {
+		self[ name ] = register( name );
+		self[ resolver ] = resolve( name );
 	});
-	bind = resolve = null;
 	
-	fn && isFunction( fn ) && fn.apply( this, slice.call( arguments, 1 ) );
+	register = resolve = null;
+	
+	fn && isFunction( fn ) && fn.apply( this, slice.call( arguments, 2 ) );
 }
 extend( true, Deferral, {
 	anti: { yes: 'no', no: 'yes' },
@@ -298,11 +287,10 @@ extend( true, Deferral, {
 				var	context = callbacks.context || deferral,
 					args = callbacks.args;
 				try {
-					// isFunction( fn ) ? fn.apply( callbacks.context || deferral, callbacks.args ) :
 					isFunction( fn ) ? fn.apply( context, args ) :
 					isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( fn );
 				} catch ( nothing ) {}
-				return deferral; // !!fn;
+				return deferral;
 			};
 		},
 		
@@ -319,7 +307,7 @@ extend( true, Deferral, {
 		 * Produces a function that pushes callbacks onto one of the callback queues.
 		 * @see yes, no
 		 */
-		bind: function ( callbacks ) {
+		register: function ( callbacks ) {
 			return function ( as ) { // `as` = { 'yes' | 'no' }
 				return function ( fn ) {
 					isFunction( fn ) && callbacks[as].push( fn ) || isArray( fn ) && forEach( fn, this[as] );
@@ -332,24 +320,31 @@ extend( true, Deferral, {
 		 * Produces a function that resolves the deferral as either affirmed or negated.
 		 * @see affirm, negate
 		 */
-		resolve: function ( callbacks ) {
-			// param `as` = { 'yes' | 'no' }
+		resolve: function ( callbacks, setResolution ) {
 			return function ( as ) {
-				var not = Deferral.anti[as];
 				return function ( context, args ) {
+					var	self = this,
+						name,
+						map = this.map();
+					delete map[as];
+					
+					setResolution( as );
 					/*
-					 * The deferral has transitioned to a 'resolved' substate ( 'affirmed' | 'negated' ),
-					 * so the behavior of its `yes` and `no` methods are redefined to reflect this;
-					 * henceforth, rather than being queued for later, functions passed to `yes` and
-					 * `no` will be either called immediately or discarded.
+					 * The deferral has transitioned to a 'resolved' substate ( e.g. affirmed | negated ),
+					 * so the behavior of its callback registration methods are redefined to reflect this.
+					 * Henceforth, functions passed to the method named `as` will be called immediately
+					 * with the same `context` and `args` supplied here, while those passed to any of the
+					 * other registration methods will be ignored.
 					 */
 					this[as] = Deferral.privileged.invoke( this, callbacks );
-					this[not] = this.resolve = getThis;
+					this.resolve = getThis;
+					for ( name in map ) { this[ name ] = getThis; }
 					
 					callbacks.context = context, callbacks.args = args;
 					Deferral.privileged.invokeAll( this, callbacks )( callbacks[as] );
 					
-					delete callbacks[as], delete callbacks[not];
+					delete callbacks[as];
+					for ( name in map ) { delete callbacks[ name ]; }
 					
 					return this;
 				};
@@ -372,9 +367,11 @@ extend( true, Deferral, {
 			return this.yes === getThis || this.no === getThis;
 		},
 		
-		/** Unified interface for adding `yes` and `no` callbacks. */
-		then: function ( yes, no ) {
-			return this.yes( yes ).no( no );
+		/** Unified interface for registering callbacks. */
+		then: function () {
+			var map = keys( this.map() ), i = 0, l = Math.min( map.length, arguments.length );
+			while ( i < l ) { this[ map[i] ]( arguments[i++] ); }
+			return this;
 		},
 		
 		/**
@@ -382,8 +379,11 @@ extend( true, Deferral, {
 		 * whether it is affirmed or not.
 		 */
 		always: function () {
-			var fns = slice.call( arguments );
-			return this.yes( fns ).no( fns );
+			var name, map = this.map(), fns = slice.call( arguments );
+			for ( name in map ) { this[ name ]( fns ); }
+			return this;
+			// var fns = slice.call( arguments );
+			// return this.yes( fns ).no( fns );
 		},
 		
 		/**
@@ -407,8 +407,8 @@ extend( true, Deferral, {
 							var result = fn.apply( this, arguments ),
 								promise = result && Promise.resembles( result ) ?
 									result.promise() : undefined;
-							promise ? // result && isFunction( result.promise ) ?
-								promise.then( next.affirm, next.negate ) : // result.promise().then( next.affirm, next.negate ) :
+							promise ?
+								promise.then( next.affirm, next.negate ) :
 								next[ resolver ]( this === self ? next : this, [ result ] );
 						} :
 						next[ resolver ]
@@ -429,10 +429,9 @@ extend( true, Deferral, {
 
 
 /**
- * `Promise` is a limited interface into a `Deferral` instance. It exposes a subset of the deferral's
- * methods, such that consumers of the promise may use it to add callbacks to the represented deferral,
- * and to query the deferral's state, but are prevented from affecting its state as would be done with
- * the deferral's `affirm` and `negate` methods.
+ * `Promise` is a limited interface into a `Deferral` instance, consisting of a particular subset of
+ * the deferral's methods. Consumers of the promise are prevented from affecting the represented
+ * deferral's resolution state, but they can use it to query its state and add callbacks.
  */
 function Promise ( deferral ) {
 	var self = this,
@@ -451,6 +450,7 @@ function Promise ( deferral ) {
 }
 extend( true, Promise, {
 	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),
+	// methods: 'then always pipe promise'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.
 	resembles: function ( obj ) {
@@ -497,6 +497,13 @@ function when ( arg /*...*/ ) {
 	return deferral.promise();
 }
 
+
+function when2 ( deferrals, resolution ) {
+	var	length = deferrals.length,
+		remaining = length,
+		i = 0,
+		deferral;
+}
 
 function OperationQueue ( operations ) {
 	var	self = this,

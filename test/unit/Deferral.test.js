@@ -2,6 +2,34 @@
 
 module( "Deferral" );
 
+asyncTest( "then()", function () {
+	var result,
+		map = { yes: 'affirm', no: 'negate', maybe: 'punt', unanswerable: 'reject' },
+		d1 = new Deferral( map ),
+		d2 = new Deferral( map );
+	
+	function setResult ( value ) {
+		return function () { result = value; };
+	}
+	
+	d1
+		.then( setResult( true ), setResult( false ), setResult( null ), setResult( undefined ) )
+		.always( function () {
+			ok( result === null, "punted, result === null" );
+			equal( d1.resolution(), 'maybe', "Resolved to 'maybe'" );
+		});
+	d2
+		.then( setResult( true ), setResult( false ), setResult( null ), setResult( undefined ) )
+		.always( function () {
+			ok( result === undefined, "rejected, result === undefined" );
+			equal( d2.resolution(), 'unanswerable', "Resolved to 'unanswerable'" );
+		});
+	
+	setTimeout( function () { d1.punt(); }, 50 );
+	setTimeout( function () { d2.reject(); }, 75 );
+	setTimeout( start, 100 );
+});
+
 asyncTest( "promise()", function () {
 	var d = new Deferral,
 		p1 = d.promise(),

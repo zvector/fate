@@ -31,3 +31,11 @@ function when ( arg /*...*/ ) {
 	
 	return deferral.promise();
 }
+
+
+function when2 ( deferrals, resolution ) {
+	var	length = deferrals.length,
+		remaining = length,
+		i = 0,
+		deferral;
+}
