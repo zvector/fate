@@ -2,6 +2,18 @@
 
 module( "Deferral" );
 
+asyncTest( "Deferral", function () {
+	var d = new Deferral( function ( a, b, c ) {
+		this.then( function ( x, y, z ) {
+				ok( a===x && b===y && c===z );
+				ok( a===1 && b===2 && c===3 );
+			})
+			.affirm( d, [ a, b, c ] );
+	}, [ 1, 2, 3 ] );
+	ok( d.did('affirm') );
+	start();
+});
+
 asyncTest( "then()", function () {
 	var result,
 		map = { yes: 'affirm', no: 'negate', maybe: 'punt', unanswerable: 'reject' },
@@ -39,8 +51,9 @@ asyncTest( "promise()", function () {
 	ok( Promise.resembles( { then: function () {}, promise: function () {} } ), "Promise.resembles generic promise-like object" );
 	ok( Promise.resembles( jQuery.Deferred() ), "Promise.resembles jQuery.Deferred()" );
 	ok( Promise.resembles( jQuery.Deferred().promise() ), "Promise.resembles jQuery.Deferred().promise()" );
-	ok( !p1.isResolved() && !p2.isResolved(), "initially unresolved" );
-	ok( ( d.affirm(), p1.isResolved() && p2.isAffirmed() && !p1.isNegated() ), "deferral.affirm reflected in promises" )
+	ok( !p1.resolved() && !p2.resolved(), "initially unresolved" );
+	d.affirm();
+	ok( p1.resolved() && p2.did('affirm') && p2.resolved('yes') && !p1.resolved('no') && !p1.did('negate'), "deferral.affirm reflected in promises" );
 	start();
 });
 

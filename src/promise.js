@@ -5,21 +5,22 @@
  */
 function Promise ( deferral ) {
 	var self = this,
-		i = Promise.methods.length;
+		list = Promise.methods.concat( deferral.queueNames() ),
+		i = list.length;
 	while ( i-- ) {
 		( function ( name ) {
 			self[ name ] = function () {
 				var result = deferral[ name ].apply( deferral, arguments );
 				return result === deferral ? self : result;
 			};
-		})( Promise.methods[i] );
+		})( list[i] );
 	}
 	this.serves = function ( master ) {
 		return master === deferral;
 	};
 }
 extend( true, Promise, {
-	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),
+	methods: 'then always pipe promise did resolved resolution map queueNames'.split(' '),
 	// methods: 'then always pipe promise'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.

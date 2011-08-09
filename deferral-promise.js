@@ -247,7 +247,7 @@ function nullHash( keys ) { return nullify( invert( keys ) ); }
 		resolution method used to transition to that substate and execute its associated callbacks.
 @param Function fn : A function that will be executed immediately in the context of the deferral.
  */
-function Deferral ( map, fn ) {
+function Deferral ( map, fn, args ) {
 	var	self = this,
 		callbacks,
 		resolution,
@@ -255,6 +255,7 @@ function Deferral ( map, fn ) {
 	
 	function setResolution ( name ) { return name in map && ( resolution = name ); }
 	
+	isFunction( map ) && ( args = fn, fn = map, map = undefined );
 	map === undefined && ( map = { yes: 'affirm', no: 'negate' } );
 	
 	( this.empty = function () {
@@ -263,7 +264,10 @@ function Deferral ( map, fn ) {
 		return this;
 	})();
 	this.map = function () { return extend( {}, map ); };
+	this.queueNames = function () { return keys( map ); };
 	this.resolution = function () { return resolution; };
+	this.resolved = function ( to ) { return resolution ? ( !to || to === resolution ) : undefined; };
+	this.did = function ( resolver ) { return resolver ? resolution && resolver === map[ resolution ] : !!resolution };
 	
 	register = Deferral.privileged.register( callbacks );
 	resolve = Deferral.privileged.resolve( callbacks, setResolution );
@@ -275,7 +279,7 @@ function Deferral ( map, fn ) {
 	
 	register = resolve = null;
 	
-	fn && isFunction( fn ) && fn.apply( this, slice.call( arguments, 2 ) );
+	fn && isFunction( fn ) && fn.apply( this, args );
 }
 extend( true, Deferral, {
 	anti: { yes: 'no', no: 'yes' },
@@ -352,22 +356,11 @@ extend( true, Deferral, {
 		}
 	},
 	prototype: {
-		/** Determines whether the deferral has been affirmed. */
-		isAffirmed: function () {
-			return this.no === getThis ? true : this.yes === getThis ? false : undefined;
-		},
-		
-		/** Determines whether the deferral has been negated. */
-		isNegated: function () {
-			return this.yes === getThis ? true : this.no === getThis ? false : undefined;
-		},
-		
-		/** Determines whether the deferral has been either affirmed or negated. */
-		isResolved: function () {
-			return this.yes === getThis || this.no === getThis;
-		},
-		
-		/** Unified interface for registering callbacks. */
+		/**
+		 * Unified interface for registering callbacks. Multiple arguments are registered to callback
+		 * queues in respective order; e.g. `( new Deferral() ).then( fn1, fn2 )` registers `fn1` to the
+		 * first queue (`yes`) and `fn2` to the second queue (`no`).
+		 */
 		then: function () {
 			var map = keys( this.map() ), i = 0, l = Math.min( map.length, arguments.length );
 			while ( i < l ) { this[ map[i] ]( arguments[i++] ); }
@@ -382,8 +375,6 @@ extend( true, Deferral, {
 			var name, map = this.map(), fns = slice.call( arguments );
 			for ( name in map ) { this[ name ]( fns ); }
 			return this;
-			// var fns = slice.call( arguments );
-			// return this.yes( fns ).no( fns );
 		},
 		
 		/**
@@ -435,21 +426,22 @@ extend( true, Deferral, {
  */
 function Promise ( deferral ) {
 	var self = this,
-		i = Promise.methods.length;
+		list = Promise.methods.concat( deferral.queueNames() ),
+		i = list.length;
 	while ( i-- ) {
 		( function ( name ) {
 			self[ name ] = function () {
 				var result = deferral[ name ].apply( deferral, arguments );
 				return result === deferral ? self : result;
 			};
-		})( Promise.methods[i] );
+		})( list[i] );
 	}
 	this.serves = function ( master ) {
 		return master === deferral;
 	};
 }
 extend( true, Promise, {
-	methods: 'isAffirmed isNegated isResolved yes no then always pipe promise'.split(' '),
+	methods: 'then always pipe promise did resolved resolution map queueNames'.split(' '),
 	// methods: 'then always pipe promise'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.
