@@ -1,4 +1,8 @@
-function OperationQueue ( operations ) {
+function Queue ( operations ) {
+	if ( !( this instanceof Queue ) ) {
+		return new Queue( operations );
+	}
+	
 	var	self = this,
 		queue = slice.call( operations ),
 		operation,

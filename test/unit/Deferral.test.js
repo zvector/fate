@@ -195,9 +195,9 @@ asyncTest( "when(), early negation", function () {
 
 
 /*
- * This test runs a set of arguments (an Array vector [ 1, 7, -5 ]) through an `OperationQueue`.
+ * This test runs a set of arguments (an Array vector [ 1, 7, -5 ]) through a `Queue`.
  * Each operation in the sequence will process the argument set and return a new vector, which is
- * then provided to the next operation using continuation passing style. The `OperationQueue`
+ * then provided to the next operation using continuation passing style. The `Queue`
  * object exposes a `promise` method that returns a `Promise` to an internal `Deferral`, which
  * will be resolved once all the operations have finished and the queue is empty.
  * 
@@ -217,14 +217,14 @@ asyncTest( "when(), early negation", function () {
  * Synchronous and asynchronous operations can be mixed together arbitrarily to provide built-in
  * granular control over this balance of immediacy versus stack space.
  */
-asyncTest( "OperationQueue", function () {
+asyncTest( "Queue", function () {
 	function async ( op, delay, test ) {
 		return function () {
 			var args = op.apply( this, arguments ),
 				deferral = new Deferral;
 			setTimeout( function () {
 				equal( args.join(), test );
-				deferral.affirm( opQueue, args );
+				deferral.affirm( queue, args );
 			}, delay );
 			return deferral.promise();
 		};
@@ -236,7 +236,7 @@ asyncTest( "OperationQueue", function () {
 			return args;
 		};
 	}
-	var opQueue = new OperationQueue([
+	var queue = new Queue([
 		// First, some async functions, which employ a Deferral and return a Promise
 		async( function ( x, y, z ) { return [ x+1, y+1, z+1 ]; }, 80, '2,8,-4' ),
 		async( function ( x, y, z ) { return [ x/2, y/2, z/2 ]; }, 200, '1,4,-2' ),
@@ -259,7 +259,7 @@ asyncTest( "OperationQueue", function () {
 	 * With the operations in place, we can now simply feed the queue a set of initial values, and await
 	 * its final result.
 	 */
-	opQueue
+	queue
 		.start( 1, 7, -5 )
 		.promise()
 			.then( function ( x, y, z ) {
@@ -267,7 +267,7 @@ asyncTest( "OperationQueue", function () {
 				
 				// The queue has been emptied and stopped, but on the next frame we can make use of it again
 				setTimeout( function () {
-					opQueue.push(
+					queue.push(
 						function () {
 							var args = Array.prototype.slice.call( arguments );
 							$.each( args, function ( i, value ) { args[i] += 1; } );
@@ -280,8 +280,8 @@ asyncTest( "OperationQueue", function () {
 							return result;
 						}
 					);
-					ok( opQueue.length == 2, "Second run prepared" );
-					opQueue
+					ok( queue.length == 2, "Second run prepared" );
+					queue
 						.start( x, y, z ) // [0, 4, 2]
 						.promise()
 							.then( function ( x, y, z ) {
@@ -299,12 +299,12 @@ asyncTest( "OperationQueue", function () {
 	 * 20 ms, and then be ready to resume with the third operation when we call `resume` 180 ms later.
 	 */
 	setTimeout( function () {
-		opQueue.pause();
-		equal( opQueue.args().join(), '2,8,-4', "Intermediate value when pause command is issued" );
+		queue.pause();
+		equal( queue.args().join(), '2,8,-4', "Intermediate value when pause command is issued" );
 	}, 100 );
 	setTimeout( function () {
-		equal( opQueue.args().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
-		opQueue.resume();
+		equal( queue.args().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
+		queue.resume();
 	}, 300 );
 });
 
