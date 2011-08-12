@@ -181,6 +181,7 @@ function forEach ( obj, fn, context ) {
  * Extracts elements of nested arrays
  */
 function flatten ( array ) {
+	isArray( array ) || ( array = [ array ] );
 	var	i = 0,
 		l = array.length,
 		item,
@@ -248,27 +249,47 @@ function nullHash( keys ) { return nullify( invert( keys ) ); }
 @param Function fn : A function that will be executed immediately in the context of the deferral.
  */
 function Deferral ( map, fn, args ) {
+	if ( !( this instanceof Deferral ) ) {
+		return new Deferral( map, fn, args );
+	}
+	
 	var	self = this,
 		callbacks,
 		resolution,
-		register, resolve;
+		register, resolve,
+		promise;
 	
 	function setResolution ( name ) { return name in map && ( resolution = name ); }
 	
 	isFunction( map ) && ( args = fn, fn = map, map = undefined );
 	map === undefined && ( map = { yes: 'affirm', no: 'negate' } );
 	
-	( this.empty = function () {
-		callbacks = {};
-		each( map, function ( key ) { callbacks[ key ] = []; });
-		return this;
-	})();
-	this.map = function () { return extend( {}, map ); };
-	this.queueNames = function () { return keys( map ); };
-	this.resolution = function () { return resolution; };
-	this.resolved = function ( to ) { return resolution ? ( !to || to === resolution ) : undefined; };
-	this.did = function ( resolver ) { return resolver ? resolution && resolver === map[ resolution ] : !!resolution };
+	extend( this, {
+		empty: function () {
+			callbacks = {};
+			each( map, function ( key ) { callbacks[ key ] = []; });
+			return this;
+		},
+		map: function () { return extend( {}, map ); },
+		queueNames: function () { return keys( map ); },
+		resolution: function ( test ) {
+			return test ? test === resolution || ( test in map ? false : undefined ) : resolution;
+		},
+		did: function ( resolver ) {
+			return resolver ? !!resolution && resolver === map[ resolution ] : !!resolution;
+		},
+		promise: function () {
+			return promise || ( promise = new Promise( this ) );
+		},
+		as: function ( context ) {
+			callbacks.context = context;
+			return this;
+		}
+	});
+	this.queueNames.toString = function () { return self.queueNames().join(' ') };
+	this.resolution.toString = this.resolution;
 	
+	this.empty();
 	register = Deferral.privileged.register( callbacks );
 	resolve = Deferral.privileged.resolve( callbacks, setResolution );
 	
@@ -282,8 +303,6 @@ function Deferral ( map, fn, args ) {
 	fn && isFunction( fn ) && fn.apply( this, args );
 }
 extend( true, Deferral, {
-	anti: { yes: 'no', no: 'yes' },
-	resolver: { yes: 'affirm', no: 'negate' },
 	privileged: {
 		/** Produces a function that will become the deferral's `yes` or `no` method once it has been resolved. */
 		invoke: function ( deferral, callbacks ) {
@@ -321,7 +340,7 @@ extend( true, Deferral, {
 		},
 		
 		/**
-		 * Produces a function that resolves the deferral as either affirmed or negated.
+		 * Produces a function that resolves the deferral, transitioning it to one of its resolved substates.
 		 * @see affirm, negate
 		 */
 		resolve: function ( callbacks, setResolution ) {
@@ -330,7 +349,6 @@ extend( true, Deferral, {
 					var	self = this,
 						name,
 						map = this.map();
-					delete map[as];
 					
 					setResolution( as );
 					/*
@@ -341,8 +359,11 @@ extend( true, Deferral, {
 					 * other registration methods will be ignored.
 					 */
 					this[as] = Deferral.privileged.invoke( this, callbacks );
-					this.resolve = getThis;
-					for ( name in map ) { this[ name ] = getThis; }
+					this[ map[as] ] = getThis;
+					delete map[as];
+					for ( name in map ) {
+						this[ name ] = this[ map[ name ] ] = getThis;
+					}
 					
 					callbacks.context = context, callbacks.args = args;
 					Deferral.privileged.invokeAll( this, callbacks )( callbacks[as] );
@@ -389,35 +410,48 @@ extend( true, Deferral, {
 		 */
 		pipe: function ( yes, no ) {
 			var	self = this,
+				map = this.map(),
+				key, resolver, fn,
+				i = 0, l = arguments.length,
 				next = new Deferral;
-			each( { yes: yes, no: no }, function ( queueName, fn ) {
-				var resolver = Deferral.resolver[ queueName ];
-				self[ queueName ](
-					isFunction( fn ) ?
-						function () {
-							var result = fn.apply( this, arguments ),
-								promise = result && Promise.resembles( result ) ?
-									result.promise() : undefined;
-							promise ?
-								promise.then( next.affirm, next.negate ) :
-								next[ resolver ]( this === self ? next : this, [ result ] );
-						} :
-						next[ resolver ]
-				);
-			});
+			for ( key in map ) {
+				if ( i < l ) {
+					resolver = map[key];
+					fn = arguments[i++];
+					this[key](
+						isFunction( fn ) ?
+							function () {
+								var result = fn.apply( this, arguments ),
+									promise = result && Promise.resembles( result ) ?
+										result.promise() : undefined;
+								promise ?
+									promise.then( next.affirm, next.negate ) :
+									next[ resolver ]( this === self ? next : this, [ result ] );
+							} :
+							next[ resolver ]
+					);
+				} else break;
+			}
 			return next.promise();
-		},
-		
-		/** Returns a `Promise` bound to this deferral. */
-		promise: function () {
-			return new Promise( this );
 		}
-	},
-	then: function () {
-		return ( new Deferral() ).then( arguments );
 	}
 });
 
+
+function UnaryDeferral ( fn, args ) {
+	if ( !( this instanceof UnaryDeferral ) ) { return new UnaryDeferral( fn, args ); }
+	Deferral.call( this, { done: 'resolve' }, fn, args );
+}
+UnaryDeferral.prototype = Deferral.prototype;
+Deferral.Unary = UnaryDeferral;
+
+
+function BinaryDeferral ( fn, args ) {
+	if ( !( this instanceof BinaryDeferral ) ) { return new BinaryDeferral( fn, args ); }
+	Deferral.call( this, { yes: 'affirm', no: 'negate' }, fn, args );
+}
+BinaryDeferral.prototype = Deferral.prototype;
+Deferral.Binary = BinaryDeferral;
 
 /**
  * `Promise` is a limited interface into a `Deferral` instance, consisting of a particular subset of
@@ -436,13 +470,10 @@ function Promise ( deferral ) {
 			};
 		})( list[i] );
 	}
-	this.serves = function ( master ) {
-		return master === deferral;
-	};
+	this.serves = function ( master ) { return master === deferral; };
 }
 extend( true, Promise, {
-	methods: 'then always pipe promise did resolved resolution map queueNames'.split(' '),
-	// methods: 'then always pipe promise'.split(' '),
+	methods: 'then always pipe promise did resolution map queueNames'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.
 	resembles: function ( obj ) {
@@ -456,46 +487,77 @@ extend( true, Promise, {
 
 
 /**
- * Binds together the fate of all the deferrals submitted as arguments. Returns a promise which will be
- * either affirmed after each individual deferral is affirmed, or negated immediately after any one
- * deferral is negated.
+ * Binds together the fate of all `promises` as evaluated against the specified `resolution`. Returns a
+ * `Promise` to a master `Deferral` that either: (1) will resolve to `yes` once all `promises` have
+ * individually been resolved to the specified `resolution`; or (2) will resolve to `no` once any one of the
+ * `promises` has been resolved to a different resolution. If no `resolution` is specified, it will default
+ * to that of the first defined callback queue (e.g. `yes` for a standard deferral).
  */
-function when ( arg /*...*/ ) {
-	var	args = flatten( slice.call( arguments ) ),
-		length = args.length || 1,
-		unresolvedCount = length,
-		i = 0,
-		deferral = length === 1 ?
-			arg instanceof Deferral ?
-				arg
-				:
-				( deferral = new Deferral ).affirm( deferral, arg )
-			:
-			new Deferral;
+function when ( /* promises..., [ resolution ] */ ) {
+	var	promises = flatten( slice.call( arguments ) ),
+		length = promises.length || 1,
+		resolution,
+		master = new Deferral,
+		list = [],
+		i, promise, affirmativeQueue, map, name;
 	
-	function affirm () {
-		--unresolvedCount || deferral.affirm( deferral, arguments );
+	function affirmed ( p ) {
+		return function () {
+			list.push( p ) === length && master.affirm( master, list );
+		};
+	}
+	function negated ( p ) {
+		return function () {
+			list.push( p );
+			master.negate( master, list );
+		};
 	}
 	
-	if ( length > 1 ) {
-		for ( ; i < length; i++ ) {
-			arg = args[i];
-			arg instanceof Deferral || arg instanceof Promise ||
-				( arg = args[i] = ( new Deferral ).affirm( deferral, arg ) );
-			arg.then( affirm, deferral.negate );
+	if ( length > 1 && type( promises[ length - 1 ] ) === 'string' ) {
+		resolution = promises.splice( --length, 1 )[0];
+	}
+	
+	for ( i = 0; i < length; i++ ) {
+		promise = promises[i];
+		if ( promise instanceof Deferral || promise instanceof Promise ) {
+			
+			// Determine which of this promise's callback queues matches the specified `resolution`
+			affirmativeQueue = resolution || promise.queueNames()[0];
+			
+			// `map` becomes a list referencing the callback queues not considered affirmative in this context
+			map = promise.map();
+			if ( affirmativeQueue in map ) {
+				delete map[ affirmativeQueue ];
+			} else {
+				// Because this promise will never be resolved to match `resolution`, the master deferral
+				// can be negated immediately
+				list.push( promise );
+				master.negate( master, list );
+				break;
+			}
+			
+			promise[ affirmativeQueue ]( affirmed( promise ) );
+			for ( name in map ) {
+				promise[ name ]( negated( promise ) );
+			}
+		}
+		
+		// For foreign promise objects, we utilize the standard `then` interface
+		else if ( Promise.resembles( promise ) ) {
+			promise.then( affirmed( promise ), negated( promise ) );
+		}
+		
+		// For anything that isn't promise-like, force it to play nice with the other promises by
+		// wrapping it in an immediately affirmed deferral
+		else {
+			promises[i] = ( isFunction( promise ) ? new Deferral( promise ) : new Deferral )
+				.affirm( master, [ promise ] );
 		}
 	}
 	
-	return deferral.promise();
+	return master.promise();
 }
 
-
-function when2 ( deferrals, resolution ) {
-	var	length = deferrals.length,
-		remaining = length,
-		i = 0,
-		deferral;
-}
 
 function OperationQueue ( operations ) {
 	var	self = this,

@@ -15,13 +15,10 @@ function Promise ( deferral ) {
 			};
 		})( list[i] );
 	}
-	this.serves = function ( master ) {
-		return master === deferral;
-	};
+	this.serves = function ( master ) { return master === deferral; };
 }
 extend( true, Promise, {
-	methods: 'then always pipe promise did resolved resolution map queueNames'.split(' '),
-	// methods: 'then always pipe promise'.split(' '),
+	methods: 'then always pipe promise did resolution map queueNames'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.
 	resembles: function ( obj ) {

@@ -178,6 +178,7 @@ function forEach ( obj, fn, context ) {
  * Extracts elements of nested arrays
  */
 function flatten ( array ) {
+	isArray( array ) || ( array = [ array ] );
 	var	i = 0,
 		l = array.length,
 		item,

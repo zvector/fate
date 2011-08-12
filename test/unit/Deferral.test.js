@@ -48,81 +48,111 @@ asyncTest( "promise()", function () {
 		p2 = p1.promise();
 	ok( p1.serves( d ), "deferral.promise().serves( deferral )" );
 	ok( p2.serves( d ), "deferral.promise().promise().serves( deferral )" );
+	ok( p1 === p2, "deferral.promise() === deferral.promise().promise()" );
 	ok( Promise.resembles( { then: function () {}, promise: function () {} } ), "Promise.resembles generic promise-like object" );
 	ok( Promise.resembles( jQuery.Deferred() ), "Promise.resembles jQuery.Deferred()" );
 	ok( Promise.resembles( jQuery.Deferred().promise() ), "Promise.resembles jQuery.Deferred().promise()" );
-	ok( !p1.resolved() && !p2.resolved(), "initially unresolved" );
+	ok( !p1.resolution() && !p2.resolution(), "initially unresolved" );
 	d.affirm();
-	ok( p1.resolved() && p2.did('affirm') && p2.resolved('yes') && !p1.resolved('no') && !p1.did('negate'), "deferral.affirm reflected in promises" );
+	ok( p1.resolution() && p2.did('affirm') && p2.resolution('yes') && !p1.resolution('no') && !p1.did('negate'), "deferral.affirm reflected in promises" );
 	start();
 });
 
+asyncTest( "when()", function () {
+	var	d1 = new Deferral,
+		d2 = new Deferral,
+		p2 = d2.promise(),
+		w,
+		result; d1['']='d1',d2['']='d2',p2['']='p2';
+	
+	function setResult ( value ) {
+		return function () {
+			console.log( result = value );
+		}
+	}
+	
+	( w = when(
+		when( d1 ).then( setResult( d1 ) ),
+		when( p2 ).then( setResult( p2 ) )
+	) )
+		.then( function () { console.log( w ); } )
+		.then( start ); w['']='w';
+	
+	setTimeout( function () {
+		d1.affirm();
+		equal( result, d1, "when( Deferral )" );
+	}, 200 );
+	
+	setTimeout( function () {
+		d2.affirm();
+		equal( result, p2, "when( Promise )" );
+	}, 400 );
+});
+
 asyncTest( "when(), all affirmed", function () {
-	var	result, aside,
-		d1 = new Deferral(),
-		d2 = new Deferral();
-		d3 = new Deferral();
+	var	a, b,
+		likeDojo = { addCallback: 'callback', addErrback: 'errback' },
+		likeJQuery = { done: 'resolve', fail: 'reject' },
+		d1 = new Deferral,
+		d2 = new Deferral( likeDojo ),
+		d3 = new Deferral( likeJQuery );
 	
-	function setResultTrue () {
-		result = true;
+	function setA ( value ) {
+		return function () {
+			a = value;
+		}
 	}
-	function setResultFalse () {
-		result = false;
+	function setB ( value ) {
+		return function () {
+			b = value;
+		}
 	}
-	function setAsideTrue() {
-		aside = true;
+	function doTests () {
+		ok( a === true, "a === true" );
+		ok( b === true, "b === true" );
 	}
 	
-	when( d1, d2, d3 )
-		.then( setResultTrue, setResultFalse )
-		.then( setAsideTrue )
-		.always(
-			function () {
-				ok( result === true && aside === true, "result === true, aside === true" );
-				ok( result !== false, "result !== false" );
-				ok( result != null, "result != null")
-			}
-		)
-		.always( start );
+	when( d1.promise(), d2.promise(), d3.promise() )
+		.then( setA( true ), setA( false ) )
+		.then( setB( true ) )
+		.always( doTests, start );
 	
 	setTimeout( function () {
 		d1.affirm();
 	}, 25 );
 	
 	setTimeout( function () {
-		d2.affirm();
+		d2.callback();
 	}, 50 );
 	
 	setTimeout( function () {
-		d3.affirm();
+		d3.resolve();
 	}, 75 );
 });
 
 asyncTest( "when(), early negation", function () {
-	var	result, aside,
-		d1 = new Deferral(),
-		d2 = new Deferral();
+	var	a, b,
+		d1 = new Deferral,
+		d2 = new Deferral;
 	
-	function setResultTrue () {
-		result = true;
+	function setA ( value ) {
+		return function () {
+			a = value;
+		}
 	}
-	function setResultFalse () {
-		result = false;
+	function setB ( value ) {
+		return function () {
+			b = value;
+		}
 	}
-	function setAsideTrue() {
-		aside = true;
+	function doTests () {
+		ok( a === false, "a === false" );
+		ok( b === undefined, "b === undefined" );
 	}
 
-	when( d1, d2 )
-		.then( [ setResultTrue, setAsideTrue ], setResultFalse )
-		.always(
-			function () {
-				ok( result !== true, "result !== true" );
-				ok( result === false, "result === false" );
-				ok( result != null, "result != null")
-			},
-			start
-		);
+	when( d1, d2, 'yes' )
+		.then( [ setA( true ), setB( true ) ], setA( false ) )
+		.always( doTests, start );
 	
 	setTimeout( function () {
 		d1.negate();
@@ -141,7 +171,7 @@ asyncTest( "when(), early negation", function () {
 // 
 // d( d(fn1).then( d(fn2).then( d(fn3) ) ) ).affirm( x )
 
-asyncTest( "pipe", function () {
+0 && asyncTest( "pipe", function () {
 	var deferral = new Deferral;
 	deferral
 		.pipe( function ( value ) {
@@ -153,15 +183,14 @@ asyncTest( "pipe", function () {
 			}, 600 );
 			return d.promise();
 		})
-		.always( start )
 		.pipe( function ( value ) {
 			console.log( value );
-			// equal( value, 4 );
+			equal( value, 4 );
 			return 2;
 		})
+		.then( start )
 	;
 	deferral.affirm( null, [3] );
-	// start();
 });
 
 
@@ -189,86 +218,41 @@ asyncTest( "pipe", function () {
  * granular control over this balance of immediacy versus stack space.
  */
 asyncTest( "OperationQueue", function () {
+	function async ( op, delay, test ) {
+		return function () {
+			var args = op.apply( this, arguments ),
+				deferral = new Deferral;
+			setTimeout( function () {
+				equal( args.join(), test );
+				deferral.affirm( opQueue, args );
+			}, delay );
+			return deferral.promise();
+		};
+	}
+	function sync( op, test ) {
+		return function () {
+			var args = op.apply( this, arguments );
+			equal( args.join(), test );
+			return args;
+		};
+	}
 	var opQueue = new OperationQueue([
-		
 		// First, some async functions, which employ a Deferral and return a Promise
-		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				$.each( args, function ( i, value ) { args[i] = value + 1; } );
-				equal( args.join(), '2,8,-4', "first op: + [1,1,1]" );
-				deferral.affirm( opQueue, args );
-			}, 80 );
-			return deferral.promise();
-		},
-		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				$.each( args, function ( i, value ) { args[i] = value / 2; } );
-				equal( args.join(), '1,4,-2', "second op: * 0.5" );
-				deferral.affirm( opQueue, args );
-			}, 200 );
-			return deferral.promise();
-		},
-		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				$.each( args, function ( i, value ) { args[i] = value - 1; } );
-				equal( args.join(), '0,3,-3', "third op: - [1,1,1]" );
-				deferral.affirm( opQueue, args );
-			}, 120 );
-			return deferral.promise();
-		},
+		async( function ( x, y, z ) { return [ x+1, y+1, z+1 ]; }, 80, '2,8,-4' ),
+		async( function ( x, y, z ) { return [ x/2, y/2, z/2 ]; }, 200, '1,4,-2' ),
+		async( function ( x, y, z ) { return [ x-1, y-1, z-1 ]; }, 120, '0,3,-3' ),
 		
 		// Next, some synchronous functions that return `args` directly for immediate continuation
-		function () {
-			var	args = Array.prototype.slice.call( arguments );
-			$.each( args, function ( i, value ) { args[i] = value * 2; } );
-			equal( args.join(), '0,6,-6', "fourth op: * 2" );
-			return args;
-		},
-		function () {
-			var	args = Array.prototype.slice.call( arguments );
-			args[0] += 1, args[1] += 3, args[2] += 10;
-			equal( args.join(), '1,9,4', "fifth op: + [1,3,10]" );
-			return args;
-		},
-		function () {
-			var	args = Array.prototype.slice.call( arguments );
-			$.each( args, function ( i, value ) { args[i] = Math.sqrt( value ); } );
-			equal( args.join(), '1,3,2', "sixth op: sqrt" );
-			return args;
-		},
+		sync( function ( x, y, z ) { return [ x*2, y*2, z*2 ]; }, '0,6,-6' ),
+		sync( function ( x, y, z ) { return [ x+1, y+3, z+10 ]; }, '1,9,4' ),
+		sync( function ( x, y, z ) { return [ Math.sqrt(x), Math.sqrt(y), Math.sqrt(z) ] }, '1,3,2' ),
 		
-		// Since JS has no tail-call optimization, synchronous operations consume stack space. (Set a
-		// breakpoint inside each of the last few operations and notice the references to `continuation`
-		// accumulating.) So let's go back to using async operations, which allows the event loop to turn,
-		// thereby relieving the pressure.
-		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				$.each( args, function ( i, value ) { args[i] = value - 1; } );
-				equal( args.join(), '0,2,1', "seventh op: - [1,1,1]" );
-				deferral.affirm( opQueue, args );
-			}, 0 );
-			return deferral.promise();
-		},
-		function () {
-			var	args = Array.prototype.slice.call( arguments ),
-				deferral = new Deferral;
-			setTimeout( function () {
-				$.each( args, function ( i, value ) { args[i] = value * 2; } );
-				equal( args.join(), '0,4,2', "eighth op: * 2" );
-				deferral.affirm( opQueue, args );
-			}, 1000 );
-			return deferral.promise();
-		}
-		
-		// etc.
+		// Since JS isn't tail-call optimized, synchronous operations accumulate on the stack. (Set a
+		// breakpoint inside each of the last few operations and notice the growing number of references to
+		// `continuation`.) To relieve that pressure, let's go back to using async operations, which
+		// allows the event loop to turn over and the tail calls to complete.
+		async( function ( x, y, z ) { return [ x-1, y-1, z-1 ] }, 0, '0,2,1' ),
+		async( function ( x, y, z ) { return [ x*2, y*2, z*2 ] }, 1000, '0,4,2' )
 	]);
 	
 	/*
@@ -322,7 +306,6 @@ asyncTest( "OperationQueue", function () {
 		equal( opQueue.args().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
 		opQueue.resume();
 	}, 300 );
-	
 });
 
 })();
