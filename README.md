@@ -31,7 +31,7 @@ Any instantiation of `Deferral` may be defined with its own one-to-one mapping o
 #### Callback registration
 Methods listed here return a `Promise` to this deferral.
 
-* _registrar_ (Unary { `resolved` }, Binary { `yes` | `no` | ... })`( Function callback | Array callbacks, ... )`
+* _registrar_`( Function callback | Array callbacks, ... )`
 
 	* Administers the supplied callback functions according to the deferral's state:
 	
@@ -43,15 +43,15 @@ Methods listed here return a `Promise` to this deferral.
 		
 	* Values for built-in `Deferral` subtypes:
 	
-		* `UnaryDeferral` : { `resolved` }
+		* `UnaryDeferral` : _registrar_ = { `resolved` }
 		
-		* `BinaryDeferral` : { `yes` | `no` }
+		* `BinaryDeferral` : _registrar_ = { `yes` | `no` }
 
 * `then( Function callback | Array callbacks, ... )` : Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `queueNames()`.
 
 * `always( Function callback | Array callbacks, ... )` : Registers callbacks to all queues.
 
-* `pipe( Function callback | Array callbacks, ... )` : Arranges a **pipeline**. Arguments are received with the same ordering as outlined for `then()`. For asynchronous functions that return a promise or deferral, this deferral will pass its resolution state to a successive deferral.
+* `pipe( Function callback | Array callbacks, ... )` : Arranges callbacks in a serially-executing **pipeline**, where the preceding callback's return value is supplied as the succeeding callback's argument. Local arguments correspond to the deferral's callback queues according to the same ordering as outlined for `then()`. For asynchronous callbacks that return a promise or deferral, the resolution state and execution state of this deferral will be passed to the successive deferral and its callbacks.
 
 * `empty()` : Clears all callback queues.
 
@@ -61,8 +61,10 @@ Methods listed here return the deferral itself.
 * `as( Object context )` : Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral's resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect.
 
 * _resolver_`( arguments... )` : Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...`. Values for built-in `Deferral` subtypes:
-	* `UnaryDeferral` : { `resolve` }
-	* `BinaryDeferral` : { `affirm` | `negate` }
+
+	* `UnaryDeferral` : _resolver_ = { `resolve` }
+	
+	* `BinaryDeferral` : _resolver_ = { `affirm` | `negate` }
 
 ## Promise
 
