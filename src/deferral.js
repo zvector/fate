@@ -162,7 +162,7 @@ extend( true, Deferral, {
 		 */
 		then: function () {
 			var map = keys( this.map() ), i = 0, l = Math.min( map.length, arguments.length );
-			while ( i < l ) { this[ map[i] ]( arguments[i++] ); }
+			while ( i < l ) { this[ map[i] ]( arguments[ i++ ] ); }
 			return this;
 		},
 		
@@ -177,9 +177,18 @@ extend( true, Deferral, {
 		},
 		
 		/**
-		 * Arranges deferrals in a pipeline.
-		 * Functions passed as the arguments may be asynchronous, returning a promise or deferral, in which
-		 * case this deferral passes its resolution state to a successive deferral.
+		 * Registers callbacks to a separate deferral, whose resolver methods are registered to the
+		 * queues of this deferral, and returns a promise bound to the succeeding deferral. This
+		 * arrangement forms a pipeline structure, which can be extended indefinitely with chained
+		 * calls to `pipe`. Once resolved, the original deferral (`this`) passes its resolution
+		 * state, context and arguments on to the succeeding deferral, whose callbacks may then
+		 * likewise dictate the resolution parameters of a further `pipe`d deferral, and so on.
+		 * 
+		 * Synchronous callbacks that return immediately will cause the succeeding deferral to
+		 * resolve immediately, with the same resolution state and context from its receiving
+		 * deferral, and the callback's return value as its lone resolution argument. Asynchronous
+		 * callbacks that return their own promise or deferral will cause the succeeding deferral
+		 * to resolve similarly once the callback's own deferral is resolved.
 		 */
 		pipe: function () {
 			var	self = this,
@@ -189,17 +198,22 @@ extend( true, Deferral, {
 				next = new Deferral( map );
 			for ( key in map ) {
 				if ( i < l ) {
-					resolver = map[key];
-					fn = arguments[i++];
-					this[key](
+					resolver = map[ key ];
+					fn = arguments[ i++ ];
+					this[ key ](
 						isFunction( fn ) ?
 							function () {
-								var result = fn.apply( this, arguments ),
+								var key,
+									result = fn.apply( this, arguments ),
 									promise = result && Promise.resembles( result ) ?
 										result.promise() : undefined;
-								promise ?
-									promise.then( next.affirm, next.negate ) : // TODO: fix me - `next` is not necessarily binary
+								if ( promise ) {
+									for ( key in map ) {
+										promise[ key ]( next[ map[ key ] ] );
+									}
+								} else {
 									next.as( this === self ? next : this )[ resolver ]( result );
+								}
 							} :
 							next[ resolver ]
 					);

@@ -68,11 +68,13 @@ _registrar_`( Function callback | Array callbacks, ... )`
 
 `always( Function callback | Array callbacks, ... )`
 
-> Registers callbacks to all queues.
+> Registers callbacks to all queues, ensuring they will be called no matter how the deferral is resolved.
 
 `pipe( Function callback | Array callbacks, ... )`
 
-> Arranges callbacks in a serially-executing **pipeline**, where the preceding callback's return value is supplied as the succeeding callback's argument. Local arguments correspond to the deferral's callback queues according to the same ordering as outlined for `then()`. For asynchronous callbacks that return a promise or deferral, the resolution state and execution state of this deferral will be passed to the successive deferral and its callbacks.
+> Registers callbacks to a separate deferral, whose resolver methods are registered to the queues of this deferral, and returns a promise bound to the succeeding deferral. This arrangement forms a **pipeline** structure, which can be extended indefinitely with chained calls to `pipe`. Once resolved, the original deferral (`this`) passes its resolution state, context and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of a further `pipe`d deferral, and so on.
+
+> Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback's return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback's own deferral is resolved.
 
 `empty()`
 
