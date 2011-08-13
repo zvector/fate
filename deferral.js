@@ -434,7 +434,7 @@ extend( true, Deferral, {
 									promise = result && Promise.resembles( result ) ?
 										result.promise() : undefined;
 								promise ?
-									promise.then( next.affirm, next.negate ) :
+									promise.then( next.affirm, next.negate ) : // TODO: fix me - `next` is not necessarily binary
 									next.as( this === self ? next : this )[ resolver ]( result );
 							} :
 							next[ resolver ]
