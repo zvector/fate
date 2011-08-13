@@ -86,6 +86,10 @@ Methods listed here return the deferral itself.
 
 > Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral's resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect.
 
+`given( Array args )`
+
+> Preloads resolution arguments in an unresolved deferral. Analogous to `as()` for the resolution context. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
+
 _resolver_`( arguments... )`
 
 > Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...`.
