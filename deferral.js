@@ -265,6 +265,7 @@ function Deferral ( map, fn, args ) {
 	
 	function setResolution ( name ) { return name in map && ( resolution = name ); }
 	function getResolutionContext () { return resolutionContext; }
+	function getResolutionArguments () { return resolutionArguments; }
 	function setResolutionArguments ( args ) { return resolutionArguments = args; }
 	
 	extend( this, {
@@ -287,6 +288,10 @@ function Deferral ( map, fn, args ) {
 		as: function ( context ) {
 			resolutionContext = context;
 			return this;
+		},
+		given: function ( args ) {
+			resolutionArguments = args;
+			return this;
 		}
 	});
 	this.queueNames.toString = function () { return self.queueNames().join(' ') };
@@ -294,7 +299,9 @@ function Deferral ( map, fn, args ) {
 	
 	this.empty();
 	register = Deferral.privileged.register( callbacks );
-	resolve = Deferral.privileged.resolve( callbacks, setResolution, getResolutionContext, setResolutionArguments );
+	resolve = Deferral.privileged.resolve(
+		callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments
+	);
 	
 	each( map, function ( name, resolver ) {
 		self[ name ] = register( name );
@@ -323,17 +330,16 @@ extend( true, Deferral, {
 		/**
 		 * Produces a function that resolves the deferral, transitioning it to one of its resolved substates.
 		 */
-		resolve: function ( callbacks, setResolution, getResolutionContext, setResolutionArguments ) {
+		resolve: function ( callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments ) {
 			return function ( resolution ) {
 				return function () {
 					var	self = this,
 						name,
 						map = this.map(),
 						context = getResolutionContext(),
-						args = slice.call( arguments );
+						args = arguments.length ? setResolutionArguments( slice.call( arguments ) ) : getResolutionArguments();
 					
 					setResolution( resolution );
-					setResolutionArguments( args );
 					
 					/*
 					 * The deferral has transitioned to a 'resolved' substate ( e.g. affirmed | negated ),
@@ -344,7 +350,7 @@ extend( true, Deferral, {
 					 * registrations to any of the other queues are deemed invalid and will be discarded.
 					 */
 					this[ resolution ] = Deferral.privileged.invoke( this, callbacks )( context, args );
-					this[ map[ resolution ] ] = this.as = getThis;
+					this[ map[ resolution ] ] = this.as = this.given = getThis;
 					delete map[ resolution ];
 					for ( name in map ) {
 						this[ name ] = this[ map[ name ] ] = getThis;

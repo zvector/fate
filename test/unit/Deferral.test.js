@@ -243,21 +243,21 @@ asyncTest( "pipe", function () {
  */
 asyncTest( "Queue", function () {
 	
-	function async ( op, delay, test ) {
+	function async ( fn, delay, test ) {
 		return function () {
-			var args = op.apply( this, arguments ),
-				deferral = Deferral().as( queue );
+			var args = fn.apply( this, arguments ),
+				deferral = Deferral().as( queue ).given( args );
 			setTimeout( function () {
 				equal( args.join(), test );
-				deferral.affirm.apply( deferral, args );
+				deferral.affirm();
 			}, delay );
 			return deferral.promise();
 		};
 	}
 	
-	function sync( op, test ) {
+	function sync( fn, test ) {
 		return function () {
-			var args = op.apply( this, arguments );
+			var args = fn.apply( this, arguments );
 			equal( args.join(), test );
 			return args;
 		};
@@ -286,42 +286,49 @@ asyncTest( "Queue", function () {
 	 * With the operations in place, we can now simply feed the queue a set of initial values, and await
 	 * its final result.
 	 */
-	queue
-		.start( 1, 7, -5 )
-		.promise()
-			.then( function ( x, y, z ) {
-				equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
-				
-				// The queue has been emptied and stopped, but on the next frame we can make use of it again
-				setTimeout( function () {
-					queue.push(
-						function () {
-							var args = Array.prototype.slice.call( arguments );
-							$.each( args, function ( i, value ) { args[i] += 1; } );
-							equal( args.join(), '1,5,3', "first op of second run: + [1,1,1]" );
-							return args;
-						},
-						function ( x, y, z ) {
-							var result = [ x*x, y*y, z*z ];
-							equal( result.join(), '1,25,9', "second op: Math.square" );
-							return result;
-						}
-					);
-					ok( queue.length == 2, "Second run prepared" );
-					queue
-						.start( x, y, z ) // [0, 4, 2]
-						.promise()
-							.then( function ( x, y, z ) {
-								equal( Array.prototype.slice.call( arguments ).join(), '1,25,9', "Second run complete" );
-							})
-							.always( start )
-					;
-				}, 0 );
-			})
+	queue.start( 1, 7, -5 ).promise()
+		.then( function () {
+			equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
+		})
+		
+		/**
+		 * But wait there's more ... the queue has been emptied and stopped, but on the next frame
+		 * we can make use of it again.
+		 */
+		.then( reboot )
+		
+		// And now we've finally reached the end, so we're ready to set loose the async tester.
+		.then( start )
 	;
 	
+	function reboot ( x, y, z ) {
+		setTimeout( function () {
+			queue.push(
+				function () {
+					var args = Array.prototype.slice.call( arguments );
+					$.each( args, function ( i, value ) { args[i] += 1; } );
+					equal( args.join(), '1,5,3', "first op of second run: + [1,1,1]" );
+					return args;
+				},
+				function ( x, y, z ) {
+					var result = [ x*x, y*y, z*z ];
+					equal( result.join(), '1,25,9', "second op: Math.square" );
+					return result;
+				}
+			);
+			ok( queue.length == 2, "Second run prepared" );
+			queue
+				.start( x, y, z ) // [0, 4, 2], as returned from the initial run
+				.promise()
+					.then( function ( x, y, z ) {
+						equal( Array.prototype.slice.call( arguments ).join(), '1,25,9', "Second run complete" );
+					})
+			;
+		}, 0 );
+	}
+	
 	/*
-	 * But before we set it completely loose, let's suspend the queue after it's 100 ms along; this
+	 * And for good measure, let's try scheduling the queue to be suspended after it's 100 ms along; this
 	 * should occur during the second operation, so the queue will pause after that completes in another
 	 * 20 ms, and then be ready to resume with the third operation when we call `resume` 180 ms later.
 	 */
