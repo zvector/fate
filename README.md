@@ -20,16 +20,17 @@ By convention, a deferral's first resolved substate is assumed to represent an *
 
 #### Resolution state querying
 * did
-* resolved
 * resolution
 
 #### Callback registration
 * ( yes | no | ... )
 * then
 * always
+* pipe
 * empty
 
 #### Resolvers
+* as
 * ( affirm | negate | ... )
 
 
@@ -39,15 +40,15 @@ At any time a deferral can issue a partial interface to itself in the form of a 
 
 As an example, a promise issued by the default `Deferral` will include `yes` and `no` methods for adding callbacks, but will not include the `affirm` or `negate` methods that would resolve the deferral.
 
-## OperationQueue
+## Queue
 
-Deferrals facilitate the use of **continuations** to create an `OperationQueue`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
+Deferrals facilitate the use of **continuations** to create a `Queue`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
 
 Synchronous functions must return the array of arguments to be relayed on to the next operation; asynchronous functions must return a `Promise` to a `Deferral` that will be resolved, presumably in the affirmative, at some point in the future.
 
 ### Considerations of synchronous versus asynchronous operations
 
-A sequence of synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single *frame*, or turn of the event loop, too long a sequence may result in noticeable interruptions to user experience.
+A sequence of synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single *frame*, or turn of the event loop, too long a sequence could have a significant impact on the frame *rate*, including noticeable interruptions to user experience on the client.
 
 Asynchronous operations advance the queue no faster than one operation per frame, but this has the advantages of not polluting the stack and not prolonging the duration of the frame in which it's executing.
 

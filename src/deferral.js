@@ -1,10 +1,11 @@
 /**
 `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
 
-@param Array map : Hashmap whose entries represent the set of resolved substates for the deferral;
+@param Object map : Hashmap whose entries represent the set of resolved substates for the deferral;
 		keys specify a name for the substate's callback queue, and values specify a name for the
 		resolution method used to transition to that substate and execute its associated callbacks.
 @param Function fn : A function that will be executed immediately in the context of the deferral.
+@param Array args : Array of arguments to be passed to `fn`.
  */
 function Deferral ( map, fn, args ) {
 	if ( !( this instanceof Deferral ) ) {
@@ -13,11 +14,13 @@ function Deferral ( map, fn, args ) {
 	
 	var	self = this,
 		callbacks,
-		resolution,
+		resolution, resolutionContext, resolutionArguments,
 		register, resolve,
 		promise;
 	
 	function setResolution ( name ) { return name in map && ( resolution = name ); }
+	function getResolutionContext () { return resolutionContext; }
+	function setResolutionArguments ( args ) { return resolutionArguments = args; }
 	
 	isFunction( map ) && ( args = fn, fn = map, map = undefined );
 	map === undefined && ( map = { yes: 'affirm', no: 'negate' } );
@@ -40,7 +43,7 @@ function Deferral ( map, fn, args ) {
 			return promise || ( promise = new Promise( this ) );
 		},
 		as: function ( context ) {
-			callbacks.context = context;
+			resolutionContext = context;
 			return this;
 		}
 	});
@@ -49,7 +52,7 @@ function Deferral ( map, fn, args ) {
 	
 	this.empty();
 	register = Deferral.privileged.register( callbacks );
-	resolve = Deferral.privileged.resolve( callbacks, setResolution );
+	resolve = Deferral.privileged.resolve( callbacks, setResolution, getResolutionContext, setResolutionArguments );
 	
 	each( map, function ( name, resolver ) {
 		self[ name ] = register( name );
@@ -62,25 +65,33 @@ function Deferral ( map, fn, args ) {
 }
 extend( true, Deferral, {
 	privileged: {
-		/** Produces a function that will become the deferral's `yes` or `no` method once it has been resolved. */
+		/**
+		 * Produces a function that invokes a queued callback. In addition, when the deferral is
+		 * resolved, the function returned here will become the callback registration method (e.g.,
+		 * 'yes' | 'no') that corresponds to the deferral's resolution, such that registering a
+		 * callback after the deferral is resolved will cause the callback to be invoked immediately.
+		 */
 		invoke: function ( deferral, callbacks ) {
-			return function ( fn ) {
-				var	context = callbacks.context || deferral,
-					args = callbacks.args;
-				try {
-					isFunction( fn ) ? fn.apply( context, args ) :
-					isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( fn );
-				} catch ( nothing ) {}
-				return deferral;
+			return function ( context, args ) {
+				return function ( fn ) {
+					try {
+						isFunction( fn ) ? fn.apply( context || deferral, args ) :
+						isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( context, args )( fn );
+					} catch ( nothing ) {}
+					return deferral;
+				};
 			};
 		},
 		
 		/** Analogue of `invoke`, for an array of callbacks. */
 		invokeAll: function ( deferral, callbacks ) {
-			return function ( fns ) {
-				for ( i = 0, l = fns.length; i < l; i++ ) {
-					Deferral.privileged.invoke( deferral, callbacks )( fns[i] );
-				}
+			return function ( context, args ) {
+				return function ( fns ) {
+					var invoke = Deferral.privileged.invoke( deferral, callbacks )( context, args );
+					for ( i = 0, l = fns.length; i < l; i++ ) {
+						invoke( fns[i] );
+					}
+				};
 			};
 		},
 		
@@ -89,9 +100,10 @@ extend( true, Deferral, {
 		 * @see yes, no
 		 */
 		register: function ( callbacks ) {
-			return function ( as ) { // `as` = { 'yes' | 'no' }
+			return function ( resolution ) { // e.g. { 'yes' | 'no' }
 				return function ( fn ) {
-					isFunction( fn ) && callbacks[as].push( fn ) || isArray( fn ) && forEach( fn, this[as] );
+					isFunction( fn ) && callbacks[ resolution ].push( fn ) ||
+						isArray( fn ) && forEach( fn, this[ resolution ] );
 					return this;
 				};
 			};
@@ -101,32 +113,36 @@ extend( true, Deferral, {
 		 * Produces a function that resolves the deferral, transitioning it to one of its resolved substates.
 		 * @see affirm, negate
 		 */
-		resolve: function ( callbacks, setResolution ) {
-			return function ( as ) {
-				return function ( context, args ) {
+		resolve: function ( callbacks, setResolution, getResolutionContext, setResolutionArguments ) {
+			return function ( resolution ) {
+				return function () {
 					var	self = this,
 						name,
-						map = this.map();
+						map = this.map(),
+						context = getResolutionContext(),
+						args = slice.call( arguments );
 					
-					setResolution( as );
+					setResolution( resolution );
+					setResolutionArguments( args );
+					
 					/*
 					 * The deferral has transitioned to a 'resolved' substate ( e.g. affirmed | negated ),
 					 * so the behavior of its callback registration methods are redefined to reflect this.
-					 * Henceforth, functions passed to the method named `as` will be called immediately
-					 * with the same `context` and `args` supplied here, while those passed to any of the
-					 * other registration methods will be ignored.
+					 * The state of `context` and `args` here are preserved in a closure, and henceforth,
+					 * callbacks that would be registered to the queue named `resolution` will instead be
+					 * called immediately with the saved `context` and `args`, while subsequent callback
+					 * registrations to any of the other queues are deemed invalid and will be discarded.
 					 */
-					this[as] = Deferral.privileged.invoke( this, callbacks );
-					this[ map[as] ] = getThis;
-					delete map[as];
+					this[ resolution ] = Deferral.privileged.invoke( this, callbacks )( context, args );
+					this[ map[ resolution ] ] = this.as = getThis;
+					delete map[ resolution ];
 					for ( name in map ) {
 						this[ name ] = this[ map[ name ] ] = getThis;
 					}
 					
-					callbacks.context = context, callbacks.args = args;
-					Deferral.privileged.invokeAll( this, callbacks )( callbacks[as] );
+					Deferral.privileged.invokeAll( this, callbacks )( context, args )( callbacks[ resolution ] );
 					
-					delete callbacks[as];
+					delete callbacks[ resolution ];
 					for ( name in map ) { delete callbacks[ name ]; }
 					
 					return this;
@@ -137,7 +153,7 @@ extend( true, Deferral, {
 	prototype: {
 		/**
 		 * Unified interface for registering callbacks. Multiple arguments are registered to callback
-		 * queues in respective order; e.g. `( new Deferral() ).then( fn1, fn2 )` registers `fn1` to the
+		 * queues in respective order; e.g. `Deferral().then( fn1, fn2 )` registers `fn1` to the
 		 * first queue (`yes`) and `fn2` to the second queue (`no`).
 		 */
 		then: function () {
@@ -158,20 +174,15 @@ extend( true, Deferral, {
 		
 		/**
 		 * Arranges deferrals in a pipeline.
-		 * @param Function `yes`
-		 * @param Function `no`
 		 * Functions passed as the arguments may be asynchronous, returning a promise or deferral, in which
-		 * case this deferral passes its resolution state to a successive deferral
-		 * that return a deferral or promise Passing a promise or deferral as arguments for
-		 * `yes` and/or `no` causes wherein the resolution of a preceding deferral
-		 * (`this`) is passed.
+		 * case this deferral passes its resolution state to a successive deferral.
 		 */
-		pipe: function ( yes, no ) {
+		pipe: function () {
 			var	self = this,
 				map = this.map(),
 				key, resolver, fn,
 				i = 0, l = arguments.length,
-				next = new Deferral;
+				next = new Deferral( map );
 			for ( key in map ) {
 				if ( i < l ) {
 					resolver = map[key];
@@ -184,7 +195,7 @@ extend( true, Deferral, {
 										result.promise() : undefined;
 								promise ?
 									promise.then( next.affirm, next.negate ) :
-									next[ resolver ]( this === self ? next : this, [ result ] );
+									next.as( this === self ? next : this )[ resolver ]( result );
 							} :
 							next[ resolver ]
 					);

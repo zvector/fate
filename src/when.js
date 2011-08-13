@@ -15,13 +15,13 @@ function when ( /* promises..., [ resolution ] */ ) {
 	
 	function affirmed ( p ) {
 		return function () {
-			list.push( p ) === length && master.affirm( master, list );
+			list.push( p ) === length && master.affirm.apply( master, list );
 		};
 	}
 	function negated ( p ) {
 		return function () {
 			list.push( p );
-			master.negate( master, list );
+			master.negate.apply( master, list );
 		};
 	}
 	
@@ -44,7 +44,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 				// Because this promise will never be resolved to match `resolution`, the master deferral
 				// can be negated immediately
 				list.push( promise );
-				master.negate( master, list );
+				master.negate.apply( master, list );
 				break;
 			}
 			
@@ -59,11 +59,11 @@ function when ( /* promises..., [ resolution ] */ ) {
 			promise.then( affirmed( promise ), negated( promise ) );
 		}
 		
-		// For anything that isn't promise-like, force it to play nice with the other promises by
-		// wrapping it in an immediately affirmed deferral
+		// For anything that isn't promise-like, force whatever `promise` is to play nice with the
+		// other promises by wrapping it in an immediately affirmed deferral.
 		else {
 			promises[i] = ( isFunction( promise ) ? new Deferral( promise ) : new Deferral )
-				.affirm( master, [ promise ] );
+				.as( master ).affirm( promise );
 		}
 	}
 	

@@ -5,10 +5,10 @@ module( "Deferral" );
 asyncTest( "Deferral", function () {
 	var d = new Deferral( function ( a, b, c ) {
 		this.then( function ( x, y, z ) {
-				ok( a===x && b===y && c===z );
-				ok( a===1 && b===2 && c===3 );
+				ok( a === x && b === y && c === z );
+				ok( a === 1 && b === 2 && c === 3 );
 			})
-			.affirm( d, [ a, b, c ] );
+			.affirm( a, b, c );
 	}, [ 1, 2, 3 ] );
 	ok( d.did('affirm') );
 	start();
@@ -42,6 +42,7 @@ asyncTest( "then()", function () {
 	setTimeout( start, 100 );
 });
 
+
 asyncTest( "promise()", function () {
 	var d = new Deferral,
 		p1 = d.promise(),
@@ -57,6 +58,7 @@ asyncTest( "promise()", function () {
 	ok( p1.resolution() && p2.did('affirm') && p2.resolution('yes') && !p1.resolution('no') && !p1.did('negate'), "deferral.affirm reflected in promises" );
 	start();
 });
+
 
 asyncTest( "when()", function () {
 	var	d1 = new Deferral,
@@ -163,34 +165,56 @@ asyncTest( "when(), early negation", function () {
 	}, 50 );
 });
 
-// d(x)
-// .pipe( fn1(x){} )
-// .pipe( fn2(x){} )
-// .pipe( fn3(x){} )
-// .affirm( x=42 )
-// 
-// d( d(fn1).then( d(fn2).then( d(fn3) ) ) ).affirm( x )
 
-0 && asyncTest( "pipe", function () {
+asyncTest( "pipe", function () {
 	var deferral = new Deferral;
 	deferral
 		.pipe( function ( value ) {
 			equal( value, 3 );
 			var d = new Deferral;
-			setTimeout( function () {
-				console.log( value );
-				d.affirm( null, [4] );
-			}, 600 );
+			setTimeout( function () { d.affirm( 4 ); }, 60 );
 			return d.promise();
 		})
 		.pipe( function ( value ) {
-			console.log( value );
 			equal( value, 4 );
 			return 2;
 		})
+		.pipe( function ( value ) {
+			equal( value, 2 );
+			var d = new Deferral;
+			setTimeout( function () { d.affirm( 5 ); }, 40 );
+			return d.promise();
+		})
+		.pipe( function ( value ) {
+			equal( value, 5 );
+			return 6;
+		})
+		.pipe( function ( value ) {
+			equal( value, 6 );
+			var d = new Deferral;
+			setTimeout( function () { d.affirm( 8 ); }, 70 );
+			return d.promise();
+		})
+		.pipe( function ( value ) {
+			equal( value, 8 );
+			return 7;
+		})
+		.pipe( function ( value ) {
+			equal( value, 7 );
+			var d = new Deferral;
+			setTimeout( function () { d.affirm( 1 ); }, 30 );
+			return d.promise();
+		})
+		.pipe( function ( value ) {
+			equal( value, 1 );
+			return 9;
+		})
+		.pipe( function ( value ) {
+			equal( value, 9 );
+		})
 		.then( start )
 	;
-	deferral.affirm( null, [3] );
+	deferral.affirm( 3 );
 });
 
 
@@ -218,17 +242,19 @@ asyncTest( "when(), early negation", function () {
  * granular control over this balance of immediacy versus stack space.
  */
 asyncTest( "Queue", function () {
+	
 	function async ( op, delay, test ) {
 		return function () {
 			var args = op.apply( this, arguments ),
-				deferral = new Deferral;
+				deferral = Deferral().as( queue );
 			setTimeout( function () {
 				equal( args.join(), test );
-				deferral.affirm( queue, args );
+				deferral.affirm.apply( deferral, args );
 			}, delay );
 			return deferral.promise();
 		};
 	}
+	
 	function sync( op, test ) {
 		return function () {
 			var args = op.apply( this, arguments );
@@ -236,6 +262,7 @@ asyncTest( "Queue", function () {
 			return args;
 		};
 	}
+	
 	var queue = new Queue([
 		// First, some async functions, which employ a Deferral and return a Promise
 		async( function ( x, y, z ) { return [ x+1, y+1, z+1 ]; }, 80, '2,8,-4' ),
