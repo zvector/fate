@@ -1,4 +1,8 @@
-function OperationQueue ( operations ) {
+function Queue ( operations ) {
+	if ( !( this instanceof Queue ) ) {
+		return new Queue( operations );
+	}
+	
 	var	self = this,
 		queue = slice.call( operations ),
 		operation,
@@ -19,7 +23,7 @@ function OperationQueue ( operations ) {
 						running && continuation.apply( operation = queue.shift(), args );
 					},
 					function () {
-						deferral.negate( self, args );
+						deferral.as( self ).negate.apply( deferral, args );
 					}
 				);
 			} else {
@@ -27,7 +31,7 @@ function OperationQueue ( operations ) {
 				running && continuation.apply( operation = queue.shift(), isArray( result ) ? result : [ result ] );
 			}
 		} else {
-			deferral.affirm( self.stop(), arguments );
+			deferral.as( self.stop() ).affirm.apply( deferral, arguments );
 		}
 	}
 	function start () {

@@ -1,8 +1,7 @@
 extend( global, module.exports, {
 	Deferral: Deferral,
 	Promise: Promise,
-	// Operation: Operation,
-	OperationQueue: OperationQueue,
+	Queue: Queue,
 	when: when
 });
 

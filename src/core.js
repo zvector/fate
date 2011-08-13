@@ -178,6 +178,7 @@ function forEach ( obj, fn, context ) {
  * Extracts elements of nested arrays
  */
 function flatten ( array ) {
+	isArray( array ) || ( array = [ array ] );
 	var	i = 0,
 		l = array.length,
 		item,
@@ -195,7 +196,7 @@ function flatten ( array ) {
 function keys ( obj ) {
 	var key, result = [];
 	for ( key in obj ) if ( hasOwn.call( obj, key ) ) {
-		result.push( i );
+		result.push( key );
 	}
 	return result;
 }
