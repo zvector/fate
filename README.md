@@ -4,11 +4,13 @@
 
 A `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
 
-A deferral is characterized by its **resolution state**. Initially the deferral is in the *unresolved* state; at some time in the future, it will irreversibly transition into one of possibly several *resolved* substates. 
+A deferral is characterized by its **resolution state**. Initially the deferral is in the _unresolved_ state; at some time in the future, it will irreversibly transition into one of possibly several _resolved_ substates. 
 
-Each resolved substate is associated with a distinct **callback queue**. Consumers of the deferral may add callbacks to any queue at any time, but the deferral will react differently according to its state. In the *unresolved* state, callbacks are simply stored for later. When the deferral transitions to a *resolved* substate, the functions in the queue associated with that state are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is associated with a distinct **callback queue**. Consumers of the deferral may add callbacks to any queue at any time, but the deferral will react differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. When the deferral transitions to a _resolved_ substate, the functions in the queue associated with that state are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
-By convention, a deferral's first resolved substate is assumed to represent an *affirmative* resolution, and the second, if present, is assumed to represent a *negative* resolution. The default implementation of `Deferral` uses this convention to model a simple decision branch: it names two callback queues, `yes` and `no`, which are realized by calling `affirm` or `negate`, respectively.
+Any instantiation of `Deferral` may be defined with its own one-to-one mapping of callback queues to resolver methods, allowing for the definition of any number of resolved substates.
+
+`Deferral` also includes built-in subtypes of itself. For applications in which there exists only one possible outcome, there is the `UnaryDeferral`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`. More common is the `BinaryDeferral` that names two callback queues, `yes` and `no`, which are realized by calling `affirm()` or `negate()`, respectively; the default implementation of `Deferral` returns this binary subtype. 
 
 ### Methods
 
@@ -27,24 +29,40 @@ By convention, a deferral's first resolved substate is assumed to represent an *
 * `resolution( String test )` : Returns `true` if the deferral's `resolution()` matches `test`. Returns `false` if the deferral was otherwise resolved, and returns `undefined` if it is still unresolved.
 
 #### Callback registration
-* *registrar* (Unary { `resolved` }, Binary { `yes` | `no` | ... })`( Function callback | Array callbacks, ... )` : Returns a `Promise` to this deferral. Administers the supplied callback functions according to the deferral's state:
-	* In the unresolved state, the callbacks are registered to the corresponding queue, and will be called if the deferral is later resolved accordingly.
-	* If the deferral has already been resolved accordingly, the callbacks are called immediately.
-	* If the deferral has been otherwise resolved, the callbacks are discarded.
+Methods listed here return a `Promise` to this deferral.
 
-* `then( Function callback | Array callbacks, ... )` : Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `queueNames()`. Returns a `Promise` to this deferral.
+* _registrar_ (Unary { `resolved` }, Binary { `yes` | `no` | ... })`( Function callback | Array callbacks, ... )`
 
-* `always( Function callback | Array callbacks, ... )` : Registers callbacks to all queues. Returns a `Promise` to this deferral.
+	* Administers the supplied callback functions according to the deferral's state:
+	
+		* In the unresolved state, the callbacks are registered to the corresponding queue, and will be called if the deferral is later resolved accordingly.
+		
+		* If the deferral has already been resolved accordingly, the callbacks are called immediately.
+		
+		* If the deferral has been otherwise resolved, the callbacks are discarded.
+		
+	* Values for built-in `Deferral` subtypes:
+	
+		* `UnaryDeferral` : { `resolved` }
+		
+		* `BinaryDeferral` : { `yes` | `no` }
 
-* `pipe( Function callback | Array callbacks, ... )` : Arranges a **pipeline**. Arguments are received with the same ordering as outlined for `then()`. For asynchronous functions that return a promise or deferral, this deferral will pass its resolution state to a successive deferral. Returns a `Promise` to this deferral.
+* `then( Function callback | Array callbacks, ... )` : Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `queueNames()`.
 
-* `empty()` : Clears all callback queues. Returns a `Promise` to this deferral.
+* `always( Function callback | Array callbacks, ... )` : Registers callbacks to all queues.
+
+* `pipe( Function callback | Array callbacks, ... )` : Arranges a **pipeline**. Arguments are received with the same ordering as outlined for `then()`. For asynchronous functions that return a promise or deferral, this deferral will pass its resolution state to a successive deferral.
+
+* `empty()` : Clears all callback queues.
 
 #### Resolvers
-* `as( Object context )` : Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral's resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect. Returns this deferral.
+Methods listed here return the deferral itself.
 
-* *resolver* (Unary { `resolve` }, Binary { `affirm` | `negate` | ... })`( arguments... )` : Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...`. Returns this deferral.
+* `as( Object context )` : Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral's resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect.
 
+* _resolver_`( arguments... )` : Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...`. Values for built-in `Deferral` subtypes:
+	* `UnaryDeferral` : { `resolve` }
+	* `BinaryDeferral` : { `affirm` | `negate` }
 
 ## Promise
 
@@ -60,7 +78,7 @@ Synchronous functions must return the array of arguments to be relayed on to the
 
 ### Considerations of synchronous versus asynchronous operations
 
-A sequence of synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single *frame*, or turn of the event loop, too long a sequence could have a significant impact on the frame *rate*, including noticeable interruptions to user experience on the client.
+A sequence of synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single _frame_, or turn of the event loop, too long a sequence could have a significant impact on the frame _rate_, including noticeable interruptions to user experience on the client.
 
 Asynchronous operations advance the queue no faster than one operation per frame, but this has the advantages of not polluting the stack and not prolonging the duration of the frame in which it's executing.
 
