@@ -28,9 +28,9 @@ By convention, a deferral's first resolved substate is assumed to represent an *
 
 #### Callback registration
 * *registrar* (Unary { `resolved` }, Binary { `yes` | `no` | ... })`( Function callback | Array callbacks, ... )` : Returns a `Promise` to this deferral. Administers the supplied callback functions according to the deferral's state:
-* * In the unresolved state, the callbacks are registered to the corresponding queue, and will be called if the deferral is later resolved accordingly.
-* * If the deferral has already been resolved accordingly, the callbacks are called immediately.
-* * If the deferral has been otherwise resolved, the callbacks are discarded.
+	* In the unresolved state, the callbacks are registered to the corresponding queue, and will be called if the deferral is later resolved accordingly.
+	* If the deferral has already been resolved accordingly, the callbacks are called immediately.
+	* If the deferral has been otherwise resolved, the callbacks are discarded.
 
 * `then( Function callback | Array callbacks, ... )` : Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `queueNames()`. Returns a `Promise` to this deferral.
 
