@@ -1,6 +1,6 @@
 <?php
 
-$outputPath = './../deferral-promise.js';
+$outputPath = './../deferral.js';
 include 'files.php';
 
 function file_append( $target, $source ) {

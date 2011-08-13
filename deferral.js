@@ -253,6 +253,9 @@ function Deferral ( map, fn, args ) {
 	if ( !( this instanceof Deferral ) ) {
 		return new Deferral( map, fn, args );
 	}
+	if ( map == null || isFunction( map ) ) {
+		return new Deferral.Binary( arguments[0], arguments[1] );
+	}
 	
 	var	self = this,
 		callbacks,
@@ -263,9 +266,6 @@ function Deferral ( map, fn, args ) {
 	function setResolution ( name ) { return name in map && ( resolution = name ); }
 	function getResolutionContext () { return resolutionContext; }
 	function setResolutionArguments ( args ) { return resolutionArguments = args; }
-	
-	isFunction( map ) && ( args = fn, fn = map, map = undefined );
-	map === undefined && ( map = { yes: 'affirm', no: 'negate' } );
 	
 	extend( this, {
 		empty: function () {
@@ -308,6 +308,59 @@ function Deferral ( map, fn, args ) {
 extend( true, Deferral, {
 	privileged: {
 		/**
+		 * Produces a function that pushes callbacks onto one of the callback queues.
+		 */
+		register: function ( callbacks ) {
+			return function ( resolution ) { // e.g. { 'yes' | 'no' }
+				return function ( fn ) {
+					isFunction( fn ) && callbacks[ resolution ].push( fn ) ||
+						isArray( fn ) && forEach( fn, this[ resolution ] );
+					return this;
+				};
+			};
+		},
+		
+		/**
+		 * Produces a function that resolves the deferral, transitioning it to one of its resolved substates.
+		 */
+		resolve: function ( callbacks, setResolution, getResolutionContext, setResolutionArguments ) {
+			return function ( resolution ) {
+				return function () {
+					var	self = this,
+						name,
+						map = this.map(),
+						context = getResolutionContext(),
+						args = slice.call( arguments );
+					
+					setResolution( resolution );
+					setResolutionArguments( args );
+					
+					/*
+					 * The deferral has transitioned to a 'resolved' substate ( e.g. affirmed | negated ),
+					 * so the behavior of its callback registration methods are redefined to reflect this.
+					 * A closure preserves the current execution state as `context` and `args`; henceforth,
+					 * callbacks that would be registered to the queue named `resolution` will instead be
+					 * called immediately with the saved `context` and `args`, while subsequent callback
+					 * registrations to any of the other queues are deemed invalid and will be discarded.
+					 */
+					this[ resolution ] = Deferral.privileged.invoke( this, callbacks )( context, args );
+					this[ map[ resolution ] ] = this.as = getThis;
+					delete map[ resolution ];
+					for ( name in map ) {
+						this[ name ] = this[ map[ name ] ] = getThis;
+					}
+					
+					Deferral.privileged.invokeAll( this, callbacks )( context, args )( callbacks[ resolution ] );
+					
+					delete callbacks[ resolution ];
+					for ( name in map ) { delete callbacks[ name ]; }
+					
+					return this;
+				};
+			};
+		},
+		
+		/**
 		 * Produces a function that invokes a queued callback. In addition, when the deferral is
 		 * resolved, the function returned here will become the callback registration method (e.g.,
 		 * 'yes' | 'no') that corresponds to the deferral's resolution, such that registering a
@@ -333,61 +386,6 @@ extend( true, Deferral, {
 					for ( i = 0, l = fns.length; i < l; i++ ) {
 						invoke( fns[i] );
 					}
-				};
-			};
-		},
-		
-		/**
-		 * Produces a function that pushes callbacks onto one of the callback queues.
-		 * @see yes, no
-		 */
-		register: function ( callbacks ) {
-			return function ( resolution ) { // e.g. { 'yes' | 'no' }
-				return function ( fn ) {
-					isFunction( fn ) && callbacks[ resolution ].push( fn ) ||
-						isArray( fn ) && forEach( fn, this[ resolution ] );
-					return this;
-				};
-			};
-		},
-		
-		/**
-		 * Produces a function that resolves the deferral, transitioning it to one of its resolved substates.
-		 * @see affirm, negate
-		 */
-		resolve: function ( callbacks, setResolution, getResolutionContext, setResolutionArguments ) {
-			return function ( resolution ) {
-				return function () {
-					var	self = this,
-						name,
-						map = this.map(),
-						context = getResolutionContext(),
-						args = slice.call( arguments );
-					
-					setResolution( resolution );
-					setResolutionArguments( args );
-					
-					/*
-					 * The deferral has transitioned to a 'resolved' substate ( e.g. affirmed | negated ),
-					 * so the behavior of its callback registration methods are redefined to reflect this.
-					 * The state of `context` and `args` here are preserved in a closure, and henceforth,
-					 * callbacks that would be registered to the queue named `resolution` will instead be
-					 * called immediately with the saved `context` and `args`, while subsequent callback
-					 * registrations to any of the other queues are deemed invalid and will be discarded.
-					 */
-					this[ resolution ] = Deferral.privileged.invoke( this, callbacks )( context, args );
-					this[ map[ resolution ] ] = this.as = getThis;
-					delete map[ resolution ];
-					for ( name in map ) {
-						this[ name ] = this[ map[ name ] ] = getThis;
-					}
-					
-					Deferral.privileged.invokeAll( this, callbacks )( context, args )( callbacks[ resolution ] );
-					
-					delete callbacks[ resolution ];
-					for ( name in map ) { delete callbacks[ name ]; }
-					
-					return this;
 				};
 			};
 		}
