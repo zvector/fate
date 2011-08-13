@@ -88,7 +88,7 @@ Methods listed here return the deferral itself.
 
 `given( Array args )`
 
-> Preloads resolution arguments in an unresolved deferral. Analogous to `as()` for the resolution context. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
+> Preloads resolution arguments in an unresolved deferral. Like `as()` for context, resolution arguments may be overwritten with `given` any number of times prior to the deferral's resolution, but after resolution the arguments are frozen, and subsequent calls to `given` have no effect. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
 
 _resolver_`( arguments... )`
 
