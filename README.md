@@ -92,7 +92,7 @@ Methods listed here return the deferral itself.
 
 _resolver_`( arguments... )`
 
-> Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...`.
+> Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...` if included, or those specified previously via `given()`.
 
 > Values for built-in `Deferral` subtypes:
 	
