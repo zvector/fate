@@ -16,30 +16,30 @@ Any instantiation of `Deferral` may be defined with its own one-to-one mapping o
 
 ## Methods
 
-#### `promise()`
+#### promise()
 
 Returns a `Promise`, a limited interface into the deferral that allows callback registration and resolution state querying.
 
 
 ### Querying
 
-#### `map()`
+#### map()
 
 Returns a hashmap relating the names of the deferral's callback queues to the names of their corresponding resolver methods.
 
-#### `queueNames()`
+#### queueNames()
 
 Returns an Array that is an ordered list of the names of the deferral's callback queues.
 
-#### `did( String resolver )`
+#### did( `String` resolver )
 
 Returns `true` if the deferral has been resolved using the specified `resolver` method. Returns `false` if it was resolved to a different resolution substate, and returns `undefined` if it is still unresolved.
 
-#### `resolution()`
+#### resolution()
 
 Returns the deferral's resolution in the form of the `String` name of the corresponding callback queue. Returns `undefined` if the deferral is still unresolved.
 
-#### `resolution( String test )`
+#### resolution( `String` test )
 
 Returns `true` if the deferral's `resolution()` matches `test`. Returns `false` if the deferral was otherwise resolved, and returns `undefined` if it is still unresolved.
 
@@ -48,7 +48,7 @@ Returns `true` if the deferral's `resolution()` matches `test`. Returns `false` 
 
 Methods listed here return a `Promise` to this deferral.
 
-#### _registrar_`( Function callback | Array callbacks, ... )`
+#### (_registrar_)( `Function` callback | `Array` callbacks, ... )
 
 Administers the supplied callback functions according to the deferral's state:
 	
@@ -64,11 +64,11 @@ Values for built-in `Deferral` subtypes:
 		
 * `BinaryDeferral` : _registrar_ = { `yes` | `no` }
 
-#### `then( Function callback | Array callbacks, ... )`
+#### then( `Function` callback | `Array` callbacks, ... )
 
 Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `queueNames()`.
 
-#### `always( Function callback | Array callbacks, ... )`
+#### always( `Function` callback | `Array` callbacks, ... )
 
 Registers callbacks to all queues, ensuring they will be called no matter how the deferral is resolved.
 
@@ -77,15 +77,15 @@ Registers callbacks to all queues, ensuring they will be called no matter how th
 
 Methods listed here return the deferral itself.
 
-#### `as( Object context )`
+#### as( `Object` context )
 
 Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral's resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect.
 
-#### `given( Array args )`
+#### given( `Array` args )
 
 Preloads resolution arguments in an unresolved deferral. Like `as()` for context, resolution arguments may be overwritten with `given` any number of times prior to the deferral's resolution, but after resolution the arguments are frozen, and subsequent calls to `given` have no effect. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
 
-#### _resolver_`( arguments... )`
+#### (_resolver_)( arguments... )
 
 Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...` if included, or those specified previously via `given()`.
 
@@ -95,14 +95,14 @@ Values for built-in `Deferral` subtypes:
 		
 * `BinaryDeferral` : _resolver_ = { `affirm` | `negate` }
 
-#### `empty()`
+#### empty()
 
 Clears all callback queues.
 
 
 ### Sequencing
 
-#### `pipe( Function callback | Array callbacks, ... )`
+#### pipe( `Function` callback | `Array` callbacks, ... )
 
 Registers callbacks to a separate deferral, whose resolver methods are registered to the queues of this deferral, and returns a promise bound to the succeeding deferral. This arrangement forms a **pipeline** structure, which can be extended indefinitely with chained calls to `pipe`. Once resolved, the original deferral (`this`) passes its resolution state, context and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of a further `pipe`d deferral, and so on.
 
