@@ -29,11 +29,11 @@ To compare with the syntax of the jQuery Deferred object, we are also free to cr
 
 #### Subtypes
 
-Most applicable use cases, however, are served by built-in subtypes of `Deferral`. For applications in which there exists only one possible outcome, there is the `UnaryDeferral`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`. More common is the `BinaryDeferral` that names two callback queues, `yes` and `no`, which are realized by calling `affirm()` or `negate()`, respectively; the default implementation of `Deferral` returns this binary subtype. 
+Most applicable use cases, however, are served by built-in subtypes of `Deferral`. For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`. More common is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, which are realized by calling `affirm()` or `negate()`, respectively; the default implementation of `Deferral` returns this binary subtype. 
 
 #### as, given
 
-When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's resolution state to be set early, if they are known, and then resolved agnostically later.
+When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
 
 For example, compare:
 
@@ -153,7 +153,7 @@ At any time a deferral can issue a partial interface to itself in the form of a 
 
 As an example, a promise issued by the default `Deferral` will include `yes` and `no` methods for adding callbacks, but will not include the `affirm` or `negate` methods that would resolve the deferral.
 
-Because `Promise` is effectively a "supertype" of its associated deferral, in most cases it is possible for a `Deferral` to be substituted where a `Promise` is called for.
+Because a deferral is effectively an extension of its associated promise, in most cases it is possible for a `Deferral` to be substituted where `Promise` is called for.
 
 
 
@@ -239,4 +239,4 @@ In the following example, a procedure is created from numerous delayed functions
 			.then( function () { window.console && console.log( number ); } );
 	})();
 	
-_comment about flowing arguments through via `start()`_
+_comment about flowing arguments through the procedure via `start()`_
