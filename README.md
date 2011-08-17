@@ -7,7 +7,7 @@
 
 ### Background
 
-A "deferral" is an extension of the "promise" pattern. Implementations of this pattern have gained wide usage in JavaScript recently: earlier this year **jQuery** added its own `Deferred` object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar "Deferred" implementation that was already present in **dojo**. Various similar constructs are exceedingly common in many other libraries and frameworks as well.
+A **deferral** is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.3/dojo/Deferred) implementation that was already present in **dojo**. Various similar constructs are exceedingly common in many other libraries and frameworks as well.
 
 ### Overview
 
@@ -17,15 +17,19 @@ Each resolved substate is associated with a distinct **callback queue**. Consume
 
 ### Features
 
-`Deferral` supports "n-ary" futures, in which any number of possible resolutions may transpire. An instantiation of `Deferral` may be defined with its own one-to-one mapping of callback queues to resolver methods.
+#### Arity
 
-_examples needed_
+`Deferral` supports _n-ary_ futures, in that any number of possible resolution states may be defined. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods.
 
-(To mimic the syntax of the jQuery Deferred object, we could create: `Deferral({ done: 'resolve', fail: 'reject' });`.)
+	Deferral({ yes: 'affirm', no: 'negate', maybe: 'punt', confused: 'waffle', distracted: 'squirrel' });
+
+To compare with the syntax of the jQuery Deferred object, we are also free to create:
+
+	Deferral({ done: 'resolve', fail: 'reject' });
 
 #### Subtypes
 
-`Deferral` also includes built-in subtypes of itself that serve the most familiar use cases. For applications in which there exists only one possible outcome, there is the `UnaryDeferral`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`. More common is the `BinaryDeferral` that names two callback queues, `yes` and `no`, which are realized by calling `affirm()` or `negate()`, respectively; the default implementation of `Deferral` returns this binary subtype. 
+Most applicable use cases, however, are served by built-in subtypes of `Deferral`. For applications in which there exists only one possible outcome, there is the `UnaryDeferral`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`. More common is the `BinaryDeferral` that names two callback queues, `yes` and `no`, which are realized by calling `affirm()` or `negate()`, respectively; the default implementation of `Deferral` returns this binary subtype. 
 
 #### as, given
 
@@ -145,11 +149,11 @@ Synchronous callbacks that return immediately will cause the succeeding deferral
 
 # Promise
 
-At any time a deferral can issue a partial interface to itself in the form of a `Promise`, which contains a subset of the deferral's methods. Consumers of the promise can use it to make additions to the associated deferral's callback queues, and to query its resolution state, but cannot use it to directly alter the state by resolving the deferral.
+At any time a deferral can issue a partial interface to itself in the form of a **promise**, which contains a subset of the deferral's methods. Consumers of the promise can use it to make additions to the associated deferral's callback queues, and to query its resolution state, but cannot use it to directly alter the state by resolving the deferral.
 
 As an example, a promise issued by the default `Deferral` will include `yes` and `no` methods for adding callbacks, but will not include the `affirm` or `negate` methods that would resolve the deferral.
 
-Because `Promise` is effectively a subset of an internal `Deferral`, in most cases it is possible for a deferral to be substituted where a `Promise` is called for. 
+Because `Promise` is effectively a "supertype" of its associated deferral, in most cases it is possible for a `Deferral` to be substituted where a `Promise` is called for.
 
 
 
