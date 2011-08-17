@@ -149,19 +149,90 @@ At any time a deferral can issue a partial interface to itself in the form of a 
 
 As an example, a promise issued by the default `Deferral` will include `yes` and `no` methods for adding callbacks, but will not include the `affirm` or `negate` methods that would resolve the deferral.
 
+Because `Promise` is effectively a subset of an internal `Deferral`, in most cases it is possible for a deferral to be substituted where a `Promise` is called for. 
+
 
 
 # Queue
 
 Deferrals facilitate the use of **continuations** to create a `Queue`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
 
-Synchronous functions must return the array of arguments to be relayed on to the next operation; asynchronous functions must return a `Promise` to a `Deferral` that will be resolved, presumably in the affirmative, at some point in the future.
+Synchronous functions must return the array of arguments to be relayed on to the next operation; asynchronous functions must return a `Promise` to a `Deferral` that will be resolved at some point in the future.
 
 
-## Considerations of synchronous versus asynchronous operations
+### Considerations of using synchronous versus asynchronous continuations
 
 A sequence of short synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single **frame**, or turn of the event loop, too long a sequence could have a significant impact on the frame _rate_, which on the client may include noticeable interruptions to user experience.
 
 Asynchronous operations advance the queue no faster than one operation per frame, but this has the advantages of not polluting the stack and of long sequences not prolonging the duration of the frame in which it's executing.
 
 Synchronous and asynchronous operations can be mixed together arbitrarily to provide granular control over this balance of immediacy versus frame imposition.
+
+
+
+# when()
+
+The `when` function is a construct that facilitates parallel execution by binding together the fate of multiple promises. The promises represented by each supplied argument are overseen by a master binary deferral, such that the master deferral will be `affirm`ed only once each individual promise has itself resolved to the expected resolution, or will be `negate`d if any promise is otherwise resolved.
+
+By default, `when` monitors the promises for their implicitly affirmative resolution state, i.e., the state targeted by the first argument of `then()`. A specific resolution state can be supplied as a `String` at the last argument position in the `when()` call. For example, the promise returned by:
+
+	var promise = when( promiseA, promiseB, 'no' );
+
+will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
+
+
+
+# Procedure
+
+A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array (literal `[ ]`) represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array** (literal `[[ ]]`) represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
+
+In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that for the procedure to complete successfully (with `number === 22`), each function must execute in order as specified by its unique `n` value. Even amidst the tangle of serial and parallel invocations, the logic of the execution order indicated is discernable:
+	
+	( function () {
+		var number = 0;
+
+		function fn ( n ) {
+			return function () {
+				var deferral = new Deferral.Unary;
+				setTimeout( function () { n === ++number && d.resolve(); }, 100 );
+				return deferral.promise();
+			};
+		}
+
+		Procedure([
+			fn(1),
+			[[
+				fn(2),
+				[[
+					fn(3),
+					fn(4),
+					[
+						fn(5),
+						[[
+							fn(11),
+							fn(12),
+							[[ fn(13), fn(14) ]]
+						]],
+						fn(17),
+						[
+							fn(18),
+							fn(19)
+						]
+					],
+					fn(6),
+					[[
+						fn(7),
+						[ fn(8), fn(15) ]
+					]],
+					fn(9)
+				]],
+				[ fn(10), fn(16) ]
+			]],
+			[ fn(20), fn(21) ],
+			fn(22)
+		])
+			.start()
+			.then( function () { window.console && console.log( number ); } );
+	})();
+	
+_comment about providing arguments via `start()`_
