@@ -436,3 +436,17 @@ asyncTest( "Procedure", function () {
 });
 
 })();
+
+asyncTest( "Mixing in jQuery promises", function () {
+	Procedure([[
+		function () { console.log("1"); ok( true ); },
+		function () {
+			return jQuery.ajax( 'http://localhost/staging/deferral.js/', {} )
+				.then( function () { console.log("2") }, function () { console.log("failed"); } )
+				.always( function () { ok( true ); } );
+		},
+		function () { console.log("3"); ok( true ); }
+	]])
+		.start()
+		.then( start );
+});

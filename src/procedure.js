@@ -12,14 +12,15 @@ function Procedure ( input ) {
 		return new Procedure( input );
 	}
 	
-	var	procedure = parse( input ),
+	var	self = this,
+		procedure = parse.call( this, input ),
 		deferral = ( new Deferral ).as( this );
 	
 	function parallel () {
 		var args = slice.call( arguments );
 		return function () {
 			for ( var i = 0, l = args.length; i < l; i++ ) {
-				args[i] = args[i].apply( procedure, arguments );
+				args[i] = args[i].apply( self, arguments );
 			}
 			return when( args );
 		};
@@ -38,7 +39,7 @@ function Procedure ( input ) {
 		} else if ( isArray( obj ) ) {
 			fn = obj.length === 1 && isArray( obj[0] ) ? ( obj = obj[0], parallel ) : series;
 			for ( array = [], i = 0, l = obj.length; i < l; ) {
-				array.push( parse( obj[ i++ ] ) );
+				array.push( parse.call( self, obj[ i++ ] ) );
 			}
 			return fn.apply( this, array );
 		}

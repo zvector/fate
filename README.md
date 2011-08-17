@@ -1,17 +1,14 @@
-
-
-
 # Deferral
 
 `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
 
 ### Background
 
-A **deferral** is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.3/dojo/Deferred) implementation that was already present in **dojo**. Various similar constructs are exceedingly common in many other libraries and frameworks as well.
+A **deferral** is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **dojo** whose earliest form dates back to before the original 1.0 release.
 
 ### Overview
 
-A deferral collects future possible execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is thus characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; then at some point in the future, it will irreversibly transition into one of its _resolved_ substates. 
+A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
 
 Each resolved substate is associated with a distinct **callback queue**. Consumers of the deferral may add callbacks to any queue at any time, however the deferral will react differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. When the deferral transitions to a _resolved_ substate, the functions in the queue associated with that state are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
@@ -31,7 +28,7 @@ To compare with the syntax of the jQuery Deferred object, we are also free to cr
 
 Most applicable use cases, however, are served by built-in subtypes of `Deferral`. For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`. More common is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, which are realized by calling `affirm()` or `negate()`, respectively; the default implementation of `Deferral` returns this binary subtype. 
 
-#### as, given
+#### as(), given()
 
 When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
 
@@ -47,6 +44,10 @@ which might compare with
 
 	jQuery.Deferred().resolveWith( context, arg1, arg2, ... );
 
+
+#### A technicality with respect to terminology
+
+In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of "resolved". Whereas to `resolve()` a jQuery `Deferred` instance implies a "successful" outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. Thus as alluded to above, the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, is either `affirm`ed or `negate`d.
 
 
 
@@ -190,7 +191,7 @@ will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both even
 
 A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array (literal `[ ]`) represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array** (literal `[[ ]]`) represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
 
-In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that for the procedure to complete successfully (with `number === 22`), each function must execute in order as specified by its unique `n` value. Even amidst the tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their preceeding element.
+In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that each function must execute in order, as specified by its unique `n` value, for the procedure to complete successfully (with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their preceeding element.
 
 	( function () {
 		var number = 0;
