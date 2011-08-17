@@ -37,15 +37,15 @@ When a deferral is resolved it is commonly desirable to specify a context and se
 
 For example, compare:
 
-`Deferral().as( context ).affirm( arg1, arg2, ... )`
+	Deferral().as( context ).affirm( arg1, arg2, ... );
 
 or
 
-`Deferral().as( context ).given([ arg1, arg2, ... ]).affirm();`
+	Deferral().as( context ).given([ arg1, arg2, ... ]).affirm();
 
 which might compare with
 
-`jQuery.Deferred().resolveWith( context, arg1, arg2, ... )`
+	jQuery.Deferred().resolveWith( context, arg1, arg2, ... );
 
 
 
@@ -190,15 +190,15 @@ will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both even
 
 A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array (literal `[ ]`) represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array** (literal `[[ ]]`) represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
 
-In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that for the procedure to complete successfully (with `number === 22`), each function must execute in order as specified by its unique `n` value. Even amidst the tangle of serial and parallel invocations, the logic of the execution order indicated is discernable:
-	
+In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that for the procedure to complete successfully (with `number === 22`), each function must execute in order as specified by its unique `n` value. Even amidst the tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their prior element.
+
 	( function () {
 		var number = 0;
 
 		function fn ( n ) {
 			return function () {
 				var deferral = new Deferral.Unary;
-				setTimeout( function () { n === ++number && d.resolve(); }, 100 );
+				setTimeout( function () { n === ++number && deferral.resolve(); }, 100 );
 				return deferral.promise();
 			};
 		}
@@ -239,4 +239,4 @@ In the following example, a procedure is created from numerous delayed functions
 			.then( function () { window.console && console.log( number ); } );
 	})();
 	
-_comment about providing arguments via `start()`_
+_comment about flowing arguments through via `start()`_
