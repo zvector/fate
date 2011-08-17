@@ -190,7 +190,7 @@ will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both even
 
 A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array (literal `[ ]`) represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array** (literal `[[ ]]`) represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
 
-In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that for the procedure to complete successfully (with `number === 22`), each function must execute in order as specified by its unique `n` value. Even amidst the tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their prior element.
+In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that for the procedure to complete successfully (with `number === 22`), each function must execute in order as specified by its unique `n` value. Even amidst the tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their preceeding element.
 
 	( function () {
 		var number = 0;
