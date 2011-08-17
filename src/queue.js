@@ -34,6 +34,7 @@ function Queue ( operations ) {
 			deferral.as( self.stop() ).affirm.apply( deferral, arguments );
 		}
 	}
+	
 	function start () {
 		deferral = new Deferral;
 		running = true;
@@ -41,17 +42,20 @@ function Queue ( operations ) {
 		continuation.apply( operation = queue.shift(), args = slice.call( arguments ) );
 		return this;
 	}
+	
 	function pause () {
 		pausePending = true;
 		this.resume = resume, this.pause = getThis;
 		return this;
 	}
+	
 	function resume () {
 		running = true, pausePending = false;
 		this.pause = pause, this.resume = getThis;
 		continuation.apply( operation = queue.shift(), args );
 		return this;
 	}
+	
 	function stop () {
 		running = pausePending = false;
 		this.start = start, this.pause = this.resume = this.stop = getThis;

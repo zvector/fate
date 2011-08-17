@@ -4,5 +4,6 @@ $files = array(
 	'deferral',
 	'promise',
 	'queue',
-	'when'
+	'when',
+	'procedure'
 );

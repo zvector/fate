@@ -69,7 +69,8 @@ asyncTest( "when()", function () {
 	
 	function setResult ( value ) {
 		return function () {
-			console.log( result = value );
+			result = value;
+			// console.log( result );
 		}
 	}
 	
@@ -77,7 +78,7 @@ asyncTest( "when()", function () {
 		when( d1 ).then( setResult( d1 ) ),
 		when( p2 ).then( setResult( p2 ) )
 	) )
-		.then( function () { console.log( w ); } )
+		// .then( function () { console.log( w ); } )
 		.then( start ); w['']='w';
 	
 	setTimeout( function () {
@@ -277,9 +278,9 @@ asyncTest( "Queue", function () {
 		// Since JS isn't tail-call optimized, synchronous operations accumulate on the stack. (Set a
 		// breakpoint inside each of the last few operations and notice the growing number of references to
 		// `continuation`.) To relieve that pressure, let's go back to using async operations, which
-		// allows the event loop to turn over and the tail calls to complete.
+		// allows the event loop to turn over and the call stack to unwind.
 		async( function ( x, y, z ) { return [ x-1, y-1, z-1 ] }, 0, '0,2,1' ),
-		async( function ( x, y, z ) { return [ x*2, y*2, z*2 ] }, 1000, '0,4,2' )
+		async( function ( x, y, z ) { return [ x*2, y*2, z*2 ] }, 100, '0,4,2' )
 	]);
 	
 	/*
@@ -295,13 +296,13 @@ asyncTest( "Queue", function () {
 		 * But wait there's more ... the queue has been emptied and stopped, but on the next frame
 		 * we can make use of it again.
 		 */
-		.then( reboot )
+		.then( encore )
 		
 		// And now we've finally reached the end, so we're ready to set loose the async tester.
 		.then( start )
 	;
 	
-	function reboot ( x, y, z ) {
+	function encore ( x, y, z ) {
 		setTimeout( function () {
 			queue.push(
 				function () {
@@ -340,6 +341,98 @@ asyncTest( "Queue", function () {
 		equal( queue.args().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
 		queue.resume();
 	}, 300 );
+});
+
+asyncTest( "Nesting Queue/when", function () {
+	var	number = 0,
+		time = ( new Date ).getTime();
+	
+	function fn ( n ) {
+		return function () {
+			var d = new Deferral.Unary;
+			setTimeout( function () {
+				// console.log( n + ": " + ( ( new Date ).getTime() - time ) );
+				ok( n === ++number, n );
+				d.resolve();
+			}, 100 );
+			return d.promise();
+		};
+	}
+	
+	function parallel () {
+		var args = Array.prototype.slice.call( arguments );
+		return function () {
+			for ( var i = 0, l = args.length; i < l; i++ ) { args[i] = args[i](); }
+			return when( args );
+		};
+	}
+	function series () {
+		var args = Array.prototype.slice.call( arguments );
+		return function () { return Queue( args ).start( arguments ).promise(); };
+	}
+	
+	series(
+		fn(1),
+		parallel(
+			fn(2),
+			parallel( fn(3), fn(4) ),
+			series( fn(5), fn(6) )
+		),
+		series( fn(7), fn(8) )
+	)()
+		.then( start );
+});
+
+asyncTest( "Procedure", function () {
+	var number = 0,
+		time = ( new Date ).getTime();
+	
+	function fn ( n ) {
+		return function () {
+			var d = new Deferral.Unary;
+			setTimeout( function () {
+				// console.log( n + ": " + ( ( new Date ).getTime() - time ) );
+				ok( n === ++number, n );
+				d.resolve();
+			}, 100 );
+			return d.promise();
+		};
+	}
+	
+	Procedure([
+		fn(1),
+		[[
+			fn(2),
+			[[
+				fn(3),
+				fn(4),
+				[
+					fn(5),
+					[[
+						fn(11),
+						fn(12),
+						[[ fn(13), fn(14) ]]
+					]],
+					fn(17),
+					[
+						fn(18),
+						fn(19)
+					]
+				],
+				fn(6),
+				[[
+					fn(7),
+					[ fn(8), fn(15) ]
+				]],
+				fn(9)
+			]],
+			[ fn(10), fn(16) ]
+		]],
+		[ fn(20), fn(21) ],
+		fn(22)
+	])
+		.start()
+		.then( start );
 });
 
 })();
