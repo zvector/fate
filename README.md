@@ -118,9 +118,9 @@ Sets the context in which all executed callbacks will be called after the deferr
 
 Preloads resolution arguments in an unresolved deferral. Like `as()` for context, resolution arguments may be overwritten with `given` any number of times prior to the deferral's resolution, but after resolution the arguments are frozen, and subsequent calls to `given` have no effect. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
 
-#### (_resolver_)( arguments... )
+#### (_resolver_)( ...arguments )
 
-Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `arguments...` if included, or those specified previously via `given()`.
+Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `...arguments` if included, or those specified previously via `given()`.
 
 Values for built-in `Deferral` subtypes:
 	
