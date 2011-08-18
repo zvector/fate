@@ -55,7 +55,7 @@ For applications in which there exists only one possible outcome, there is the `
 	var d = Deferral.Unary(); // UnaryDeferral
 	d.resolved( fn1, fn2, fn3 ); // ==> d.always( fn1, fn2, fn3 );
 	
-There is also the special case where it may be desirable to work with a deferral in which all added callbacks are executed immediately; for this there is the `NullaryDeferral` at `Deferral.Nullary`. Effectively equivalent to a "pre-resolved" deferral, a nullary deferral has no callback queue or resolver method, but does provide conformance to the fundamental promise interface with `then()` and `promise()`. In addition, `empty()` is obviated; `then()` is equivalent to `always()`; and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
+There is also the special case where it may be desirable to work with a deferral in which all added callbacks are executed immediately; for this there is the `NullaryDeferral` at `Deferral.Nullary`. Effectively equivalent to a "pre-resolved" deferral, a nullary deferral has no callback queue or resolver method, but does provide conformance to the fundamental promise interface with `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
 
 	var d = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
 	d.then( fn ); // ==> ( fn1( asContext, givenArguments ), d.promise() );
