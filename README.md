@@ -41,7 +41,7 @@ Each resolved substate is directly associated with a distinct **callback queue**
 
 ### Early binding
 
-When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
+When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's future resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
 
 For example, compare:
 
@@ -301,9 +301,19 @@ A **procedure** employs `Queue` and `when` to describe combinations of serial an
 
 	var p = Procedure( [ ... ] | [[ ... ]] );
 
+## Methods
+
+#### promise
+
+Returns a promise to the internal deferral that will be resolved once the procedure is completed.
+
+#### start
+
+Initiates the procedure.
+
 ## Examples
 
-In the following exmaple, a procedure is constructed from both parallel and serial sets of functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
+In the following exmaple, a procedure is constructed from both parallel and serial sets of asynchronous functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
 
 	var number = 0;
 	
@@ -329,7 +339,7 @@ In the following exmaple, a procedure is constructed from both parallel and seri
 			window.console && console.log( number ); // 8
 		});
 	
-The next example illustrates the same principle using a significantly more complex graph. Again, each function must execute in order for the procedure to complete successfully (this time with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their preceeding element.
+The next example further illustrates this principle using a significantly more complex graph. Again, each function must execute in the proper order for the procedure to complete successfully (this time with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the completion of their preceeding element.
 
 	var number = 0;
 
