@@ -307,8 +307,9 @@ function Deferral ( map, fn, args ) {
 	if ( map === null ) {
 		resolution = true;
 		this.as = this.given = this.empty = getThis;
-		this.then = this.always = Deferral.privileged.invoke( this, null )
+		this.then = Deferral.privileged.invoke( this, null )
 			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
+		this.always = function () { return this.then( slice.call( arguments ) ); };
 	}
 	
 	// Normal (n > 0)-ary deferral
@@ -667,7 +668,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 		if ( promise instanceof Deferral || promise instanceof Promise ) {
 			queueNames = promise.queueNames();
 			
-			// (n > 0)-ary deferral, affirm on the matching queue and negate on any others
+			// (n > 0)-ary deferral: affirm on the matching queue and negate on any others
 			if ( queueNames.length ) {
 				
 				// Determine which of this promise's callback queues matches the specified `resolution`
@@ -691,7 +692,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 				}
 			}
 			
-			// Nullary deferral, affirm immediately
+			// Nullary deferral: affirm immediately
 			else {
 				promise.then( affirmed( promise ) );
 			}
@@ -703,7 +704,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 		}
 		
 		// For anything that isn't promise-like, force whatever `promise` is to play nice with the
-		// other promises by wrapping it in an nullary deferral.
+		// other promises by wrapping it in a nullary deferral.
 		else {
 			promises[i] = Deferral.Nullary( master, promise );
 			isFunction( promise ) && promises[i].then( promise );

@@ -18,6 +18,10 @@ require '../build/combine.php';
 		<!-- tests -->
 		<script src="qunit.js"></script>
 		<script src="unit/Deferral.test.js"></script>
+		<script src="unit/Promise.test.js"></script>
+		<script src="unit/Queue.test.js"></script>
+		<script src="unit/when.test.js"></script>
+		<script src="unit/Procedure.test.js"></script>
 	</head>
 	<body>
 		<h1 id="qunit-header">deferral.js Test Suite</h1>
