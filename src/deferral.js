@@ -65,8 +65,9 @@ function Deferral ( map, fn, args ) {
 	if ( map === null ) {
 		resolution = true;
 		this.as = this.given = this.empty = getThis;
-		this.then = this.always = Deferral.privileged.invoke( this, null )
+		this.then = Deferral.privileged.invoke( this, null )
 			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
+		this.always = function () { return this.then( slice.call( arguments ) ); };
 	}
 	
 	// Normal (n > 0)-ary deferral
