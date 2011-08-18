@@ -387,4 +387,5 @@ The next example further illustrates this principle using a significantly more c
 		.then( function () { window.console && console.log( number ); } );
 	
 _comment about flowing arguments through the procedure via `start()`, similar to `Queue`_
+
 _should `when` be built further to save return values of its elements and apply a reduce function over them?_
