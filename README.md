@@ -219,6 +219,10 @@ Asynchronous operations advance the queue no faster than one operation per frame
 
 Synchronous and asynchronous operations can be mixed together arbitrarily to provide granular control over this balance of immediacy versus frame imposition.
 
+## Examples
+
+* [This unit test](https://github.com/nickfargo/deferral.js/blob/master/test/unit/Queue.test.js) provides a step-by-step demonstration of a `Queue` at work.
+
 
 
 # when()
