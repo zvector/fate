@@ -11,24 +11,24 @@
 		* Interfacing: `promise`
 		* Querying: `map`, `queueNames`, `did`, `resolution`
 		* Registration: { `yes`, `no` } | `resolved`, `then`, `always`
-		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
 		* Sequencing: `pipe`
+		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
 * **Promise**
 * **Queue**
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
-* when()
+* **when()**
 * **Procedure**
 
 
 
 # Deferral
 
-`Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
+A **deferral** is a stateful callback device used to manage the eventualities of asynchronous operations.
 
 ## Background
 
-A **deferral** is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
+`Deferral` is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
 
 ## Overview
 
@@ -155,6 +155,15 @@ Registers callbacks as above to each callback queue in order, such that the indi
 Registers callbacks to all queues, ensuring they will be called no matter how the deferral is resolved.
 
 
+### Sequencing
+
+#### pipe( `Function` callback | `Array` callbacks, ... )
+
+Registers callbacks to a separate deferral, whose resolver methods are registered to the queues of this deferral, and returns a promise bound to the succeeding deferral. This arrangement forms a **pipeline** structure, which can be extended indefinitely with chained calls to `pipe`. Once resolved, the original deferral (`this`) passes its resolution state, context and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of a further `pipe`d deferral, and so on.
+
+Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback's return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback's own deferral is resolved.
+
+
 ### Resolution
 
 Methods listed here return the deferral itself.
@@ -180,15 +189,6 @@ Values for built-in `Deferral` subtypes:
 #### empty()
 
 Clears all callback queues.
-
-
-### Sequencing
-
-#### pipe( `Function` callback | `Array` callbacks, ... )
-
-Registers callbacks to a separate deferral, whose resolver methods are registered to the queues of this deferral, and returns a promise bound to the succeeding deferral. This arrangement forms a **pipeline** structure, which can be extended indefinitely with chained calls to `pipe`. Once resolved, the original deferral (`this`) passes its resolution state, context and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of a further `pipe`d deferral, and so on.
-
-Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback's return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback's own deferral is resolved.
 
 
 
