@@ -19,8 +19,14 @@ function Procedure ( input ) {
 	function parallel () {
 		var args = slice.call( arguments );
 		return function () {
+			var obj;
 			for ( var i = 0, l = args.length; i < l; i++ ) {
-				args[i] = args[i].apply( self, arguments );
+				obj = args[i].apply( self, arguments );
+				// TODO: wrap args[i] in a null deferral if it isn't already a function or promise
+				if ( !( isFunction( obj ) || Promise.resembles( obj ) ) ) {
+					obj = Deferral.Nullary( self, obj );
+				}
+				args[i] = obj;
 			}
 			return when( args );
 		};

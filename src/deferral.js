@@ -11,7 +11,7 @@ function Deferral ( map, fn, args ) {
 	if ( !( this instanceof Deferral ) ) {
 		return new Deferral( map, fn, args );
 	}
-	if ( map == null || isFunction( map ) ) {
+	if ( map === undefined || isFunction( map ) ) {
 		return new Deferral.Binary( arguments[0], arguments[1] );
 	}
 	
@@ -55,20 +55,38 @@ function Deferral ( map, fn, args ) {
 	this.queueNames.toString = function () { return self.queueNames().join(' ') };
 	this.resolution.toString = this.resolution;
 	
-	this.empty();
-	register = Deferral.privileged.register( callbacks );
-	resolve = Deferral.privileged.resolve(
-		callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments
-	);
+	/*
+	 * Handle the special case of a nullary deferral, which behaves like a "pre-resolved" unary deferral,
+	 * where there are no callback queues, no `done()` registrar or `resolve()` method, but functions added
+	 * through `then`, `always`, etc., will simply be executed immediately. No `as()` or `given()` methods
+	 * are available either; instead the resolution context and resolution arguments are provided in the
+	 * constructor call, after the `null` first argument, at positions 1 and 2, respectively.
+	 */
+	if ( map === null ) {
+		resolution = true;
+		this.as = this.given = this.empty = getThis;
+		this.then = this.always = Deferral.privileged.invoke( this, null )
+			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
+	}
 	
-	each( map, function ( name, resolver ) {
-		self[ name ] = register( name );
-		self[ resolver ] = resolve( name );
-	});
+	// Normal (n > 0)-ary deferral
+	else {
+		this.empty();
+
+		register = Deferral.privileged.register( callbacks );
+		resolve = Deferral.privileged.resolve(
+			callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments
+		);
 	
-	register = resolve = null;
+		each( map, function ( name, resolver ) {
+			self[ name ] = register( name );
+			self[ resolver ] = resolve( name );
+		});
 	
-	fn && isFunction( fn ) && fn.apply( this, args );
+		register = resolve = null;
+	
+		fn && isFunction( fn ) && fn.apply( this, args );
+	}
 }
 extend( true, Deferral, {
 	privileged: {
@@ -224,6 +242,12 @@ extend( true, Deferral, {
 	}
 });
 
+function NullaryDeferral ( as, given ) {
+	if ( !( this instanceof NullaryDeferral ) ) { return new NullaryDeferral( as, given ); }
+	Deferral.call( this, null, as, given );
+}
+NullaryDeferral.prototype = Deferral.prototype;
+Deferral.Nullary = NullaryDeferral;
 
 function UnaryDeferral ( fn, args ) {
 	if ( !( this instanceof UnaryDeferral ) ) { return new UnaryDeferral( fn, args ); }

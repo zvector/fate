@@ -14,6 +14,21 @@ asyncTest( "Deferral", function () {
 	start();
 });
 
+asyncTest( "Nullary Deferral", function () {
+	var	context = {},
+		d = Deferral.Nullary( context, [ 1, 2, 3 ] );
+	strictEqual( d.did(), true );
+	strictEqual( d.resolution(), true );
+	ok( d.promise() );
+	strictEqual( d.did(), d.promise().did() );
+	strictEqual( d.resolution(), d.promise().resolution() );
+	ok( d.as() === d );
+	d.promise().then( function ( a, b, c ) {
+		ok( this === context && a === 1 && b === 2 && c === 3 );
+	});
+	start();
+});
+
 asyncTest( "then()", function () {
 	var result,
 		map = { yes: 'affirm', no: 'negate', maybe: 'punt', unanswerable: 'reject' },
@@ -438,15 +453,30 @@ asyncTest( "Procedure", function () {
 })();
 
 asyncTest( "Mixing in jQuery promises", function () {
-	Procedure([[
-		function () { console.log("1"); ok( true ); },
+	Procedure( [[
 		function () {
-			return jQuery.ajax( 'http://localhost/staging/deferral.js/', {} )
-				.then( function () { console.log("2") }, function () { console.log("failed"); } )
-				.always( function () { ok( true ); } );
+			console.log("1");
+			ok( true );
+			return Deferral.Nullary();
 		},
-		function () { console.log("3"); ok( true ); }
-	]])
+		[
+			function () {
+				return jQuery.ajax( '/', {} )
+					.then( function () { console.log("2") }, function () { console.log("failed"); } )
+					.always( function () { ok( true ); } );
+			},
+			function () {
+				return jQuery.ajax( '/', {} )
+					.then( function () { console.log("3") }, function () { console.log("failed"); } )
+					.always( function () { ok( true ); } );
+			}
+		],
+		function () {
+			console.log("4");
+			ok( true );
+			return Deferral.Nullary();
+		}
+	]] )
 		.start()
 		.then( start );
 });

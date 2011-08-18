@@ -253,7 +253,7 @@ function Deferral ( map, fn, args ) {
 	if ( !( this instanceof Deferral ) ) {
 		return new Deferral( map, fn, args );
 	}
-	if ( map == null || isFunction( map ) ) {
+	if ( map === undefined || isFunction( map ) ) {
 		return new Deferral.Binary( arguments[0], arguments[1] );
 	}
 	
@@ -297,20 +297,38 @@ function Deferral ( map, fn, args ) {
 	this.queueNames.toString = function () { return self.queueNames().join(' ') };
 	this.resolution.toString = this.resolution;
 	
-	this.empty();
-	register = Deferral.privileged.register( callbacks );
-	resolve = Deferral.privileged.resolve(
-		callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments
-	);
+	/*
+	 * Handle the special case of a nullary deferral, which behaves like a "pre-resolved" unary deferral,
+	 * where there are no callback queues, no `done()` registrar or `resolve()` method, but functions added
+	 * through `then`, `always`, etc., will simply be executed immediately. No `as()` or `given()` methods
+	 * are available either; instead the resolution context and resolution arguments are provided in the
+	 * constructor call, after the `null` first argument, at positions 1 and 2, respectively.
+	 */
+	if ( map === null ) {
+		resolution = true;
+		this.as = this.given = this.empty = getThis;
+		this.then = this.always = Deferral.privileged.invoke( this, null )
+			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
+	}
 	
-	each( map, function ( name, resolver ) {
-		self[ name ] = register( name );
-		self[ resolver ] = resolve( name );
-	});
+	// Normal (n > 0)-ary deferral
+	else {
+		this.empty();
+
+		register = Deferral.privileged.register( callbacks );
+		resolve = Deferral.privileged.resolve(
+			callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments
+		);
 	
-	register = resolve = null;
+		each( map, function ( name, resolver ) {
+			self[ name ] = register( name );
+			self[ resolver ] = resolve( name );
+		});
 	
-	fn && isFunction( fn ) && fn.apply( this, args );
+		register = resolve = null;
+	
+		fn && isFunction( fn ) && fn.apply( this, args );
+	}
 }
 extend( true, Deferral, {
 	privileged: {
@@ -466,6 +484,12 @@ extend( true, Deferral, {
 	}
 });
 
+function NullaryDeferral ( as, given ) {
+	if ( !( this instanceof NullaryDeferral ) ) { return new NullaryDeferral( as, given ); }
+	Deferral.call( this, null, as, given );
+}
+NullaryDeferral.prototype = Deferral.prototype;
+Deferral.Nullary = NullaryDeferral;
 
 function UnaryDeferral ( fn, args ) {
 	if ( !( this instanceof UnaryDeferral ) ) { return new UnaryDeferral( fn, args ); }
@@ -620,7 +644,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 		resolution,
 		master = new Deferral,
 		list = [],
-		i, promise, affirmativeQueue, map, name;
+		i, promise, queueNames, affirmativeQueue, map, name;
 	
 	function affirmed ( p ) {
 		return function () {
@@ -641,25 +665,35 @@ function when ( /* promises..., [ resolution ] */ ) {
 	for ( i = 0; i < length; i++ ) {
 		promise = promises[i];
 		if ( promise instanceof Deferral || promise instanceof Promise ) {
+			queueNames = promise.queueNames();
 			
-			// Determine which of this promise's callback queues matches the specified `resolution`
-			affirmativeQueue = resolution || promise.queueNames()[0];
+			// (n > 0)-ary deferral, affirm on the matching queue and negate on any others
+			if ( queueNames.length ) {
+				
+				// Determine which of this promise's callback queues matches the specified `resolution`
+				affirmativeQueue = resolution || queueNames[0];
 			
-			// `map` becomes a list referencing the callback queues not considered affirmative in this context
-			map = promise.map();
-			if ( affirmativeQueue in map ) {
-				delete map[ affirmativeQueue ];
-			} else {
-				// Because this promise will never be resolved to match `resolution`, the master deferral
-				// can be negated immediately
-				list.push( promise );
-				master.negate.apply( master, list );
-				break;
+				// `map` becomes a list referencing the callback queues not considered affirmative in this context
+				map = promise.map();
+				if ( affirmativeQueue in map ) {
+					delete map[ affirmativeQueue ];
+				} else {
+					// Because this promise will never be resolved to match `resolution`, the master deferral
+					// can be negated immediately
+					list.push( promise );
+					master.negate.apply( master, list );
+					break;
+				}
+			
+				promise[ affirmativeQueue ]( affirmed( promise ) );
+				for ( name in map ) {
+					promise[ name ]( negated( promise ) );
+				}
 			}
 			
-			promise[ affirmativeQueue ]( affirmed( promise ) );
-			for ( name in map ) {
-				promise[ name ]( negated( promise ) );
+			// Nullary deferral, affirm immediately
+			else {
+				promise.then( affirmed( promise ) );
 			}
 		}
 		
@@ -669,10 +703,10 @@ function when ( /* promises..., [ resolution ] */ ) {
 		}
 		
 		// For anything that isn't promise-like, force whatever `promise` is to play nice with the
-		// other promises by wrapping it in an immediately affirmed deferral.
+		// other promises by wrapping it in an nullary deferral.
 		else {
-			promises[i] = ( isFunction( promise ) ? new Deferral( promise ) : new Deferral )
-				.as( master ).affirm( promise );
+			promises[i] = Deferral.Nullary( master, promise );
+			isFunction( promise ) && promises[i].then( promise );
 		}
 	}
 	
@@ -701,8 +735,14 @@ function Procedure ( input ) {
 	function parallel () {
 		var args = slice.call( arguments );
 		return function () {
+			var obj;
 			for ( var i = 0, l = args.length; i < l; i++ ) {
-				args[i] = args[i].apply( self, arguments );
+				obj = args[i].apply( self, arguments );
+				// TODO: wrap args[i] in a null deferral if it isn't already a function or promise
+				if ( !( isFunction( obj ) || Promise.resembles( obj ) ) ) {
+					obj = Deferral.Nullary( self, obj );
+				}
+				args[i] = obj;
 			}
 			return when( args );
 		};

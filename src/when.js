@@ -11,7 +11,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 		resolution,
 		master = new Deferral,
 		list = [],
-		i, promise, affirmativeQueue, map, name;
+		i, promise, queueNames, affirmativeQueue, map, name;
 	
 	function affirmed ( p ) {
 		return function () {
@@ -32,25 +32,35 @@ function when ( /* promises..., [ resolution ] */ ) {
 	for ( i = 0; i < length; i++ ) {
 		promise = promises[i];
 		if ( promise instanceof Deferral || promise instanceof Promise ) {
+			queueNames = promise.queueNames();
 			
-			// Determine which of this promise's callback queues matches the specified `resolution`
-			affirmativeQueue = resolution || promise.queueNames()[0];
+			// (n > 0)-ary deferral: affirm on the matching queue and negate on any others
+			if ( queueNames.length ) {
+				
+				// Determine which of this promise's callback queues matches the specified `resolution`
+				affirmativeQueue = resolution || queueNames[0];
 			
-			// `map` becomes a list referencing the callback queues not considered affirmative in this context
-			map = promise.map();
-			if ( affirmativeQueue in map ) {
-				delete map[ affirmativeQueue ];
-			} else {
-				// Because this promise will never be resolved to match `resolution`, the master deferral
-				// can be negated immediately
-				list.push( promise );
-				master.negate.apply( master, list );
-				break;
+				// `map` becomes a list referencing the callback queues not considered affirmative in this context
+				map = promise.map();
+				if ( affirmativeQueue in map ) {
+					delete map[ affirmativeQueue ];
+				} else {
+					// Because this promise will never be resolved to match `resolution`, the master deferral
+					// can be negated immediately
+					list.push( promise );
+					master.negate.apply( master, list );
+					break;
+				}
+			
+				promise[ affirmativeQueue ]( affirmed( promise ) );
+				for ( name in map ) {
+					promise[ name ]( negated( promise ) );
+				}
 			}
 			
-			promise[ affirmativeQueue ]( affirmed( promise ) );
-			for ( name in map ) {
-				promise[ name ]( negated( promise ) );
+			// Nullary deferral: affirm immediately
+			else {
+				promise.then( affirmed( promise ) );
 			}
 		}
 		
@@ -60,10 +70,10 @@ function when ( /* promises..., [ resolution ] */ ) {
 		}
 		
 		// For anything that isn't promise-like, force whatever `promise` is to play nice with the
-		// other promises by wrapping it in an immediately affirmed deferral.
+		// other promises by wrapping it in a nullary deferral.
 		else {
-			promises[i] = ( isFunction( promise ) ? new Deferral( promise ) : new Deferral )
-				.as( master ).affirm( promise );
+			promises[i] = Deferral.Nullary( master, promise );
+			isFunction( promise ) && promises[i].then( promise );
 		}
 	}
 	
