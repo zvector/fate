@@ -9,6 +9,15 @@ var	toString = Object.prototype.toString,
 	slice = Array.prototype.slice;
 	
 /**
+ * General-purpose empty function; also usable as a unique alternative "nil" type in strict-equal matches
+ * whenever it's desirable to avoid traditional `null` and `undefined`.
+ */
+function noop () {}
+
+/** */
+function getThis () { return this; }
+
+/**
  * Calls the specified native function if it exists and returns its result; if no such function exists on
  * `obj` as registered in `__native.fn`, returns our unique `noop` (as opposed to `null` or `undefined`,
  * which may be a valid result from the native function itself).
@@ -20,15 +29,6 @@ function __native ( item, obj /* , ... */ ) {
 __native.fn = {
 	forEach: Array.prototype.forEach
 };
-
-/**
- * General-purpose empty function; also usable as a unique alternative "nil" type in strict-equal matches
- * whenever it's desirable to avoid traditional `null` and `undefined`.
- */
-function noop () {}
-
-/** */
-function getThis () { return this; }
 
 /**
  * Safer alternative to `typeof`
@@ -52,6 +52,7 @@ function isFunction ( obj ) { return type( obj ) === 'function'; }
 
 /** isPlainObject */
 function isPlainObject ( obj ) {
+	var key;
 	if ( !obj || type( obj ) !== 'object' || obj.nodeType || obj === global ||
 		obj.constructor &&
 		!hasOwn.call( obj, 'constructor' ) &&
@@ -59,21 +60,61 @@ function isPlainObject ( obj ) {
 	) {
 		return false;
 	}
-	for ( var key in obj ) {}
+	for ( key in obj ) {}
 	return key === undefined || hasOwn.call( obj, key );
 }
 
 /** isEmpty */
 function isEmpty ( obj, andPrototype ) {
+	var key;
 	if ( isArray( obj ) && obj.length ) {
 		return false;
 	}
-	for ( var key in obj ) {
+	for ( key in obj ) {
 		if ( andPrototype || hasOwn.call( obj, key ) ) {
 			return false;
 		}
 	}
 	return true;
+}
+
+function each ( obj, fn ) {
+	if ( !obj ) { return; }
+	var	key, i, l = obj.length;
+	if ( l === undefined || isFunction( obj ) ) {
+		for ( key in obj ) {
+			if ( fn.call( obj[key], key, obj[key], obj ) === false ) {
+				break;
+			}
+		}
+	} else {
+		for ( i = 0, l = obj.length; i < l; ) {
+			if ( fn.call( obj[i], i, obj[i++], obj ) === false ) {
+				break;
+			}
+		}
+	}
+	return obj;
+}
+
+function forEach ( obj, fn, context ) {
+	var	n, l, key, i;
+	if ( obj == null ) { return; }
+	if ( ( n = __native( 'forEach', obj, fn, context ) ) !== noop ) { return n; }
+	if ( ( l = obj.length ) === undefined || isFunction( obj ) ) {
+		for ( key in obj ) {
+			if ( fn.call( context || obj[key], obj[key], key, obj ) === false ) {
+				break;
+			}
+		}
+	} else {
+		for ( i = 0, l = obj.length; i < l; ) {
+			if ( fn.call( context || obj[i], obj[i], i++, obj ) === false ) {
+				break;
+			}
+		}
+	}
+	return obj;
 }
 
 /** extend */
@@ -133,45 +174,6 @@ function extend () {
 
 	// Return the modified object
 	return target;
-}
-
-function each ( obj, fn ) {
-	if ( !obj ) return;
-	var	key, i, l = obj.length;
-	if ( l === undefined || isFunction( obj ) ) {
-		for ( key in obj ) {
-			if ( fn.call( obj[key], key, obj[key], obj ) === false ) {
-				break;
-			}
-		}
-	} else {
-		for ( i = 0, l = obj.length; i < l; ) {
-			if ( fn.call( obj[i], i, obj[i++], obj ) === false ) {
-				break;
-			}
-		}
-	}
-	return obj;
-}
-
-function forEach ( obj, fn, context ) {
-	var	n, l, key, i;
-	if ( obj == null ) return;
-	if ( ( n = __native( 'forEach', obj, fn, context ) ) !== noop ) return n;
-	if ( ( l = obj.length ) === undefined || isFunction( obj ) ) {
-		for ( key in obj ) {
-			if ( fn.call( context || obj[key], obj[key], key, obj ) === false ) {
-				break;
-			}
-		}
-	} else {
-		for ( i = 0, l = obj.length; i < l; ) {
-			if ( fn.call( context || obj[i], obj[i], i++, obj ) === false ) {
-				break;
-			}
-		}
-	}
-	return obj;
 }
 
 /**

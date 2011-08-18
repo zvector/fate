@@ -59,6 +59,7 @@ function Queue ( operations ) {
 	function stop () {
 		running = pausePending = false;
 		this.start = start, this.pause = this.resume = this.stop = getThis;
+		queue.length && queue.splice( 0 );
 		return this;
 	}
 	

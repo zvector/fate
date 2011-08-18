@@ -2,19 +2,75 @@
 
 module( "Procedure" );
 
-asyncTest( "Procedure", function () {
+asyncTest( "Nesting Queue/when", 9, function () {
+	var	number = 0,
+		time = ( new Date ).getTime();
+	
+	function fn ( n ) {
+		return function () {
+			var deferral = Deferral();
+			setTimeout( function () {
+				deferral[ n === ++number ? 'affirm' : 'negate' ]
+					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) );
+			}, 10 );
+			return deferral.then(
+				function ( message ) {
+					ok( true, message );
+				},
+				function ( message ) {
+					ok( false, message );
+				}
+			);
+		};
+	}
+	
+	function parallel () {
+		var args = Array.prototype.slice.call( arguments );
+		return function () {
+			for ( var i = 0, l = args.length; i < l; i++ ) {
+				args[i] = args[i]();
+			}
+			return when( args );
+		};
+	}
+	function series () {
+		var args = Array.prototype.slice.call( arguments );
+		return function () {
+			return Queue( args ).start( arguments ).promise();
+		};
+	}
+	
+	series(
+		fn(1),
+		parallel(
+			fn(2),
+			series( fn(3), fn(6) ),
+			parallel( fn(4), fn(5) )
+		),
+		series( fn(7), fn(8) )
+	)()
+		.then( start );
+});
+
+asyncTest( "Procedure", 22, function () {
 	var number = 0,
 		time = ( new Date ).getTime();
 	
 	function fn ( n ) {
 		return function () {
-			var d = new Deferral.Unary;
+			var deferral = Deferral();
 			setTimeout( function () {
-				// console.log( n + ": " + ( ( new Date ).getTime() - time ) );
-				ok( n === ++number, n );
-				d.resolve();
-			}, 100 );
-			return d.promise();
+				deferral[ n === ++number ? 'affirm' : 'negate' ]
+					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) );
+			}, 10 );
+			return deferral.then(
+				function ( message ) {
+					ok( true, message );
+				},
+				function ( message ) {
+					ok( false, message );
+				}
+			);
 		};
 	}
 	
@@ -50,6 +106,35 @@ asyncTest( "Procedure", function () {
 		[ fn(20), fn(21) ],
 		fn(22)
 	])
+		.start()
+		.always( start );
+});
+
+asyncTest( "Mixing in jQuery promises", function () {
+	Procedure( [[
+		function () {
+			console.log("1");
+			ok( true );
+			return Deferral.Nullary();
+		},
+		[
+			function () {
+				return jQuery.ajax( '/', {} )
+					.then( function () { console.log("2") }, function () { console.log("failed"); } )
+					.always( function () { ok( true ); } );
+			},
+			function () {
+				return jQuery.ajax( '/', {} )
+					.then( function () { console.log("3") }, function () { console.log("failed"); } )
+					.always( function () { ok( true ); } );
+			}
+		],
+		function () {
+			console.log("4");
+			ok( true );
+			return Deferral.Nullary();
+		}
+	]] )
 		.start()
 		.then( start );
 });

@@ -57,9 +57,6 @@ asyncTest( "then()", function () {
 	setTimeout( start, 100 );
 });
 
-
-
-
 asyncTest( "pipe", function () {
 	var deferral = new Deferral;
 	deferral
@@ -109,75 +106,6 @@ asyncTest( "pipe", function () {
 		.then( start )
 	;
 	deferral.affirm( 3 );
-});
-
-asyncTest( "Nesting Queue/when", function () {
-	var	number = 0,
-		time = ( new Date ).getTime();
-	
-	function fn ( n ) {
-		return function () {
-			var d = new Deferral.Unary;
-			setTimeout( function () {
-				// console.log( n + ": " + ( ( new Date ).getTime() - time ) );
-				ok( n === ++number, n );
-				d.resolve();
-			}, 100 );
-			return d.promise();
-		};
-	}
-	
-	function parallel () {
-		var args = Array.prototype.slice.call( arguments );
-		return function () {
-			for ( var i = 0, l = args.length; i < l; i++ ) { args[i] = args[i](); }
-			return when( args );
-		};
-	}
-	function series () {
-		var args = Array.prototype.slice.call( arguments );
-		return function () { return Queue( args ).start( arguments ).promise(); };
-	}
-	
-	series(
-		fn(1),
-		parallel(
-			fn(2),
-			parallel( fn(3), fn(4) ),
-			series( fn(5), fn(6) )
-		),
-		series( fn(7), fn(8) )
-	)()
-		.then( start );
-});
-
-asyncTest( "Mixing in jQuery promises", function () {
-	Procedure( [[
-		function () {
-			console.log("1");
-			ok( true );
-			return Deferral.Nullary();
-		},
-		[
-			function () {
-				return jQuery.ajax( '/', {} )
-					.then( function () { console.log("2") }, function () { console.log("failed"); } )
-					.always( function () { ok( true ); } );
-			},
-			function () {
-				return jQuery.ajax( '/', {} )
-					.then( function () { console.log("3") }, function () { console.log("failed"); } )
-					.always( function () { ok( true ); } );
-			}
-		],
-		function () {
-			console.log("4");
-			ok( true );
-			return Deferral.Nullary();
-		}
-	]] )
-		.start()
-		.then( start );
 });
 
 })();

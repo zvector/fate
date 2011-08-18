@@ -3,8 +3,8 @@
  * structure.
  * 
  * Input is accepted in the form of nested function arrays of arbitrary depth, where a nested array
- * (literal `[ ]`) represents a group of functions to be executed in a serial queue (using a `Queue`
- * promise), and a nested **double array** (literal `[[ ]]`) represents a group of functions to be
+ * literal `[ ]` represents a group of functions to be executed in a serial queue (using a `Queue`
+ * promise), and a nested **double array literal** `[[ ]]` represents a group of functions to be
  * executed as a parallel set (using the promise returned by a `when` invocation).
  */
 function Procedure ( input ) {
@@ -22,7 +22,6 @@ function Procedure ( input ) {
 			var obj;
 			for ( var i = 0, l = args.length; i < l; i++ ) {
 				obj = args[i].apply( self, arguments );
-				// TODO: wrap args[i] in a null deferral if it isn't already a function or promise
 				if ( !( isFunction( obj ) || Promise.resembles( obj ) ) ) {
 					obj = Deferral.Nullary( self, obj );
 				}

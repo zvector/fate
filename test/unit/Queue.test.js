@@ -81,7 +81,7 @@ asyncTest( "Queue", function () {
 		 */
 		.then( encore )
 		
-		// And now we've finally reached the end, so we're ready to set loose the async tester.
+		// And now we've finally reached the end, so we're ready to set loose the async testrunner.
 		.then( start )
 	;
 	

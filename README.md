@@ -2,7 +2,7 @@
 	* Background
 	* Overview
 	* Features
-		* as(), given()
+		* Early binding
 		* Arity
 		* Subtypes: binary, unary, nullary
 	* Remarks
@@ -34,12 +34,12 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
 
-Each resolved substate is associated with a distinct **callback queue**. Consumers of the deferral may add callbacks to any queue at any time, however the deferral will react differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. When the deferral transitions to a _resolved_ substate, the functions in the queue associated with that state are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with a distinct **callback queue**. Consumers of the deferral may add callbacks to any queue at any time, however the deferral will react differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. When the deferral transitions to a _resolved_ substate, the functions in the queue associated with that state are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 
 ## Features
 
-### as(), given()
+### Early binding
 
 When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
 
@@ -57,31 +57,33 @@ both of which might compare with
 
 ### Arity
 
-`Deferral` supports _n-ary_ futures, in that any number of possible resolution states may be defined. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods.
+`Deferral` supports _n-ary_ futures, in that any number of possible resolution states may be defined. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
+
+	Deferral({ yes: 'affirm', no: 'negate'});
+
+This can be extended further if more outcomes are to be accounted for:
 
 	Deferral({ yes: 'affirm', no: 'negate', maybe: 'punt', confused: 'waffle', distracted: 'squirrel' });
 
-To compare with the syntax of the jQuery Deferred object, we are also free to create:
+Alternatively, if we wish to mimic the syntax of the jQuery Deferred object, we are also free to create:
 
 	Deferral({ done: 'resolve', fail: 'reject' });
 
 ### Subtypes
 
-Most applicable use cases are served by built-in subtypes of `Deferral`.
-
-Most common is the `BinaryDeferral` at `Deferral.Binary` which names two callback queues, `yes` and `no`, which are realized by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
+Most applicable use cases for `Deferral` are served by its built-in formal subtypes. As introduced above, the most common usage is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, invoked by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
 
 	var d = Deferral(); // BinaryDeferral
 	d.yes( fn1 ).no( fn2 ); // ==> d.then( fn1, fn2 );
 	d.as( context ).given( args ).affirm(); // ==> fn1.apply( context, args );
 
-For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`.
+For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, which contains a single callback queue, `resolved`, invoked by calling `resolve()`.
 
 	var d = Deferral.Unary(); // UnaryDeferral
 	d.resolved( fn1, fn2 ); // ==> d.always( fn1, fn2 );
 	d.as( context ).resolve( arg ); // ==> ( fn1.call( context, arg ), fn2.call( context, arg ) );
 	
-There is also the special case where it may be desirable to work with a deferral in which all added callbacks are executed immediately; for this there is the `NullaryDeferral` at `Deferral.Nullary`. Effectively equivalent to a "pre-resolved" deferral, a nullary deferral has no callback queue or resolver method, but does provide conformance to the fundamental promise interface with `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
+There is also the special case where it may be desirable to work with a deferral in which all added callbacks are executed immediately; for this there is the `NullaryDeferral` at `Deferral.Nullary`. Effectively equivalent to a "pre-resolved" deferral, a nullary deferral has no callback queue or resolver method, but does provide conformance to the fundamental promise interface via `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
 
 	var d = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
 	d.then( fn ); // ==> ( fn1( asContext, givenArguments ), d.promise() );
@@ -219,9 +221,65 @@ Asynchronous operations advance the queue no faster than one operation per frame
 
 Synchronous and asynchronous operations can be mixed together arbitrarily to provide granular control over this balance of immediacy versus frame imposition.
 
+
+## Methods
+
+### Array methods
+
+Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions that comprise the queue; `length` is an exception in that it is a method rather than a property, although it is as such via `valueOf`.
+
+#### push
+#### pop
+#### shift
+#### unshift
+#### reverse
+#### splice
+#### length
+
+### Interfacing
+
+#### promise
+
+Returns a promise to the internal binary deferral, which will be `affirm`ed after each item in the queue has itself been affirmatively resolved, or `negate`d if any item is non-affirmatively resolved.
+
+### Querying state
+
+#### operation
+
+Returns the currently running or most recently completed operation.
+
+#### args
+
+Returns the arguments passed to the most recent operation function.
+
+#### isRunning
+
+Returns a boolean indicating whether an operation is currently underway.
+
+### Control
+
+Methods in this section return the `Queue` itself.
+
+#### start( ...arguments )
+
+Starts execution of the queue, passing any supplied arguments to the first operation function.
+
+#### pause
+
+Commands the queue to pause execution after the currently executing operation completes.
+
+#### resume
+
+Resumes execution, or cancels a pending `pause` command.
+
+#### stop
+
+Stops execution and empties any remaining items in the queue.
+
+
 ## Examples
 
-* [This unit test](https://github.com/nickfargo/deferral.js/blob/master/test/unit/Queue.test.js) provides a step-by-step demonstration of a `Queue` at work.
+* [This unit test](https://github.com/nickfargo/deferral.js/blob/master/test/unit/Queue.test.js) provides a step-by-step demonstration of a `Queue` at work. It mixes together both synchronous and asynchronous operations, and illustrates some of the tail-call considerations mentioned above.
 
 
 
@@ -241,53 +299,82 @@ will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both even
 
 A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array literal `[ ]` represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
 
-In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that each function must execute in order, as specified by its unique `n` value, for the procedure to complete successfully (with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their preceeding element.
+	var p = Procedure( [ ... ] | [[ ... ]] );
 
-	( function () {
-		var number = 0;
+## Examples
 
-		function fn ( n ) {
-			return function () {
-				var deferral = new Deferral.Unary;
-				setTimeout( function () { n === ++number && deferral.resolve(); }, 100 );
-				return deferral.promise();
-			};
-		}
+In the following exmaple, a procedure is constructed from both parallel and serial sets of functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
 
-		Procedure([
-			fn(1),
-			[[
-				fn(2),
-				[[
-					fn(3),
-					fn(4),
-					[
-						fn(5),
-						[[
-							fn(11),
-							fn(12),
-							[[ fn(13), fn(14) ]]
-						]],
-						fn(17),
-						[
-							fn(18),
-							fn(19)
-						]
-					],
-					fn(6),
-					[[
-						fn(7),
-						[ fn(8), fn(15) ]
-					]],
-					fn(9)
-				]],
-				[ fn(10), fn(16) ]
-			]],
-			[ fn(20), fn(21) ],
-			fn(22)
-		])
-			.start()
-			.then( function () { window.console && console.log( number ); } );
-	})();
+	var number = 0;
 	
-_comment about flowing arguments through the procedure via `start()`_
+	function fn ( n ) {
+		return function () {
+			var deferral = new Deferral;
+			setTimeout( function () { n === ++number ? deferral.affirm() : deferral.negate( n ); }, 100 );
+			return deferral.promise();
+		};
+	}
+	
+	Procedure([
+		fn(1),
+		[[
+			fn(2),
+			[ fn(3), fn(6) ],
+			[[ fn(4), fn(5) ]]
+		]],
+		[ fn(7), fn(8) ]
+	])
+		.start()
+		.then( function () {
+			window.console && console.log( number ); // 8
+		});
+	
+The next example illustrates the same principle using a significantly more complex graph. Again, each function must execute in order for the procedure to complete successfully (this time with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their preceeding element.
+
+	var number = 0;
+
+	function fn ( n ) {
+		return function () {
+			var deferral = new Deferral;
+			setTimeout( function () { n === ++number ? deferral.affirm() : deferral.negate( n ); }, 100 );
+			return deferral.promise();
+		};
+	}
+
+	Procedure([
+		fn(1),
+		[[
+			fn(2),
+			[[
+				fn(3),
+				fn(4),
+				[
+					fn(5),
+					[[
+						fn(11),
+						fn(12),
+						[[ fn(13), fn(14) ]]
+					]],
+					fn(17),
+					[
+						fn(18),
+						fn(19)
+					]
+				],
+				fn(6),
+				[[
+					fn(7),
+					[ fn(8), fn(15) ]
+				]],
+				fn(9)
+			]],
+			[ fn(10), fn(16) ]
+		]],
+		[ fn(20), fn(21) ],
+		fn(22)
+	])
+		.start()
+		.then( function () { window.console && console.log( number ); } );
+	
+_comment about flowing arguments through the procedure via `start()`, similar to `Queue`_
+_should `when` be built further to save return values of its elements and apply a reduce function over them?_
