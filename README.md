@@ -49,11 +49,13 @@ Most common is the `BinaryDeferral` at `Deferral.Binary` which names two callbac
 
 	var d = Deferral(); // BinaryDeferral
 	d.yes( fn1 ).no( fn2 ); // ==> d.then( fn1, fn2 );
+	d.as( context ).given( args ).affirm(); // ==> fn1.apply( context, args );
 
 For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, in which the deferral names a single callback queue, `resolved`, which is realized by calling `resolve()`.
 
 	var d = Deferral.Unary(); // UnaryDeferral
-	d.resolved( fn1, fn2, fn3 ); // ==> d.always( fn1, fn2, fn3 );
+	d.resolved( fn1, fn2 ); // ==> d.always( fn1, fn2 );
+	d.as( context ).resolve( arg ); // ==> ( fn1.call( context, arg ), fn2.call( context, arg ) );
 	
 There is also the special case where it may be desirable to work with a deferral in which all added callbacks are executed immediately; for this there is the `NullaryDeferral` at `Deferral.Nullary`. Effectively equivalent to a "pre-resolved" deferral, a nullary deferral has no callback queue or resolver method, but does provide conformance to the fundamental promise interface with `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
 
