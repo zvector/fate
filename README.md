@@ -1,21 +1,45 @@
+* **Deferral**
+	* Background
+	* Overview
+	* Features
+		* as(), given()
+		* Arity
+		* Subtypes: binary, unary, nullary
+	* Remarks
+		* A technicality with respect to terminology
+	* Methods
+		* Interfacing: `promise`
+		* Querying: `map`, `queueNames`, `did`, `resolution`
+		* Registration: { `yes`, `no` } | `resolved`, `then`, `always`
+		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
+		* Sequencing: `pipe`
+* **Promise**
+* **Queue**
+	* Remarks
+		* Considerations of using synchronous versus asynchronous continuations
+* when()
+* **Procedure**
+
+
+
 # Deferral
 
 `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
 
-### Background
+## Background
 
 A **deferral** is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
 
-### Overview
+## Overview
 
 A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
 
 Each resolved substate is associated with a distinct **callback queue**. Consumers of the deferral may add callbacks to any queue at any time, however the deferral will react differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. When the deferral transitions to a _resolved_ substate, the functions in the queue associated with that state are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 
-### Features
+## Features
 
-#### as(), given()
+### as(), given()
 
 When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
 
@@ -31,7 +55,7 @@ both of which might compare with
 
 	jQuery.Deferred().resolveWith( context, arg1, arg2, ... );
 
-#### Arity
+### Arity
 
 `Deferral` supports _n-ary_ futures, in that any number of possible resolution states may be defined. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods.
 
@@ -41,7 +65,7 @@ To compare with the syntax of the jQuery Deferred object, we are also free to cr
 
 	Deferral({ done: 'resolve', fail: 'reject' });
 
-#### Subtypes
+### Subtypes
 
 Most applicable use cases are served by built-in subtypes of `Deferral`.
 
@@ -62,13 +86,17 @@ There is also the special case where it may be desirable to work with a deferral
 	var d = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
 	d.then( fn ); // ==> ( fn1( asContext, givenArguments ), d.promise() );
 
-#### A technicality with respect to terminology
+
+## Remarks
+
+### A technicality with respect to terminology
 
 In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of "resolved". Whereas to `resolve()` a jQuery `Deferred` instance implies a "successful" outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolution method, which stands to reason given its one possible resolution state.)
 
 
-
 ## Methods
+
+### Interfacing
 
 #### promise()
 
@@ -181,6 +209,8 @@ Deferrals facilitate the use of **continuations** to create a special type of `Q
 Synchronous functions must return the array of arguments to be relayed on to the next operation; asynchronous functions must return a `Promise` to a `Deferral` that will be resolved at some point in the future.
 
 
+## Remarks
+
 ### Considerations of using synchronous versus asynchronous continuations
 
 A sequence of short synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single **frame**, or turn of the event loop, too long a sequence could have a significant impact on the frame _rate_, which on the client may include noticeable interruptions to user experience.
@@ -205,7 +235,7 @@ will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both even
 
 # Procedure
 
-A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array (literal `[ ]`) represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array** (literal `[[ ]]`) represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
+A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array literal `[ ]` represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
 
 In the following example, a procedure is created from numerous delayed functions arranged in an arbitrarily complex graph, such that each function must execute in order, as specified by its unique `n` value, for the procedure to complete successfully (with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the delay of their preceeding element.
 
