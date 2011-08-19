@@ -233,7 +233,7 @@ Synchronous and asynchronous operations can be mixed together arbitrarily to pro
 
 ### Array methods
 
-Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions that comprise the queue; `length` is an exception in that it is a method rather than a property, although it is as such via `valueOf`.
+Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions that comprise the queue; `length` is an exception in that it is a method rather than a property, although it is accessible as such via `valueOf`.
 
 #### push
 #### pop
@@ -327,7 +327,9 @@ In the following exmaple, a procedure is constructed from both parallel and seri
 	function fn ( n ) {
 		return function () {
 			var deferral = new Deferral;
-			setTimeout( function () { n === ++number ? deferral.affirm() : deferral.negate( n ); }, 100 );
+			setTimeout( function () {
+				n === ++number ? deferral.affirm() : deferral.negate( n );
+			}, 100 );
 			return deferral.promise();
 		};
 	}
@@ -353,7 +355,9 @@ The next example further illustrates this principle using a significantly more c
 	function fn ( n ) {
 		return function () {
 			var deferral = new Deferral;
-			setTimeout( function () { n === ++number ? deferral.affirm() : deferral.negate( n ); }, 100 );
+			setTimeout( function () {
+				n === ++number ? deferral.affirm() : deferral.negate( n );
+			}, 100 );
 			return deferral.promise();
 		};
 	}
@@ -391,8 +395,12 @@ The next example further illustrates this principle using a significantly more c
 		fn(22)
 	])
 		.start()
-		.then( function () { window.console && console.log( number ); } );
-	
-_comment about flowing arguments through the procedure via `start()`, similar to `Queue`_
+		.then( function () {
+			window.console && console.log( number ); // 22
+		});
 
-_should `when` be built further to save return values of its elements and apply a reduce function over them?_
+## Future directions
+
+_Comment about flowing arguments through the procedure via `start()`, similar to `Queue`_
+
+_Should `when` be built further to save return values of its elements and apply a reduce function over them?_
