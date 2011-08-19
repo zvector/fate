@@ -1,4 +1,4 @@
-* **Deferral** – stateful callback management for groups of asynchronous operations
+* **Deferral** — stateful callback management for groups of asynchronous operations
 	* Background
 	* Overview
 	* Features
@@ -6,7 +6,7 @@
 		* Arity
 		* Subtypes: binary, unary, nullary
 	* Remarks
-		* A technicality with respect to terminology
+		* Terminology
 	* Methods
 		* Interfacing: `promise`
 		* Querying: `map`, `queueNames`, `did`, `resolution`
@@ -14,7 +14,7 @@
 		* Sequencing: `pipe`
 		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
 * **Promise** — the public interface to a deferral
-* **Queue** – deferrals arranged sequentially in continuation-passing style
+* **Queue** — deferrals arranged sequentially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
 	* Methods
@@ -24,7 +24,7 @@
 		* Control: `start`, `pause`, `resume`, `stop`
 		* Examples
 * **when()** — multiple deferrals in parallel
-* **Procedure** – parallel and serial operations together in concise literal syntax
+* **Procedure** — parallel and serial operations together in concise literal syntax
 	* Methods: `promise`, `start`
 	* Examples
 
@@ -41,7 +41,7 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
 
-Each resolved substate is directly associated with a distinct **callback queue**, to which consumers of the deferral may add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. Once a **resolver method** for a particular queue is called, thereby transitioning the deferral to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with an eponymous **callback queue**, to which consumers of the deferral may add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. Once a **resolver method** for a particular queue is called, thereby transitioning the deferral to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 
 ## Features
@@ -50,7 +50,7 @@ Each resolved substate is directly associated with a distinct **callback queue**
 
 When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's future resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
 
-For example, compare:
+For example:
 
 	Deferral().as( context ).affirm( arg1, arg2, ... );
 
@@ -81,24 +81,24 @@ Alternatively, if we wish to mimic the syntax of the jQuery Deferred object, we 
 Most applicable use cases for `Deferral` are served by its built-in formal subtypes. As introduced above, the most common usage is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, invoked by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
 
 	var d = Deferral(); // BinaryDeferral
-	d.yes( fn1 ).no( fn2 ); // ==> d.then( fn1, fn2 );
-	d.as( context ).given( args ).affirm(); // ==> fn1.apply( context, args );
+	d.yes( fn1 ).no( fn2 ); // === d.then( fn1, fn2 )
+	d.as( context ).given( args ).affirm(); // === fn1.apply( context, args )
 
 For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, which contains a single callback queue, `resolved`, invoked by calling `resolve()`.
 
 	var d = Deferral.Unary(); // UnaryDeferral
-	d.resolved( fn1, fn2 ); // ==> d.always( fn1, fn2 );
-	d.as( context ).resolve( arg ); // ==> ( fn1.call( context, arg ), fn2.call( context, arg ) );
+	d.resolved( fn1, fn2 ); // === d.always( fn1, fn2 )
+	d.as( context ).resolve( arg ); // === ( fn1.call( context, arg ), fn2.call( context, arg ), d )
 	
 There is also the special case where it may be desirable to work with a deferral in which all added callbacks are executed immediately; for this there is the `NullaryDeferral` at `Deferral.Nullary`. Effectively equivalent to a "pre-resolved" deferral, a nullary deferral has no callback queue or resolver method, but does provide conformance to the fundamental promise interface via `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
 
 	var d = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
-	d.then( fn ); // ==> ( fn1( asContext, givenArguments ), d.promise() );
+	d.then( fn ); // === ( fn1.apply( asContext, givenArguments ), d.promise() )
 
 
 ## Remarks
 
-### A technicality with respect to terminology
+### Terminology
 
 In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of "resolved". Whereas to `resolve()` a jQuery `Deferred` instance implies a "successful" outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolution method, which stands to reason given its one possible resolution state.)
 
