@@ -1,4 +1,4 @@
-* **Deferral**
+* **Deferral** – stateful callback management for groups of asynchronous operations
 	* Background
 	* Overview
 	* Features
@@ -13,13 +13,20 @@
 		* Registration: { `yes`, `no` } | `resolved`, `then`, `always`
 		* Sequencing: `pipe`
 		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
-* **Promise**
-* **Queue**
+* **Promise** — the public interface to a deferral
+* **Queue** – deferrals arranged sequentially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
-* **when()**
-* **Procedure**
-
+	* Methods
+		* Array methods: `push`, `pop`, `shift`, `unshift`, `reverse`, `splice`, `length`
+		* Interfacing: `promise`
+		* Querying state: `operation`, `args`, `isRunning`
+		* Control: `start`, `pause`, `resume`, `stop`
+		* Examples
+* **when()** — multiple deferrals in parallel
+* **Procedure** – parallel and serial operations together in concise literal syntax
+	* Methods: `promise`, `start`
+	* Examples
 
 
 # Deferral
@@ -34,7 +41,7 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
 
-Each resolved substate is directly associated with a distinct **callback queue**. Consumers of the deferral may add callbacks to any queue at any time, however the deferral will react differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. When the deferral transitions to a _resolved_ substate, the functions in the queue associated with that state are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with a distinct **callback queue**, to which consumers of the deferral may add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. Once a **resolver method** for a particular queue is called, thereby transitioning the deferral to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 
 ## Features
@@ -206,7 +213,7 @@ Because a deferral is effectively an extension of its associated promise, in mos
 
 # Queue
 
-Deferrals facilitate the use of **continuations** to create a special type of `Queue`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
+Deferrals facilitate the use of **continuations** to create a special type of operation `Queue`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
 
 Synchronous functions must return the array of arguments to be relayed on to the next operation; asynchronous functions must return a `Promise` to a `Deferral` that will be resolved at some point in the future.
 
