@@ -27,10 +27,12 @@ module( "Pipeline" );
  */
 asyncTest( "Pipeline", function () {
 	
+	var pipeline;
+	
 	function async ( fn, delay, test ) {
 		return function () {
 			var args = fn.apply( this, arguments ),
-				deferral = Deferral().as( queue ).given( args );
+				deferral = Deferral().as( pipeline ).given( args );
 			setTimeout( function () {
 				equal( args.join(), test );
 				deferral.affirm();
@@ -47,7 +49,7 @@ asyncTest( "Pipeline", function () {
 		};
 	}
 	
-	var queue = new Pipeline([
+	pipeline = new Pipeline([
 		// First, some async functions, which employ a Deferral and return a Promise
 		async( function ( x, y, z ) { return [ x+1, y+1, z+1 ]; }, 80, '2,8,-4' ),
 		async( function ( x, y, z ) { return [ x/2, y/2, z/2 ]; }, 200, '1,4,-2' ),
@@ -67,16 +69,16 @@ asyncTest( "Pipeline", function () {
 	]);
 	
 	/*
-	 * With the operations in place, we can now simply feed the queue a set of initial values, and await
+	 * With the operations in place, we can now simply feed the pipeline a set of initial values, and await
 	 * its final result.
 	 */
-	queue.start( 1, 7, -5 ).promise()
+	pipeline.start( 1, 7, -5 ).promise()
 		.then( function () {
 			equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
 		})
 		
 		/**
-		 * But wait there's more ... the queue has been emptied and stopped, but on the next frame
+		 * But wait there's more ... the pipeline has been emptied and stopped, but on the next frame
 		 * we can make use of it again.
 		 */
 		.then( encore )
@@ -87,7 +89,7 @@ asyncTest( "Pipeline", function () {
 	
 	function encore ( x, y, z ) {
 		setTimeout( function () {
-			queue.push(
+			pipeline.push(
 				function () {
 					var args = Array.prototype.slice.call( arguments );
 					$.each( args, function ( i, value ) { args[i] += 1; } );
@@ -100,8 +102,8 @@ asyncTest( "Pipeline", function () {
 					return result;
 				}
 			);
-			ok( queue.length == 2, "Second run prepared" );
-			queue
+			ok( pipeline.length == 2, "Second run prepared" );
+			pipeline
 				.start( x, y, z ) // [0, 4, 2], as returned from the initial run
 				.promise()
 					.then( function ( x, y, z ) {
@@ -112,17 +114,17 @@ asyncTest( "Pipeline", function () {
 	}
 	
 	/*
-	 * And for good measure, let's try scheduling the queue to be suspended after it's 100 ms along; this
-	 * should occur during the second operation, so the queue will pause after that completes in another
+	 * And for good measure, let's try scheduling the pipeline to be suspended after it's 100 ms along; this
+	 * should occur during the second operation, so the pipeline will pause after that completes in another
 	 * 20 ms, and then be ready to resume with the third operation when we call `resume` 180 ms later.
 	 */
 	setTimeout( function () {
-		queue.pause();
-		equal( queue.args().join(), '2,8,-4', "Intermediate value when pause command is issued" );
+		pipeline.pause();
+		equal( pipeline.args().join(), '2,8,-4', "Intermediate value when pause command is issued" );
 	}, 100 );
 	setTimeout( function () {
-		equal( queue.args().join(), '1,4,-2', "Intermediate value after queue is actually suspended" );
-		queue.resume();
+		equal( pipeline.args().join(), '1,4,-2', "Intermediate value after pipeline is actually suspended" );
+		pipeline.resume();
 	}, 300 );
 });
 
