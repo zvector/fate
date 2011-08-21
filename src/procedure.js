@@ -1,11 +1,10 @@
 /**
- * A **procedure** declares an execution flow by grouping multiple functions into a nested array
- * structure.
+ * A **procedure** defines an execution flow by nesting multiple parallel and serial function arrays.
  * 
- * Input is accepted in the form of nested function arrays of arbitrary depth, where a nested array
+ * Input is accepted in the form of nested function arrays, of arbitrary depth, where an array
  * literal `[ ]` represents a group of functions to be executed in a serial queue (using a `Queue`
- * promise), and a nested **double array literal** `[[ ]]` represents a group of functions to be
- * executed as a parallel set (using the promise returned by a `when` invocation).
+ * promise), and a **double array literal** `[[ ]]` represents a group of functions to be executed
+ * as a parallel set (using the promise returned by a `when` invocation).
  */
 function Procedure ( input ) {
 	if ( !( this instanceof Procedure ) ) {
@@ -13,8 +12,8 @@ function Procedure ( input ) {
 	}
 	
 	var	self = this,
-		procedure = parse.call( this, input ),
-		deferral = ( new Deferral ).as( this );
+		deferral = ( new Deferral ).as( this ),
+		procedure = parse.call( this, input );
 	
 	function parallel () {
 		var args = slice.call( arguments );

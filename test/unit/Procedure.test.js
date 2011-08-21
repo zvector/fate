@@ -2,7 +2,7 @@
 
 module( "Procedure" );
 
-asyncTest( "Nesting Queue/when", 9, function () {
+asyncTest( "Nesting Queue/when", 8, function () {
 	var	number = 0,
 		time = ( new Date ).getTime();
 	

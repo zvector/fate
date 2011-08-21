@@ -237,3 +237,9 @@ function nullify ( obj ) {
  * Produces a hashmap whose keys are the supplied string array, with values all set to `null`
  */
 function nullHash( keys ) { return nullify( invert( keys ) ); }
+
+/** */
+function valueFunction ( fn ) { return fn.valueOf = fn; }
+
+/** */
+function stringFunction ( fn ) { return fn.toString = fn; }

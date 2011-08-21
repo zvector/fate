@@ -15,6 +15,7 @@ function Deferral ( map, fn, args ) {
 		return new Deferral.Binary( arguments[0], arguments[1] );
 	}
 	
+	
 	var	self = this,
 		callbacks,
 		resolution, resolutionContext, resolutionArguments,
@@ -26,44 +27,29 @@ function Deferral ( map, fn, args ) {
 	function getResolutionArguments () { return resolutionArguments; }
 	function setResolutionArguments ( args ) { return resolutionArguments = args; }
 	
+	
 	extend( this, {
-		empty: function () {
-			callbacks = {};
-			each( map, function ( key ) { callbacks[ key ] = []; });
-			return this;
-		},
-		map: function () { return extend( {}, map ); },
-		queueNames: function () { return keys( map ); },
-		resolution: function ( test ) {
+		resolution: stringFunction( function ( test ) {
 			return test ? test === resolution || ( test in map ? false : undefined ) : resolution;
-		},
+		}),
 		did: function ( resolver ) {
 			return resolver ? !!resolution && resolver === map[ resolution ] : !!resolution;
 		},
 		promise: function () {
 			return promise || ( promise = new Promise( this ) );
-		},
-		as: function ( context ) {
-			resolutionContext = context;
-			return this;
-		},
-		given: function ( args ) {
-			resolutionArguments = args;
-			return this;
 		}
 	});
-	this.queueNames.toString = function () { return self.queueNames().join(' ') };
-	this.resolution.toString = this.resolution;
 	
 	/*
 	 * Handle the special case of a nullary deferral, which behaves like a "pre-resolved" unary deferral,
-	 * where there are no callback queues, no `done()` registrar or `resolve()` method, but functions added
+	 * where there are no callback queues, no registrar or resolver methods, but functions added
 	 * through `then`, `always`, etc., will simply be executed immediately. No `as()` or `given()` methods
 	 * are available either; instead the resolution context and resolution arguments are provided in the
 	 * constructor call, after the `null` first argument, at positions 1 and 2, respectively.
 	 */
 	if ( map === null ) {
 		resolution = true;
+		this.map = this.queueNames = noop;
 		this.as = this.given = this.empty = getThis;
 		this.then = Deferral.privileged.invoke( this, null )
 			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
@@ -72,6 +58,24 @@ function Deferral ( map, fn, args ) {
 	
 	// Normal (n > 0)-ary deferral
 	else {
+		extend( this, {
+			map: function () { return extend( {}, map ); },
+			queueNames: stringFunction( function () { return keys( map ); } ),
+			as: function ( context ) {
+				resolutionContext = context;
+				return this;
+			},
+			given: function ( args ) {
+				resolutionArguments = args;
+				return this;
+			},
+			empty: function () {
+				callbacks = {};
+				each( map, function ( key ) { callbacks[ key ] = []; });
+				return this;
+			}
+		});
+		
 		this.empty();
 
 		register = Deferral.privileged.register( callbacks );

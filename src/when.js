@@ -35,7 +35,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 			queueNames = promise.queueNames();
 			
 			// (n > 0)-ary deferral: affirm on the matching queue and negate on any others
-			if ( queueNames.length ) {
+			if ( queueNames && queueNames.length ) {
 				
 				// Determine which of this promise's callback queues matches the specified `resolution`
 				affirmativeQueue = resolution || queueNames[0];
