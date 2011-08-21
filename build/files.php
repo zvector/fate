@@ -3,7 +3,7 @@ $files = array(
 	'core',
 	'deferral',
 	'promise',
-	'queue',
+	'pipeline',
 	'when',
 	'procedure'
 );

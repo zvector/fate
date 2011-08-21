@@ -1,7 +1,7 @@
 extend( global, module.exports, {
 	Deferral: Deferral,
 	Promise: Promise,
-	Queue: Queue,
+	Pipeline: Pipeline,
 	when: when,
 	Procedure: Procedure
 });

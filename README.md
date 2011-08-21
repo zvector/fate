@@ -14,7 +14,7 @@
 		* Sequencing: `pipe`
 		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
 * **Promise** — the public interface to a deferral
-* **Queue** — deferrals arranged sequentially in continuation-passing style
+* **Pipeline** — deferrals arranged sequentially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
 	* Methods
@@ -211,9 +211,9 @@ Because a deferral is effectively an extension of its associated promise, in mos
 
 
 
-# Queue
+# Pipeline
 
-Deferrals facilitate the use of **continuations** to create a special type of operation `Queue`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
+Deferrals facilitate the use of **continuations** to create a special type of operation `Pipeline`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
 
 Synchronous functions must return the array of arguments to be relayed on to the next operation; asynchronous functions must return a `Promise` to a `Deferral` that will be resolved at some point in the future.
 
@@ -265,7 +265,7 @@ Returns a boolean indicating whether an operation is currently underway.
 
 ### Control
 
-Methods in this section return the `Queue` itself.
+Methods in this section return the `Pipeline` itself.
 
 #### start( ...arguments )
 
@@ -286,7 +286,7 @@ Stops execution and empties any remaining items in the queue.
 
 ## Examples
 
-* [This unit test](https://github.com/nickfargo/deferral.js/blob/master/test/unit/Queue.test.js) provides a step-by-step demonstration of a `Queue` at work. It mixes together both synchronous and asynchronous operations, and illustrates some of the tail-call considerations mentioned above.
+* [This unit test](https://github.com/nickfargo/deferral.js/blob/master/test/unit/Pipeline.test.js) provides a step-by-step demonstration of a `Pipeline` at work. It mixes together both synchronous and asynchronous operations, and illustrates some of the tail-call considerations mentioned above.
 
 
 
@@ -304,7 +304,7 @@ will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both even
 
 # Procedure
 
-A **procedure** employs `Queue` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array literal `[ ]` represents a group of functions to be executed in a serial queue (using the promise to a `Queue` of the grouped functions), and a nested **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
+A **procedure** employs `Pipeline` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array literal `[ ]` represents a group of functions to be executed in a serial queue (using the promise to a `Pipeline` of the grouped functions), and a nested **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
 
 	var p = Procedure( [ ... ] | [[ ... ]] );
 
@@ -401,6 +401,6 @@ The next example further illustrates this principle using a significantly more c
 
 ## Future directions
 
-_Comment about flowing arguments through the procedure via `start()`, similar to `Queue`_
+_Comment about flowing arguments through the procedure via `start()`, similar to `Pipeline`_
 
 _Should `when` be built further to save return values of its elements and apply a reduce function over them?_

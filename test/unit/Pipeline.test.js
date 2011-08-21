@@ -1,11 +1,11 @@
 ( function ( undefined ) {
 
-module( "Queue" );
+module( "Pipeline" );
 
 /*
- * This test runs a set of arguments (an Array vector [ 1, 7, -5 ]) through a `Queue`.
+ * This test runs a set of arguments (an Array vector [ 1, 7, -5 ]) through a `Pipeline`.
  * Each operation in the sequence will process the argument set and return a new vector, which is
- * then provided to the next operation using continuation passing style. The `Queue`
+ * then provided to the next operation using continuation passing style. The `Pipeline`
  * object exposes a `promise` method that returns a `Promise` to an internal `Deferral`, which
  * will be resolved once all the operations have finished and the queue is empty.
  * 
@@ -25,7 +25,7 @@ module( "Queue" );
  * Synchronous and asynchronous operations can be mixed together arbitrarily to provide built-in
  * granular control over this balance of immediacy versus stack space.
  */
-asyncTest( "Queue", function () {
+asyncTest( "Pipeline", function () {
 	
 	function async ( fn, delay, test ) {
 		return function () {
@@ -47,7 +47,7 @@ asyncTest( "Queue", function () {
 		};
 	}
 	
-	var queue = new Queue([
+	var queue = new Pipeline([
 		// First, some async functions, which employ a Deferral and return a Promise
 		async( function ( x, y, z ) { return [ x+1, y+1, z+1 ]; }, 80, '2,8,-4' ),
 		async( function ( x, y, z ) { return [ x/2, y/2, z/2 ]; }, 200, '1,4,-2' ),

@@ -2,7 +2,7 @@
 
 module( "Procedure" );
 
-asyncTest( "Nesting Queue/when", 8, function () {
+asyncTest( "Nesting Pipeline/when", 8, function () {
 	var	number = 0,
 		time = ( new Date ).getTime();
 	
@@ -36,7 +36,7 @@ asyncTest( "Nesting Queue/when", 8, function () {
 	function series () {
 		var args = Array.prototype.slice.call( arguments );
 		return function () {
-			return Queue( args ).start( arguments ).promise();
+			return Pipeline( args ).start( arguments ).promise();
 		};
 	}
 	

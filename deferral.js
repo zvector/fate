@@ -265,6 +265,7 @@ function Deferral ( map, fn, args ) {
 		return new Deferral.Binary( arguments[0], arguments[1] );
 	}
 	
+	
 	var	self = this,
 		callbacks,
 		resolution, resolutionContext, resolutionArguments,
@@ -275,6 +276,7 @@ function Deferral ( map, fn, args ) {
 	function getResolutionContext () { return resolutionContext; }
 	function getResolutionArguments () { return resolutionArguments; }
 	function setResolutionArguments ( args ) { return resolutionArguments = args; }
+	
 	
 	extend( this, {
 		resolution: stringFunction( function ( test ) {
@@ -290,7 +292,7 @@ function Deferral ( map, fn, args ) {
 	
 	/*
 	 * Handle the special case of a nullary deferral, which behaves like a "pre-resolved" unary deferral,
-	 * where there are no callback queues, no `done()` registrar or `resolve()` method, but functions added
+	 * where there are no callback queues, no registrar or resolver methods, but functions added
 	 * through `then`, `always`, etc., will simply be executed immediately. No `as()` or `given()` methods
 	 * are available either; instead the resolution context and resolution arguments are provided in the
 	 * constructor call, after the `null` first argument, at positions 1 and 2, respectively.
@@ -550,9 +552,9 @@ extend( true, Promise, {
 });
 
 
-function Queue ( operations ) {
-	if ( !( this instanceof Queue ) ) {
-		return new Queue( operations );
+function Pipeline ( operations ) {
+	if ( !( this instanceof Pipeline ) ) {
+		return new Pipeline( operations );
 	}
 	
 	var	self = this,
@@ -619,7 +621,7 @@ function Queue ( operations ) {
 		return this;
 	}
 	
-	forEach( Queue.arrayMethods, function ( method ) {
+	forEach( Pipeline.arrayMethods, function ( method ) {
 		self[ method ] = function () {
 			return Array.prototype[ method ].apply( operations, arguments );
 		};
@@ -637,7 +639,7 @@ function Queue ( operations ) {
 		stop: getThis
 	});
 }
-extend( Queue, {
+extend( Pipeline, {
 	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
 });
 
@@ -729,7 +731,7 @@ function when ( /* promises..., [ resolution ] */ ) {
  * A **procedure** defines an execution flow by nesting multiple parallel and serial function arrays.
  * 
  * Input is accepted in the form of nested function arrays, of arbitrary depth, where an array
- * literal `[ ]` represents a group of functions to be executed in a serial queue (using a `Queue`
+ * literal `[ ]` represents a group of functions to be executed in a serial queue (using a `Pipeline`
  * promise), and a **double array literal** `[[ ]]` represents a group of functions to be executed
  * as a parallel set (using the promise returned by a `when` invocation).
  */
@@ -759,7 +761,7 @@ function Procedure ( input ) {
 	function series () {
 		var args = slice.call( arguments );
 		return function () {
-			return Queue( args ).start( arguments ).promise();
+			return Pipeline( args ).start( arguments ).promise();
 		};
 	}
 	
@@ -794,7 +796,7 @@ function Procedure ( input ) {
 extend( global, module.exports, {
 	Deferral: Deferral,
 	Promise: Promise,
-	Queue: Queue,
+	Pipeline: Pipeline,
 	when: when,
 	Procedure: Procedure
 });

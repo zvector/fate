@@ -1,6 +1,6 @@
-function Queue ( operations ) {
-	if ( !( this instanceof Queue ) ) {
-		return new Queue( operations );
+function Pipeline ( operations ) {
+	if ( !( this instanceof Pipeline ) ) {
+		return new Pipeline( operations );
 	}
 	
 	var	self = this,
@@ -67,7 +67,7 @@ function Queue ( operations ) {
 		return this;
 	}
 	
-	forEach( Queue.arrayMethods, function ( method ) {
+	forEach( Pipeline.arrayMethods, function ( method ) {
 		self[ method ] = function () {
 			return Array.prototype[ method ].apply( operations, arguments );
 		};
@@ -85,6 +85,6 @@ function Queue ( operations ) {
 		stop: getThis
 	});
 }
-extend( Queue, {
+extend( Pipeline, {
 	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
 });

@@ -2,7 +2,7 @@
  * A **procedure** defines an execution flow by nesting multiple parallel and serial function arrays.
  * 
  * Input is accepted in the form of nested function arrays, of arbitrary depth, where an array
- * literal `[ ]` represents a group of functions to be executed in a serial queue (using a `Queue`
+ * literal `[ ]` represents a group of functions to be executed in a serial queue (using a `Pipeline`
  * promise), and a **double array literal** `[[ ]]` represents a group of functions to be executed
  * as a parallel set (using the promise returned by a `when` invocation).
  */
@@ -32,7 +32,7 @@ function Procedure ( input ) {
 	function series () {
 		var args = slice.call( arguments );
 		return function () {
-			return Queue( args ).start( arguments ).promise();
+			return Pipeline( args ).start( arguments ).promise();
 		};
 	}
 	

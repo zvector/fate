@@ -19,7 +19,7 @@ require '../build/combine.php';
 		<script src="qunit.js"></script>
 		<script src="unit/Deferral.test.js"></script>
 		<script src="unit/Promise.test.js"></script>
-		<script src="unit/Queue.test.js"></script>
+		<script src="unit/Pipeline.test.js"></script>
 		<script src="unit/when.test.js"></script>
 		<script src="unit/Procedure.test.js"></script>
 	</head>
