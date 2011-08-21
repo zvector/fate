@@ -8,10 +8,21 @@ function Pipeline ( operations ) {
 		args,
 		deferral,
 		running = false,
-		pausePending = false;
+		pausePending = false,
+		events = nullHash( 'didOperation', 'willContinue' );
 	
 	function next () {
 		return operation = operations.shift();
+	}
+	
+	function emit ( eventType ) {
+		var	callbacks = events[ eventType ],
+			i, l;
+		if ( callbacks ) {
+			for ( i = 0, l = callbacks.length; i < l; i++ ) {
+				callbacks[i].call( self, { target: self, operation: operation, args: args } );
+			}
+		}
 	}
 	
 	function continuation () {
@@ -22,11 +33,13 @@ function Pipeline ( operations ) {
 				result.then(
 					function () {
 						args = slice.call( arguments );
+						emit( 'didOperation' );
 						pausePending && ( running = pausePending = false );
+						running && ( operation = operations[0] ) && emit( 'willContinue' );
 						running && continuation.apply( operation = operations.shift(), args );
 					},
 					function () {
-						deferral.as( self ).given( args ).negate();
+						deferral.given( args ).negate();
 					}
 				);
 			} else {
@@ -40,7 +53,7 @@ function Pipeline ( operations ) {
 	}
 	
 	function start () {
-		deferral = new Deferral;
+		deferral = ( new Deferral ).as( self );
 		running = true;
 		this.start = getThis, this.pause = pause, this.resume = resume, this.stop = stop;
 		continuation.apply( next(), args = slice.call( arguments ) );
@@ -63,7 +76,7 @@ function Pipeline ( operations ) {
 	function stop () {
 		running = pausePending = false;
 		this.start = start, this.pause = this.resume = this.stop = getThis;
-		deferral.as( self ).given( args ).affirm();
+		deferral.given( args ).affirm();
 		return this;
 	}
 	
@@ -82,7 +95,11 @@ function Pipeline ( operations ) {
 		start: start,
 		pause: getThis,
 		resume: getThis,
-		stop: getThis
+		stop: getThis,
+		on: function ( eventType, fn ) {
+			var callbacks = events[ eventType ];
+			return callbacks && callbacks.push( fn ) && this;
+		}
 	});
 }
 extend( Pipeline, {
