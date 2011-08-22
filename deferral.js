@@ -427,6 +427,7 @@ extend( true, Deferral, {
 			};
 		}
 	},
+	
 	prototype: {
 		/**
 		 * Unified interface for registering callbacks. Multiple arguments are registered to callback
@@ -493,9 +494,92 @@ extend( true, Deferral, {
 				} else break;
 			}
 			return next.promise();
+		},
+		
+		/**
+		 * Binds together the fate of all `promises` as evaluated against the specified `resolution`. Returns a
+		 * `Promise` to a master `Deferral` that either: (1) will resolve to `yes` once all `promises` have
+		 * individually been resolved to the specified `resolution`; or (2) will resolve to `no` once any one of the
+		 * `promises` has been resolved to a different resolution. If no `resolution` is specified, it will default
+		 * to that of the first defined callback queue (e.g. `yes` for a standard deferral).
+		 */
+		when: function ( /* promises..., [ resolution ] */ ) {
+			var	promises = flatten( slice.call( arguments ) ),
+				length = promises.length || 1,
+				resolution,
+				master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
+				list = [],
+				i, promise, queueNames, affirmativeQueue, map, name;
+
+			function affirmed ( p ) {
+				return function () {
+					list.push( p ) === length && master.affirm.apply( master, list );
+				};
+			}
+			function negated ( p ) {
+				return function () {
+					list.push( p );
+					master.negate.apply( master, list );
+				};
+			}
+
+			if ( length > 1 && type( promises[ length - 1 ] ) === 'string' ) {
+				resolution = promises.splice( --length, 1 )[0];
+			}
+
+			for ( i = 0; i < length; i++ ) {
+				promise = promises[i];
+				if ( promise instanceof Deferral || promise instanceof Promise ) {
+					queueNames = promise.queueNames();
+
+					// (n > 0)-ary deferral: affirm on the matching queue and negate on any others
+					if ( queueNames && queueNames.length ) {
+
+						// Determine which of this promise's callback queues matches the specified `resolution`
+						affirmativeQueue = resolution || queueNames[0];
+
+						// `map` becomes a list referencing the callback queues not considered affirmative in this context
+						map = promise.map();
+						if ( affirmativeQueue in map ) {
+							delete map[ affirmativeQueue ];
+						} else {
+							// Because this promise will never be resolved to match `resolution`, the master deferral
+							// can be negated immediately
+							list.push( promise );
+							master.negate.apply( master, list );
+							break;
+						}
+
+						promise[ affirmativeQueue ]( affirmed( promise ) );
+						for ( name in map ) {
+							promise[ name ]( negated( promise ) );
+						}
+					}
+
+					// Nullary deferral: affirm immediately
+					else {
+						promise.then( affirmed( promise ) );
+					}
+				}
+
+				// For foreign promise objects, we utilize the standard `then` interface
+				else if ( Promise.resembles( promise ) ) {
+					promise.then( affirmed( promise ), negated( promise ) );
+				}
+
+				// For anything that isn't promise-like, force whatever `promise` is to play nice with the
+				// other promises by wrapping it in a nullary deferral.
+				else {
+					promises[i] = Deferral.Nullary( master, promise );
+					isFunction( promise ) && promises[i].then( promise );
+				}
+			}
+
+			return master.promise();
 		}
 	}
 });
+Deferral.when = Deferral.prototype.when;
 
 function NullaryDeferral ( as, given ) {
 	if ( !( this instanceof NullaryDeferral ) ) { return new NullaryDeferral( as, given ); }
@@ -560,10 +644,10 @@ function Pipeline ( operations ) {
 	var	self = this,
 		operation,
 		args,
-		deferral,
+		deferral = ( new Deferral ).as( self ),
 		running = false,
 		pausePending = false,
-		events = nullHash( 'didOperation', 'willContinue' );
+		events = nullHash([ 'didOperation', 'willContinue' ]);
 	
 	function next () {
 		return operation = operations.shift();
@@ -607,7 +691,9 @@ function Pipeline ( operations ) {
 	}
 	
 	function start () {
-		deferral = ( new Deferral ).as( self );
+		if ( !deferral || deferral.did() ) {
+			deferral = ( new Deferral ).as( self );
+		}
 		running = true;
 		this.start = getThis, this.pause = pause, this.resume = resume, this.stop = stop;
 		continuation.apply( next(), args = slice.call( arguments ) );
@@ -651,7 +737,7 @@ function Pipeline ( operations ) {
 		resume: getThis,
 		stop: getThis,
 		on: function ( eventType, fn ) {
-			var callbacks = events[ eventType ];
+			var callbacks = events[ eventType ] || ( events[ eventType ] = [] );
 			return callbacks && callbacks.push( fn ) && this;
 		}
 	});
@@ -661,96 +747,107 @@ extend( Pipeline, {
 });
 
 
-/**
- * Binds together the fate of all `promises` as evaluated against the specified `resolution`. Returns a
- * `Promise` to a master `Deferral` that either: (1) will resolve to `yes` once all `promises` have
- * individually been resolved to the specified `resolution`; or (2) will resolve to `no` once any one of the
- * `promises` has been resolved to a different resolution. If no `resolution` is specified, it will default
- * to that of the first defined callback queue (e.g. `yes` for a standard deferral).
- */
-function when ( /* promises..., [ resolution ] */ ) {
-	var	promises = flatten( slice.call( arguments ) ),
-		length = promises.length || 1,
-		resolution,
-		master = new Deferral,
-		list = [],
-		i, promise, queueNames, affirmativeQueue, map, name;
+function Multiplex ( width, operations ) {
+	if ( !( this instanceof Multiplex ) ) {
+		return new Multiplex( width, operations );
+	}
+	if ( arguments.length === 1 ) {
+		operations = argument[0], width = operations.length;
+	}
 	
-	function affirmed ( p ) {
-		return function () {
-			list.push( p ) === length && master.affirm.apply( master, list );
+	var	self = this,
+		deferral = ( new Deferral ).as( this ),
+		args,
+		running = false,
+		pipeCount = 0,
+		first, last;
+	
+	function append () {
+		var pipe = Pipeline( operations )
+			.on( 'didOperation', didOperation )
+			.on( 'willContinue', willContinue )
+		;
+		last = last ? ( ( pipe.previous = last ).next = pipe ) : ( first = pipe );
+		pipe.promise()
+			.always( function () {
+				remove( pipe );
+			});
+		running && pipe.start.apply( pipe, args );
+		pipeCount++;
+		return pipe;
+	}
+	
+	function remove ( pipe ) {
+		var previous = pipe.previous, next = pipe.next;
+		previous && ( previous.next = next ), next && ( next.previous = previous );
+		previous || next || self.stop();
+		return pipe;
+	}
+	
+	function didOperation ( event ) {
+		var pipe = event.target;
+		args = event.args;
+	}
+	
+	function willContinue ( event ) {
+		var pipe = event.target;
+		if ( pipeCount > width ) {
+			pipeCount--;
+			pipe.stop();
+		}
+	}
+	
+	function start () {
+		args = slice.call( arguments );
+		running = true;
+		this.start = getThis, this.stop = stop;
+		while ( pipeCount < width ) {
+			append();
+		}
+		return this;
+	}
+	
+	function stop () {
+		running = false;
+		this.start = start, this.stop = getThis;
+		deferral.given( args ).affirm();
+		return this;
+	}
+	
+	forEach( Multiplex.arrayMethods, function ( method ) {
+		self[ method ] = function () {
+			return Array.prototype[ method ].apply( operations, arguments );
 		};
-	}
-	function negated ( p ) {
-		return function () {
-			list.push( p );
-			master.negate.apply( master, list );
-		};
-	}
+	});
 	
-	if ( length > 1 && type( promises[ length - 1 ] ) === 'string' ) {
-		resolution = promises.splice( --length, 1 )[0];
-	}
-	
-	for ( i = 0; i < length; i++ ) {
-		promise = promises[i];
-		if ( promise instanceof Deferral || promise instanceof Promise ) {
-			queueNames = promise.queueNames();
-			
-			// (n > 0)-ary deferral: affirm on the matching queue and negate on any others
-			if ( queueNames && queueNames.length ) {
-				
-				// Determine which of this promise's callback queues matches the specified `resolution`
-				affirmativeQueue = resolution || queueNames[0];
-			
-				// `map` becomes a list referencing the callback queues not considered affirmative in this context
-				map = promise.map();
-				if ( affirmativeQueue in map ) {
-					delete map[ affirmativeQueue ];
-				} else {
-					// Because this promise will never be resolved to match `resolution`, the master deferral
-					// can be negated immediately
-					list.push( promise );
-					master.negate.apply( master, list );
-					break;
-				}
-			
-				promise[ affirmativeQueue ]( affirmed( promise ) );
-				for ( name in map ) {
-					promise[ name ]( negated( promise ) );
+	extend( this, {
+		promise: function () { return deferral.promise(); },
+		width: function ( value ) {
+			if ( value !== undefined ) {
+				width = value;
+				while ( pipeCount < width ) {
+					append();
 				}
 			}
-			
-			// Nullary deferral: affirm immediately
-			else {
-				promise.then( affirmed( promise ) );
-			}
-		}
-		
-		// For foreign promise objects, we utilize the standard `then` interface
-		else if ( Promise.resembles( promise ) ) {
-			promise.then( affirmed( promise ), negated( promise ) );
-		}
-		
-		// For anything that isn't promise-like, force whatever `promise` is to play nice with the
-		// other promises by wrapping it in a nullary deferral.
-		else {
-			promises[i] = Deferral.Nullary( master, promise );
-			isFunction( promise ) && promises[i].then( promise );
-		}
-	}
-	
-	return master.promise();
+			return width;
+		},
+		start: start,
+		stop: getThis
+	});
 }
-
+extend( Multiplex, {
+	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
+});
 
 /**
  * A **procedure** defines an execution flow by nesting multiple parallel and serial function arrays.
  * 
  * Input is accepted in the form of nested function arrays, of arbitrary depth, where an array
- * literal `[ ]` represents a group of functions to be executed in a serial queue (using a `Pipeline`
- * promise), and a **double array literal** `[[ ]]` represents a group of functions to be executed
- * as a parallel set (using the promise returned by a `when` invocation).
+ * literal `[ ]` represents a group of functions to be executed in a serial queue using a `Pipeline`,
+ * a **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel
+ * set using a `when` invocation, and a **numerically-keyed array object literal** `{n:[ ]}`
+ * represents a group of functions to be executed in parallel, up to `n` items concurrently, using a
+ * `Multiplex` of width `n`.
  */
 function Procedure ( input ) {
 	if ( !( this instanceof Procedure ) ) {
@@ -761,6 +858,12 @@ function Procedure ( input ) {
 		deferral = ( new Deferral ).as( this ),
 		procedure = parse.call( this, input );
 	
+	function series () {
+		var args = slice.call( arguments );
+		return function () {
+			return Pipeline( args ).start( arguments ).promise();
+		};
+	}
 	function parallel () {
 		var args = slice.call( arguments );
 		return function () {
@@ -772,26 +875,42 @@ function Procedure ( input ) {
 				}
 				args[i] = obj;
 			}
-			return when( args );
+			return Deferral.when( args );
 		};
 	}
-	function series () {
-		var args = slice.call( arguments );
+	function multiplex ( width, args ) {
 		return function () {
-			return Pipeline( args ).start( arguments ).promise();
+			return Multiplex( width, args ).start( arguments ).promise();
 		};
 	}
 	
 	function parse ( obj ) {
-		var fn, array, i, l;
+		var fn, array, i, l, kk, width;
+		
 		if ( isFunction( obj ) ) {
 			return obj;
-		} else if ( isArray( obj ) ) {
+		}
+		
+		// Simple series or parallel literal: `[ ... ]` | `[[ ... ]]`
+		else if ( isArray( obj ) ) {
 			fn = obj.length === 1 && isArray( obj[0] ) ? ( obj = obj[0], parallel ) : series;
 			for ( array = [], i = 0, l = obj.length; i < l; ) {
 				array.push( parse.call( self, obj[ i++ ] ) );
 			}
 			return fn.apply( this, array );
+		}
+		
+		// Multiplex literal: `{n:[ ... ]}`
+		else if (
+			isPlainObject( obj ) &&
+			( kk = keys( obj ) ).length === 1 &&
+			isNumber( width = +kk[0] )
+		){
+			obj = obj[ width ];
+			for ( array = [], i = 0, l = obj.length; i < l; ) {
+				array.push( parse.call( self, obj[ i++ ] ) );
+			}
+			return multiplex.apply( this, [ width, array ] );
 		}
 	}
 	
@@ -814,7 +933,8 @@ extend( global, module.exports, {
 	Deferral: Deferral,
 	Promise: Promise,
 	Pipeline: Pipeline,
-	when: when,
+	when: Deferral.prototype.when,
+	Multiplex: Multiplex,
 	Procedure: Procedure
 });
 

@@ -12,18 +12,23 @@
 		* Querying: `map`, `queueNames`, `did`, `resolution`
 		* Registration: { `yes`, `no` } | `resolved`, `then`, `always`
 		* Sequencing: `pipe`
+		* Concurrency: `when`
 		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
 * **Promise** — the public interface to a deferral
 * **Pipeline** — deferrals arranged sequentially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
+		* Comparison to Deferral().pipe()
 	* Methods
 		* Array methods: `push`, `pop`, `shift`, `unshift`, `reverse`, `splice`, `length`
 		* Interfacing: `promise`
 		* Querying state: `operation`, `args`, `isRunning`
 		* Control: `start`, `pause`, `resume`, `stop`
-		* Examples
-* **when()** — multiple deferrals in parallel
+	* Examples
+* **Multiplex** — multiple pipelines operating in parallel over the same array of deferrals
+	* Remarks
+		* Comparison to Deferral.when()
+	* Methods: `promise`, `width`, `start`, `stop`
 * **Procedure** — parallel and serial operations together in concise literal syntax
 	* Methods: `promise`, `start`
 	* Examples
@@ -41,7 +46,7 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
 
-Each resolved substate is directly associated with an eponymous **callback queue**, to which consumers of the deferral may add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. Once a **resolver method** for a particular queue is called, thereby transitioning the deferral to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 
 ## Features
@@ -168,9 +173,26 @@ Registers callbacks to all queues, ensuring they will be called no matter how th
 
 #### pipe( `Function` callback | `Array` callbacks, ... )
 
-Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. Once resolved, the original deferral (`this`) passes its resolution state, context and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
+Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. (Note the distinction between this ad-hoc pipeline and the formal `Pipeline` type described below.) Once resolved, the original deferral (`this`) passes its resolution state, context and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
 
 Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback's return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback's own deferral is resolved.
+
+
+### Concurrency
+
+#### when()
+
+Facilitates parallel execution by binding together the fate of multiple promises. The promises represented by each supplied argument are overseen by a master binary deferral, such that the master deferral will be `affirm`ed only once each individual promise has itself resolved to the expected resolution, or will be `negate`d if any promise is otherwise resolved.
+
+Returns a promise to this master deferral.
+
+If `when` is called as a method of an unresolved binary deferral, then that deferral is used as the master deferral; otherwise, a new binary deferral is created for this purpose. The method is also available as a static member of the `Deferral` constuctor.
+
+By default, `when` monitors the promises for their implicitly affirmative resolution state, i.e., the state targeted by the first argument of `then()`. A specific resolution state can be supplied as a `String` at the last argument position in the `when()` call. For example, the promise returned by:
+
+	var promise = Deferral.when( promiseA, promiseB, 'no' );
+
+will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
 
 
 ### Resolution
@@ -224,16 +246,19 @@ Synchronous functions must return the array of arguments to be relayed on to the
 
 A sequence of short synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single **frame**, or turn of the event loop, too long a sequence could have a significant impact on the frame _rate_, which on the client may include noticeable interruptions to user experience.
 
-Asynchronous operations advance the queue no faster than one operation per frame, but this has the advantages of not polluting the stack and of long sequences not prolonging the duration of the frame in which it's executing.
+Asynchronous operations advance through the pipeline no faster than one operation per frame, but this has the advantages of not polluting the stack and of long sequences not prolonging the duration of the frame in which it's executing.
 
 Synchronous and asynchronous operations can be mixed together arbitrarily to provide granular control over this balance of immediacy versus frame imposition.
 
+### Comparison to Deferral().pipe()
+
+`Pipeline` and `pipe()` are conceptually similar, in that both arrange a succession of deferrals using continuation-style passing to relay a set of arguments from one deferral to the next. With `pipe()`, this can be arranged, `Pipeline` consumes stack space more efficiently.
 
 ## Methods
 
 ### Array methods
 
-Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions that comprise the queue; `length` is an exception in that it is a method rather than a property, although it is accessible as such via `valueOf`.
+Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions contained within the pipeline; `length` is an exception in that it is a method rather than a property, although it is accessible as such via `valueOf`.
 
 #### push
 #### pop
@@ -247,7 +272,7 @@ Each method in this section mirrors that of `Array`, acting upon the internal ar
 
 #### promise
 
-Returns a promise to the internal binary deferral, which will be `affirm`ed after each item in the queue has itself been affirmatively resolved, or `negate`d if any item is non-affirmatively resolved.
+Returns a promise to the internal binary deferral, which will be `affirm`ed after each item in the pipeline has itself been affirmatively resolved, or `negate`d if any item is non-affirmatively resolved.
 
 ### Querying state
 
@@ -269,11 +294,11 @@ Methods in this section return the `Pipeline` itself.
 
 #### start( ...arguments )
 
-Starts execution of the queue, passing any supplied arguments to the first operation function.
+Starts execution of operations through the pipeline, passing any supplied arguments to the first operation function.
 
 #### pause
 
-Commands the queue to pause execution after the currently executing operation completes.
+Commands the pipeline to pause execution after the currently executing operation completes.
 
 #### resume
 
@@ -281,7 +306,7 @@ Resumes execution, or cancels a pending `pause` command.
 
 #### stop
 
-Stops execution and empties any remaining items in the queue.
+Stops execution and resolves the pipeline's deferral.
 
 
 ## Examples
@@ -290,23 +315,55 @@ Stops execution and empties any remaining items in the queue.
 
 
 
-# when()
+# Multiplex
 
-The `when` function is a construct that facilitates parallel execution by binding together the fate of multiple promises. The promises represented by each supplied argument are overseen by a master binary deferral, such that the master deferral will be `affirm`ed only once each individual promise has itself resolved to the expected resolution, or will be `negate`d if any promise is otherwise resolved.
+A **multiplex** employs a specific number of concurrent pipelines to process an array of operations in parallel.
 
-By default, `when` monitors the promises for their implicitly affirmative resolution state, i.e., the state targeted by the first argument of `then()`. A specific resolution state can be supplied as a `String` at the last argument position in the `when()` call. For example, the promise returned by:
 
-	var promise = when( promiseA, promiseB, 'no' );
+## Remarks
 
-will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
+### Comparison to Deferral.when()
+
+It is worth nothing that the mechanism of `when` is essentially an infinite-width multiplex, built with a simpler construct. Whenever it is certain that concurrency limits are unnecessary, `when` should be used instead of `Multiplex`.
+
+## Methods
+
+#### promise
+
+Returns a promise to the internal deferral that will be resolved once all of the constituent pipelines have been resolved.
+
+#### width ()
+
+Returns the upper limit on the number of concurrent pipelines.
+
+#### width ( n )
+
+Sets and returns a new upper limit on the number of concurrent pipelines. Widening a running multiplex will automatically start the additional pipelines. Narrowing the multiplex may not take effect immediately; the necessary number of pipelines will be terminated only once each has completed its current operation.
+
+#### start
+
+Creates and starts the necessary number of pipelines, limited to `width`, given the supplied `arguments`.
+
+#### stop
+
+Stops execution and resolves the multiplex's deferral.
 
 
 
 # Procedure
 
-A **procedure** employs `Pipeline` and `when` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where a nested array literal `[ ]` represents a group of functions to be executed in a serial queue (using the promise to a `Pipeline` of the grouped functions), and a nested **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set (using the promise returned by a `when` invocation of the grouped functions).
+A **procedure** employs `Pipeline`, `when`, and `Multiplex` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where:
 
-	var p = Procedure( [ ... ] | [[ ... ]] );
+* An array literal `[ ]` represents a group of functions to be executed in a serial queue using a `Pipeline`.
+
+* A **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set using a `when` invocation.
+
+* A **numerically-keyed array object literal** `{n:[ ]}` represents a group of functions to be executed in parallel, up to `n` items concurrently, using a `Multiplex` of width `n`.
+
+Constructor syntax resembles the following, where any of the pipe (`|`)–separated literals can be further nested where indicated by ellipses (`...`):
+
+	var p = Procedure( [ ... ] | [[ ... ]] | {2:[ ... ]} );
+
 
 ## Methods
 
@@ -316,7 +373,7 @@ Returns a promise to the internal deferral that will be resolved once the proced
 
 #### start
 
-Initiates the procedure.
+Initiates the procedure. (Does not currently define behavior for arguments.)
 
 ## Examples
 

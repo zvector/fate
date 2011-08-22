@@ -21,6 +21,7 @@ require '../build/combine.php';
 		<script src="unit/Promise.test.js"></script>
 		<script src="unit/Pipeline.test.js"></script>
 		<script src="unit/when.test.js"></script>
+		<script src="unit/Multiplex.test.js"></script>
 		<script src="unit/Procedure.test.js"></script>
 	</head>
 	<body>

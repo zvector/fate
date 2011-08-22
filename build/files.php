@@ -4,6 +4,6 @@ $files = array(
 	'deferral',
 	'promise',
 	'pipeline',
-	'when',
+	'multiplex',
 	'procedure'
 );

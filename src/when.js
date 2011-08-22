@@ -9,7 +9,7 @@ function when ( /* promises..., [ resolution ] */ ) {
 	var	promises = flatten( slice.call( arguments ) ),
 		length = promises.length || 1,
 		resolution,
-		master = new Deferral,
+		master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
 		list = [],
 		i, promise, queueNames, affirmativeQueue, map, name;
 	

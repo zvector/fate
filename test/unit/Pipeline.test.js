@@ -25,7 +25,7 @@ module( "Pipeline" );
  * Synchronous and asynchronous operations can be mixed together arbitrarily to provide built-in
  * granular control over this balance of immediacy versus stack space.
  */
-asyncTest( "Pipeline", function () {
+asyncTest( "Pipeline", 15, function () {
 	
 	var pipeline;
 	

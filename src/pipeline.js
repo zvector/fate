@@ -6,10 +6,10 @@ function Pipeline ( operations ) {
 	var	self = this,
 		operation,
 		args,
-		deferral,
+		deferral = ( new Deferral ).as( self ),
 		running = false,
 		pausePending = false,
-		events = nullHash( 'didOperation', 'willContinue' );
+		events = nullHash([ 'didOperation', 'willContinue' ]);
 	
 	function next () {
 		return operation = operations.shift();
@@ -53,7 +53,9 @@ function Pipeline ( operations ) {
 	}
 	
 	function start () {
-		deferral = ( new Deferral ).as( self );
+		if ( !deferral || deferral.did() ) {
+			deferral = ( new Deferral ).as( self );
+		}
 		running = true;
 		this.start = getThis, this.pause = pause, this.resume = resume, this.stop = stop;
 		continuation.apply( next(), args = slice.call( arguments ) );
@@ -97,7 +99,7 @@ function Pipeline ( operations ) {
 		resume: getThis,
 		stop: getThis,
 		on: function ( eventType, fn ) {
-			var callbacks = events[ eventType ];
+			var callbacks = events[ eventType ] || ( events[ eventType ] = [] );
 			return callbacks && callbacks.push( fn ) && this;
 		}
 	});

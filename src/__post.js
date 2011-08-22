@@ -2,7 +2,8 @@ extend( global, module.exports, {
 	Deferral: Deferral,
 	Promise: Promise,
 	Pipeline: Pipeline,
-	when: when,
+	when: Deferral.prototype.when,
+	Multiplex: Multiplex,
 	Procedure: Procedure
 });
 

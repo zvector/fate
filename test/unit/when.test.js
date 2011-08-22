@@ -57,7 +57,7 @@ asyncTest( "when(), all affirmed", function () {
 		ok( b === true, "b === true" );
 	}
 	
-	when( d1.promise(), d2.promise(), d3.promise() )
+	Deferral().when( d1.promise(), d2.promise(), d3.promise() )
 		.then( setA( true ), setA( false ) )
 		.then( setB( true ) )
 		.always( doTests, start );
