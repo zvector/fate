@@ -405,7 +405,7 @@ In the following exmaple, a procedure is constructed from both parallel and seri
 			window.console && console.log( number ); // 8
 		});
 	
-The next example further illustrates this principle using a significantly more complex graph. Again, each function must execute in the proper order for the procedure to complete successfully (this time with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind the distinction that the function elements of a parallel set are invoked as soon as possible, while elements within a series must await the completion of their preceeding element.
+The next example further illustrates this principle using a significantly more complex graph. Again, each function must execute in the proper order for the procedure to complete successfully (this time with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind that: (a) the function elements of a series (`[ ]`) must await the completion of their preceeding element; (b) elements of a parallel set (`[[ ]]`) are invoked as soon as possible; and (c) elements of a multiplexed set (`{n:[ ]}`) are invoked as soon as possible but no sooner than `n` elements at a time.
 
 	var number = 0;
 
@@ -423,30 +423,30 @@ The next example further illustrates this principle using a significantly more c
 		fn(1),
 		[[
 			fn(2),
-			[[
+			{ 2:[
 				fn(3),
 				fn(4),
 				[
-					fn(5),
+					fn(6),
 					[[
-						fn(11),
-						fn(12),
-						[[ fn(13), fn(14) ]]
+						fn(9),
+						fn(10),
+						[[ fn(11), fn(12) ]]
 					]],
-					fn(17),
+					fn(15),
 					[
-						fn(18),
+						fn(17),
 						fn(19)
 					]
 				],
-				fn(6),
+				fn(7),
 				[[
-					fn(7),
-					[ fn(8), fn(15) ]
+					fn(13),
+					[ fn(14), fn(16) ]
 				]],
-				fn(9)
-			]],
-			[ fn(10), fn(16) ]
+				fn(18)
+			]},
+			[ fn(5), fn(8) ]
 		]],
 		[ fn(20), fn(21) ],
 		fn(22)
