@@ -252,7 +252,7 @@ Synchronous and asynchronous operations can be mixed together arbitrarily to pro
 
 ### Comparison to Deferral().pipe()
 
-`Pipeline` and `pipe()` are conceptually similar, in that both arrange a succession of deferrals using continuation-style passing to relay a set of arguments from one deferral to the next. With `pipe()`, this can be arranged, `Pipeline` consumes stack space more efficiently.
+`Pipeline` and `pipe()` are conceptually similar, in that both arrange a succession of deferrals using continuation-style passing to relay a set of arguments from one deferral to the next. With `pipe()`, this can be arranged on the fly given any promise or deferral; however, `Pipeline` consumes stack space more efficiently when processing synchronous functions.
 
 ## Methods
 
