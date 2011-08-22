@@ -4,7 +4,7 @@
  * Input is accepted in the form of nested function arrays, of arbitrary depth, where an array
  * literal `[ ]` represents a group of functions to be executed in a serial queue using a `Pipeline`,
  * a **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel
- * set using a `when` invocation, and a **numerically-keyed array object literal** `{n:[ ]}`
+ * set using a `when` invocation, and a **numerically-keyed object–bound array literal** `{n:[ ]}`
  * represents a group of functions to be executed in parallel, up to `n` items concurrently, using a
  * `Multiplex` of width `n`.
  */

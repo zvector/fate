@@ -354,11 +354,11 @@ Stops execution and resolves the multiplex's deferral.
 
 A **procedure** employs `Pipeline`, `when`, and `Multiplex` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where:
 
-* An array literal `[ ]` represents a group of functions to be executed in a serial queue using a `Pipeline`.
+* An array literal `[ ]` represents a group of functions to be executed in a serial queue, using a `Pipeline`.
 
-* A **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set using a `when` invocation.
+* A **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set, using a `when` invocation.
 
-* A **numerically-keyed array object literal** `{n:[ ]}` represents a group of functions to be executed in parallel, up to `n` items concurrently, using a `Multiplex` of width `n`.
+* A **numerically-keyed object–bound array literal** `{n:[ ]}` represents a group of functions to be executed in parallel, up to `n` items concurrently, using a `Multiplex` of width `n`.
 
 Constructor syntax resembles the following, where any of the pipe (`|`)–separated literals can be further nested where indicated by ellipses (`...`):
 
