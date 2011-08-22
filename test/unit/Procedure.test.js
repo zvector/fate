@@ -30,7 +30,7 @@ asyncTest( "Nesting Pipeline/when", 8, function () {
 			for ( var i = 0, l = args.length; i < l; i++ ) {
 				args[i] = args[i]();
 			}
-			return when( args );
+			return Deferral.when( args );
 		};
 	}
 	function series () {
