@@ -1,10 +1,10 @@
-* **Deferral** — stateful callback management for groups of synchronous and asynchronous operations
+* **Deferral** — Stateful callback management for groups of synchronous and asynchronous operations
 	* Background
 	* Overview
 	* Features
 		* Early binding
 		* Arity
-		* Subtypes: binary, unary, nullary
+		* Formal subtypes: Binary, Unary, Nullary
 	* Remarks
 		* Terminology
 	* Methods
@@ -14,11 +14,11 @@
 		* Sequencing: `pipe`
 		* Concurrency: `when`
 		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
-* **Promise** — the public interface to a deferral
+* **Promise** — The public interface to a deferral
 	* Methods
 		* Inherited
 		* Querying: `serves`
-* **Pipeline** — deferrals arranged sequentially in continuation-passing style
+* **Pipeline** — Deferrals arranged serially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
 		* Comparison to Deferral().pipe()
@@ -28,7 +28,7 @@
 		* Querying state: `operation`, `args`, `isRunning`
 		* Control: `start`, `pause`, `resume`, `stop`
 	* Examples
-* **Multiplex** — multiple pipelines operating in parallel over the same array of deferrals
+* **Multiplex** — Multiple pipelines operating in parallel over the same array of deferrals
 	* Remarks
 		* Comparison to Deferral.when()
 	* Methods
@@ -36,14 +36,14 @@
 		* Interfacing: `promise`
 		* Querying state: `isRunning`, `width`
 		* Control: `start`, `stop`
-* **Procedure** — parallel and serial operations together in concise literal syntax
+* **Procedure** — Serial and parallel operations together, in a concise literal syntax
 	* Methods: `promise`, `start`
 	* Examples
 
 
 # Deferral
 
-A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations.
+A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated **promise** interface, it is a fundamental unit of the composite entities **pipeline** and **multiplex**, which process sets of deferrals either sequentially or concurrently, and for the further composite **procedure**, which processes deferrals, pipelines, and multiplexes in arbitrarily complex arrangements.
 
 ## Background
 
@@ -90,9 +90,9 @@ Alternatively, if we wish to mimic the syntax of the jQuery Deferred object, we 
 
 	Deferral({ done: 'resolve', fail: 'reject' });
 
-### Subtypes
+### Formal subtypes
 
-Most applicable use cases for `Deferral` are served by its built-in formal subtypes. As introduced above, the most common usage is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, invoked by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
+Most applicable use cases for `Deferral` are served by its built-in subtypes. As introduced above, the most common usage is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, invoked by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
 
 	var d = Deferral(); // BinaryDeferral
 	d.yes( fn1 ).no( fn2 ); // === d.then( fn1, fn2 )
@@ -180,7 +180,7 @@ Registers callbacks to all queues, ensuring they will be called no matter how th
 
 #### pipe( `Function` callback | `Array` callbacks, ... )
 
-Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. (Note the distinction between this ad-hoc pipeline and the formal `Pipeline` type described below.) Once resolved, the original deferral (`this`) passes its resolution state, context and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
+Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. (Note the distinction between this ad-hoc pipeline and the formal `Pipeline` type described below.) Once resolved, the original deferral (`this`) passes its resolution state, context, and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
 
 Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback's return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback's own deferral is resolved.
 
