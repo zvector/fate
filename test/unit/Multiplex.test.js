@@ -4,7 +4,7 @@ module( "Multiplex" );
 
 asyncTest( "Multiplex", function () {
 	
-	var multiplex,
+	var	multiplex,
 		data;
 	
 	function async ( fn, delay, test ) {

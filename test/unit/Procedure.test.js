@@ -191,7 +191,7 @@ asyncTest( "Using multiplex literals", 22, function () {
 	// 22
 });
 
-asyncTest( "Mixing in jQuery promises", function () {
+asyncTest( "Mixing in jQuery promises", 4, function () {
 	Procedure( [[
 		function () {
 			// console.log("1");

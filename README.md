@@ -16,8 +16,9 @@
 		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
 * **Promise** — The public interface to a deferral
 	* Methods
+		* Constructor: `resembles`
 		* Inherited
-		* Querying: `serves`
+		* Introspection: `serves`
 * **Pipeline** — Deferrals arranged serially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
