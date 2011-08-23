@@ -38,18 +38,18 @@ asyncTest( "Multiplex", function () {
 		}
 	};
 	
-	// Test may not be stable; final two assertions may execute in inverted order
+	// May not be a stable test; processing order is not always well defined when multiple timeouts coincide
 	multiplex = new Multiplex( 3, [
-		async( mutate, 100, '4,5,6' ),
-		async( mutate, 90, '3,4,5' ),
-		async( mutate, 80, '2,3,4' ),
-		async( mutate, 70, '7,8,9' ),
-		async( mutate, 60, '6,7,8' ),
-		async( mutate, 50, '5,6,7' ),
-		async( mutate, 40, '11,12,13' ),
-		async( mutate, 30, '9,10,11' ),
-		async( mutate, 20, '8,9,10' ),
-		async( mutate, 10, '10,11,12' )
+		async( mutate, 100, '5,6,7' ), // A 100
+		async( mutate, 10, '2,3,4' ), // B 10
+		async( mutate, 80, '4,5,6' ), // C 80
+		async( mutate, 30, '3,4,5' ), // B 40
+		async( mutate, 60, '6,7,8' ), // B 100
+		async( mutate, 50, '7,8,9' ), // C 130
+		async( mutate, 40, '8,9,10' ), // A 140
+		async( mutate, 70, '10,11,12' ), // B 170
+		async( mutate, 20, '9,10,11' ), // C 150
+		async( mutate, 90, '11,12,13' ) // A 230
 	]);
 	
 	multiplex.start( data ).promise()

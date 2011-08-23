@@ -15,6 +15,9 @@
 		* Concurrency: `when`
 		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
 * **Promise** — the public interface to a deferral
+	* Methods
+		* Inherited
+		* Querying: `serves`
 * **Pipeline** — deferrals arranged sequentially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
@@ -225,11 +228,38 @@ Clears all callback queues.
 
 # Promise
 
-At any time a deferral can issue a partial interface to itself in the form of a **promise**, which contains a subset of the deferral's methods. Consumers of the promise can use it to make additions to the associated deferral's callback queues, and to query its resolution state, but cannot use it to directly alter the state by resolving the deferral.
+At any time a deferral can issue a partial interface to itself in the form of a **promise**, which contains a subset of the deferral's methods. Consumers of the promise can use it to make additions to the associated deferral's callback queues, and to query its resolution state, but cannot use it to directly alter the state by resolving the deferral. For example, the promise issued by the default `Deferral` will include `yes` and `no` registrar methods for adding callbacks, but will not include the `affirm` or `negate` resolver methods that would alter the deferral's resolution state.
 
-As an example, a promise issued by the default `Deferral` will include `yes` and `no` methods for adding callbacks, but will not include the `affirm` or `negate` methods that would resolve the deferral.
+Because a deferral is effectively an extension of its associated promise, in most cases it is possible for a `Deferral` to be substituted wherever `Promise` is called for.
 
-Because a deferral is effectively an extension of its associated promise, in most cases it is possible for a `Deferral` to be substituted where `Promise` is called for.
+As a matter of usage, while it is possible to acquire a promise given an available deferral reference by instantiating `new Promise( deferral )`, the preferred approach is to call `deferral.promise()`, which can retrieve a promise generated from previous invocations instead of unnecessarily instantiating a new one.
+
+## Methods
+
+### Constructor
+
+#### Promise.resembles( obj )
+
+Returns a boolean indicating whether `obj` is a `Promise` or `Deferral`, or if it at least exposes methods `then` and `promise`; this duck-typing allows foreign promise-like objects to participate in most of the promise based functionality.
+
+### Inherited
+
+Each method listed here wraps the corresponding method in the deferral associated with this promise.
+
+#### promise
+#### map
+#### queueNames
+#### did
+#### resolution
+#### then
+#### always
+#### pipe
+
+### Introspection
+
+#### serves( `Deferral` deferral )
+
+Returns a boolean indicating whether `this` promise belongs to `deferral`.
 
 
 
