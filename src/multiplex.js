@@ -15,25 +15,25 @@ function Multiplex ( width, operations ) {
 	
 	function fill () {
 		while ( pipeCount < width && operations.length ) {
-			append();
+			addPipe();
 		}
 	}
 	
-	function append () {
+	function addPipe () {
 		var pipe = Pipeline( operations )
 			.on( 'didOperation', didOperation )
 			.on( 'willContinue', willContinue )
 		;
 		last = last ? ( ( pipe.previous = last ).next = pipe ) : ( first = pipe );
 		pipe.promise().always( function () {
-			remove( pipe );
+			removePipe( pipe );
 		});
 		running && pipe.start.apply( pipe, args );
 		pipeCount++;
 		return pipe;
 	}
 	
-	function remove ( pipe ) {
+	function removePipe ( pipe ) {
 		var previous = pipe.previous, next = pipe.next;
 		previous && ( previous.next = next ), next && ( next.previous = previous );
 		previous || next || self.stop();
@@ -49,6 +49,9 @@ function Multiplex ( width, operations ) {
 		if ( pipeCount > width ) {
 			pipeCount--;
 			pipe.stop();
+		} else if ( pipeCount < width ) {
+			// operations may have been added
+			fill();
 		}
 	}
 	
@@ -74,6 +77,7 @@ function Multiplex ( width, operations ) {
 	});
 	
 	extend( this, {
+		length: valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
 		width: function ( value ) {
 			if ( value !== undefined ) {
@@ -82,6 +86,7 @@ function Multiplex ( width, operations ) {
 			}
 			return width;
 		},
+		isRunning: valueFunction( function () { return running; } ),
 		start: start,
 		stop: getThis
 	});
