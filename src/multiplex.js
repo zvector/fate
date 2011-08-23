@@ -13,16 +13,21 @@ function Multiplex ( width, operations ) {
 		pipeCount = 0,
 		first, last;
 	
+	function fill () {
+		while ( pipeCount < width && operations.length ) {
+			append();
+		}
+	}
+	
 	function append () {
 		var pipe = Pipeline( operations )
 			.on( 'didOperation', didOperation )
 			.on( 'willContinue', willContinue )
 		;
 		last = last ? ( ( pipe.previous = last ).next = pipe ) : ( first = pipe );
-		pipe.promise()
-			.always( function () {
-				remove( pipe );
-			});
+		pipe.promise().always( function () {
+			remove( pipe );
+		});
 		running && pipe.start.apply( pipe, args );
 		pipeCount++;
 		return pipe;
@@ -36,7 +41,6 @@ function Multiplex ( width, operations ) {
 	}
 	
 	function didOperation ( event ) {
-		var pipe = event.target;
 		args = event.args;
 	}
 	
@@ -52,9 +56,7 @@ function Multiplex ( width, operations ) {
 		args = slice.call( arguments );
 		running = true;
 		this.start = getThis, this.stop = stop;
-		while ( pipeCount < width ) {
-			append();
-		}
+		fill();
 		return this;
 	}
 	
@@ -76,9 +78,7 @@ function Multiplex ( width, operations ) {
 		width: function ( value ) {
 			if ( value !== undefined ) {
 				width = value;
-				while ( pipeCount < width ) {
-					append();
-				}
+				fill();
 			}
 			return width;
 		},
