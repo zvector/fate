@@ -43,19 +43,25 @@
 
 # Deferral
 
-A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated **promise** interface, it is a fundamental unit of the composite entities **pipeline** and **multiplex**, which process sets of deferrals either sequentially or concurrently, and for the further composite **procedure**, which processes deferrals, pipelines, and multiplexes in arbitrarily complex arrangements.
+A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated **promise** interface, it is a fundamental unit of the composite entities **pipeline**, which processes an array of operations sequentially, **multiplex**, which processes an array of operations concurrently by bundling multiple pipelines together, and **procedure**, which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
+
 
 ## Background
 
 `Deferral` is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
 
+
 ## Overview
 
-	[new] Deferral( [ { <state/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
+A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral's **resolution state**, where, in the present, the deferral is considered to be in its _unresolved state_, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
 
-A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
+Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral's resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
-Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Constructor syntax takes the form
+
+	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
+
+The first argument describes the deferral's **resolution potential**, using a hashmap that relates the names of each resolution state to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
 
 
 ## Features
@@ -114,7 +120,7 @@ There is also the special case where it may be desirable to work with a deferral
 
 ### Terminology
 
-In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of "resolved". Whereas to `resolve()` a jQuery `Deferred` instance implies a "successful" outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolution method, which stands to reason given its one possible resolution state.)
+In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a jQuery `Deferred` instance implies a “successful” outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolution method, which stands to reason given its one possible resolution state.)
 
 
 ## Methods
