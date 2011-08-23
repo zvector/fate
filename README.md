@@ -1,4 +1,4 @@
-* **Deferral** — stateful callback management for groups of asynchronous operations
+* **Deferral** — stateful callback management for groups of synchronous and asynchronous operations
 	* Background
 	* Overview
 	* Features
@@ -31,7 +31,11 @@
 * **Multiplex** — multiple pipelines operating in parallel over the same array of deferrals
 	* Remarks
 		* Comparison to Deferral.when()
-	* Methods: `promise`, `width`, `start`, `stop`
+	* Methods
+		* Array methods: `push`, `pop`, `shift`, `unshift`, `reverse`, `splice`, `length`
+		* Interfacing: `promise`
+		* Querying state: `isRunning`, `width`
+		* Control: `start`, `stop`
 * **Procedure** — parallel and serial operations together in concise literal syntax
 	* Methods: `promise`, `start`
 	* Examples
@@ -39,7 +43,7 @@
 
 # Deferral
 
-A **deferral** is a stateful callback device used to manage the eventualities of asynchronous operations.
+A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations.
 
 ## Background
 
@@ -136,13 +140,11 @@ Returns an Array that is an ordered list of the names of the deferral's callback
 
 Returns `true` if the deferral has been resolved using the specified `resolver` method. Returns `false` if it was resolved to a different resolution substate, and returns `undefined` if it is still unresolved.
 
-#### resolution()
+#### resolution( [ `String` test ] )
 
-Returns the deferral's resolution in the form of the `String` name of the corresponding callback queue. Returns `undefined` if the deferral is still unresolved.
+If no arguments are provided, `resolution()` returns the deferral's resolution in the form of the `String` name of the corresponding callback queue, or returns `undefined` if the deferral is still unresolved.
 
-#### resolution( `String` test )
-
-Returns `true` if the deferral's `resolution()` matches `test`. Returns `false` if the deferral was otherwise resolved, and returns `undefined` if it is still unresolved.
+If a `String` is provided as an argument, `resolution( test )` returns `true` if the deferral's `resolution()` matches `test`, returns `false` if the deferral was otherwise resolved, or returns `undefined` if it is still unresolved.
 
 
 ### Registration
@@ -385,22 +387,42 @@ As with `Pipeline`, the `operations` array is considered mutable. All of the con
 
 ### Comparison to Deferral.when()
 
-It is worth nothing that the mechanism of `when` is essentially an infinite-width multiplex, built with a simpler construct. Whenever it is certain that concurrency limits are unnecessary, `when` should be used instead of `Multiplex`.
+It is worth nothing that the mechanism of `when` is essentially an infinite-width multiplex applied to a static array of operations. It is a simpler construct, however, and can be expected to be as performant or better compared to an equivalent `Multiplex`. Therefore, if it is certain that the operations array need not be dynamic, and that concurrency limits are unnecessary, then `when` should be considered preferable to `Multiplex`.
 
 
 ## Methods
+
+### Array methods
+
+Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions; `length` is an exception in that it is a method rather than a property.
+
+#### push
+#### pop
+#### shift
+#### unshift
+#### reverse
+#### splice
+#### length
+
+### Interfacing
 
 #### promise
 
 Returns a promise to the internal deferral that will be resolved once all of the constituent pipelines have been resolved.
 
-#### width()
+### Querying state
 
-Returns the upper limit on the number of concurrent pipelines.
+#### isRunning
 
-#### width( n )
+Returns a boolean indicating whether any pipelines are currently running.
 
-Sets and returns a new upper limit on the number of concurrent pipelines. Widening a running multiplex will automatically start the additional pipelines, consuming any operations. Narrowing the multiplex may not take effect immediately; the necessary number of pipelines will be terminated only once each has completed its current operation.
+#### width( [ `Number` n ] )
+
+If no arguments are provided, `width()` gets and returns the upper limit on the number of concurrent pipelines.
+
+If a numeric value is provided as an argument, `width( n )` sets and returns a new upper limit `n` on the number of concurrent pipelines. Widening a running multiplex will automatically start additional pipelines as necessary, which will begin processing the next available operations. Narrowing the multiplex may not take effect immediately; the necessary number of pipelines will be terminated only once each has completed its current operation.
+
+### Control
 
 #### start
 
@@ -416,7 +438,7 @@ Stops execution and resolves the multiplex's deferral.
 
 	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
 
-A **procedure** employs `Pipeline`, `when`, and `Multiplex` to describe combinations of serial, parallel, and limited-parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where:
+A **procedure** employs `Pipeline`, `when`, and `Multiplex` to describe combinations of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where:
 
 * An array literal `[ ]` represents a group of functions to be executed in a serial queue, using a `Pipeline`.
 
