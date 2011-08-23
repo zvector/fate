@@ -47,6 +47,8 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 ## Overview
 
+	[new] Deferral( [ { <state/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
+
 A deferral collects potential execution paths, in the form of callbacks, that may be performed later pending the deferral's resolution to a particular outcome. Which path is taken is characterized by the deferral's **resolution state**. Initially, the deferral is said to be in an _unresolved_ state; at some point in the future, it will irreversibly transition into one of its _resolved substates_. 
 
 Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply stored for later. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
@@ -228,9 +230,11 @@ Clears all callback queues.
 
 # Promise
 
+	deferral.promise()
+
 At any time a deferral can issue a partial interface to itself in the form of a **promise**, which contains a subset of the deferral's methods. Consumers of the promise can use it to make additions to the associated deferral's callback queues, and to query its resolution state, but cannot use it to directly alter the state by resolving the deferral. For example, the promise issued by the default `Deferral` will include `yes` and `no` registrar methods for adding callbacks, but will not include the `affirm` or `negate` resolver methods that would alter the deferral's resolution state.
 
-Because a deferral is effectively an extension of its associated promise, in most cases it is possible for a `Deferral` to be substituted wherever `Promise` is called for.
+Because a deferral is in a sense an extension of its associated promise, in most cases it is possible for a `Deferral` to be substituted wherever `Promise` is called for.
 
 As a matter of usage, while it is possible to acquire a promise given an available deferral reference by instantiating `new Promise( deferral )`, the preferred approach is to call `deferral.promise()`, which can retrieve a promise generated from previous invocations instead of unnecessarily instantiating a new one.
 
@@ -265,9 +269,32 @@ Returns a boolean indicating whether `this` promise belongs to `deferral`.
 
 # Pipeline
 
+	[new] Pipeline( /*Array*/ operations )
+
 Deferrals facilitate the use of **continuations** to create a special type of operation `Pipeline`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
 
-Synchronous functions must return the array of arguments to be relayed on to the next operation; asynchronous functions must return a `Promise` to a `Deferral` that will be resolved at some point in the future.
+Synchronous functions must return the array of arguments to be relayed on to the next operation. Asynchronous functions must return a `Promise` to a `Deferral` that will be resolved at some point in the future, whereupon its resolution arguments are relayed on to the next operation.
+
+	function fn1 ( a, b ) { return [ a + 1, b + 1 ]; }
+	function fn2 ( a, b ) {
+		var d = Deferral();
+		setTimeout( function () { d.affirm( a + 2, b + 2 ); }, 1000 );
+		return d.promise();
+	}
+	function fn3 ( a, b ) { return [ a + 3, b + 3 ]; }
+	
+	var pipeline = new Pipeline( [ fn1, fn2, fn3 ] );
+	
+	pipeline.start( 0, 1 )
+		.promise()
+		.then( function ( a, b ) {
+			assert.ok( a === 6 && b === 7 ); // true
+		});
+
+The array passed as an argument will be treated as mutable; each element is `shift`ed out of the array as it is executed. If the array's integrity must be preserved, it should be copied before the constructor is called:
+
+	var array = [ fn1, fn2, fn3 ],
+	    pipeline = Pipeline( array.slice() );
 
 
 ## Remarks
@@ -288,7 +315,7 @@ Synchronous and asynchronous operations can be mixed together arbitrarily to pro
 
 ### Array methods
 
-Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions contained within the pipeline; `length` is an exception in that it is a method rather than a property, although it is accessible as such via `valueOf`.
+Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions contained within the pipeline; `length` is an exception in that it is a method rather than a property.
 
 #### push
 #### pop
@@ -347,7 +374,11 @@ Stops execution and resolves the pipeline's deferral.
 
 # Multiplex
 
-A **multiplex** employs a specific number of concurrent pipelines to process an array of operations in parallel.
+	[new] Multiplex( /*Number*/ width, /*Array*/ operations )
+
+A **multiplex** employs a specific number of concurrent pipelines to process an array of operations in parallel. Its `width`, which is the maximum number of pipelines that are allowed to operate concurrently, can be adjusted dynamically as the multiplex is running; this will cause pipelines to be automatically added as necessary, or removed as necessary once their current operations complete.
+
+As with `Pipeline`, the `operations` array is considered mutable. All of the constituent pipelines reference this shared array, which will be `shift`ed by each pipeline as it proceeds to consume an operation.
 
 
 ## Remarks
@@ -356,19 +387,20 @@ A **multiplex** employs a specific number of concurrent pipelines to process an 
 
 It is worth nothing that the mechanism of `when` is essentially an infinite-width multiplex, built with a simpler construct. Whenever it is certain that concurrency limits are unnecessary, `when` should be used instead of `Multiplex`.
 
+
 ## Methods
 
 #### promise
 
 Returns a promise to the internal deferral that will be resolved once all of the constituent pipelines have been resolved.
 
-#### width ()
+#### width()
 
 Returns the upper limit on the number of concurrent pipelines.
 
-#### width ( n )
+#### width( n )
 
-Sets and returns a new upper limit on the number of concurrent pipelines. Widening a running multiplex will automatically start the additional pipelines. Narrowing the multiplex may not take effect immediately; the necessary number of pipelines will be terminated only once each has completed its current operation.
+Sets and returns a new upper limit on the number of concurrent pipelines. Widening a running multiplex will automatically start the additional pipelines, consuming any operations. Narrowing the multiplex may not take effect immediately; the necessary number of pipelines will be terminated only once each has completed its current operation.
 
 #### start
 
@@ -382,17 +414,15 @@ Stops execution and resolves the multiplex's deferral.
 
 # Procedure
 
-A **procedure** employs `Pipeline`, `when`, and `Multiplex` to describe combinations of serial and parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where:
+	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
+
+A **procedure** employs `Pipeline`, `when`, and `Multiplex` to describe combinations of serial, parallel, and limited-parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where:
 
 * An array literal `[ ]` represents a group of functions to be executed in a serial queue, using a `Pipeline`.
 
 * A **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set, using a `when` invocation.
 
 * A **numerically-keyed object–bound array literal** `{n:[ ]}` represents a group of functions to be executed in parallel, up to `n` items concurrently, using a `Multiplex` of width `n`.
-
-Constructor syntax resembles the following, where any of the pipe (`|`)–separated literals can be further nested where indicated by ellipses (`...`):
-
-	var p = Procedure( [ ... ] | [[ ... ]] | {2:[ ... ]} );
 
 
 ## Methods
@@ -404,6 +434,7 @@ Returns a promise to the internal deferral that will be resolved once the proced
 #### start
 
 Initiates the procedure. (Does not currently define behavior for arguments.)
+
 
 ## Examples
 
@@ -485,6 +516,7 @@ The next example further illustrates this principle using a significantly more c
 		.then( function () {
 			window.console && console.log( number ); // 22
 		});
+
 
 ## Future directions
 
