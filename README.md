@@ -53,22 +53,22 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 ## Overview
 
-A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral's **resolution state**, where, in the present, the deferral is considered to be in its _unresolved state_, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
+A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral’s **resolution state**, where, in the present, the deferral is considered to be in its _unresolved state_, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
 
-Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral's resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 Constructor syntax takes the form
 
 	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
 
-The first argument describes the deferral's **resolution potential**, using a hashmap that relates the names of each resolution state to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
+The first argument describes the deferral’s **resolution potential**, using a hashmap that relates the names of each resolution state to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
 
 
 ## Features
 
 ### Early binding
 
-When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral's future resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
+When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral’s future resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
 
 For example:
 
@@ -136,11 +136,11 @@ Returns a `Promise`, a limited interface into the deferral that allows callback 
 
 #### map()
 
-Returns a hashmap relating the names of the deferral's callback queues to the names of their corresponding resolver methods.
+Returns a hashmap relating the names of the deferral’s callback queues to the names of their corresponding resolver methods.
 
 #### queueNames()
 
-Returns an Array that is an ordered list of the names of the deferral's callback queues.
+Returns an Array that is an ordered list of the names of the deferral’s callback queues.
 
 #### did( `String` resolver )
 
@@ -148,9 +148,9 @@ Returns `true` if the deferral has been resolved using the specified `resolver` 
 
 #### resolution( [ `String` test ] )
 
-If no arguments are provided, `resolution()` returns the deferral's resolution in the form of the `String` name of the corresponding callback queue, or returns `undefined` if the deferral is still unresolved.
+If no arguments are provided, `resolution()` returns the deferral’s resolution in the form of the `String` name of the corresponding callback queue, or returns `undefined` if the deferral is still unresolved.
 
-If a `String` is provided as an argument, `resolution( test )` returns `true` if the deferral's `resolution()` matches `test`, returns `false` if the deferral was otherwise resolved, or returns `undefined` if it is still unresolved.
+If a `String` is provided as an argument, `resolution( test )` returns `true` if the deferral’s `resolution()` matches `test`, returns `false` if the deferral was otherwise resolved, or returns `undefined` if it is still unresolved.
 
 
 ### Registration
@@ -159,7 +159,7 @@ Methods listed here return a `Promise` to this deferral.
 
 #### (_registrar_)( `Function` callback | `Array` callbacks, ... )
 
-Administers the supplied callback functions according to the deferral's state:
+Administers the supplied callback functions according to the deferral’s state:
 	
 * In the unresolved state, the callbacks are registered to the corresponding queue, and will be called if the deferral is later resolved accordingly.
 		
@@ -188,7 +188,7 @@ Registers callbacks to all queues, ensuring they will be called no matter how th
 
 Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. (Note the distinction between this ad-hoc pipeline and the formal `Pipeline` type described below.) Once resolved, the original deferral (`this`) passes its resolution state, context, and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
 
-Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback's return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback's own deferral is resolved.
+Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback’s return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback’s own deferral is resolved.
 
 
 ### Concurrency
@@ -214,11 +214,11 @@ Methods listed here return the deferral itself.
 
 #### as( `Object` context )
 
-Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral's resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect.
+Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral’s resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect.
 
 #### given( `Array` args )
 
-Preloads resolution arguments in an unresolved deferral. Like `as()` for context, resolution arguments may be overwritten with `given` any number of times prior to the deferral's resolution, but after resolution the arguments are frozen, and subsequent calls to `given` have no effect. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
+Preloads resolution arguments in an unresolved deferral. Like `as()` for context, resolution arguments may be overwritten with `given` any number of times prior to the deferral’s resolution, but after resolution the arguments are frozen, and subsequent calls to `given` have no effect. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
 
 #### (_resolver_)( ...arguments )
 
@@ -240,7 +240,7 @@ Clears all callback queues.
 
 	deferral.promise()
 
-At any time a deferral can issue a partial interface to itself in the form of a **promise**, which contains a subset of the deferral's methods. Consumers of the promise can use it to make additions to the associated deferral's callback queues, and to query its resolution state, but cannot use it to directly alter the state by resolving the deferral. For example, the promise issued by the default `Deferral` will include `yes` and `no` registrar methods for adding callbacks, but will not include the `affirm` or `negate` resolver methods that would alter the deferral's resolution state.
+At any time a deferral can issue a partial interface to itself in the form of a **promise**, which contains a subset of the deferral’s methods. Consumers of the promise can use it to make additions to the associated deferral’s callback queues, and to query its resolution state, but cannot use it to directly alter the state by resolving the deferral. For example, the promise issued by the default `Deferral` will include `yes` and `no` registrar methods for adding callbacks, but will not include the `affirm` or `negate` resolver methods that would alter the deferral’s resolution state.
 
 Because a deferral is in a sense an extension of its associated promise, in most cases it is possible for a `Deferral` to be substituted wherever `Promise` is called for.
 
@@ -299,7 +299,7 @@ Synchronous functions must return the array of arguments to be relayed on to the
 			assert.ok( a === 6 && b === 7 ); // true
 		});
 
-The array passed as an argument will be treated as mutable; each element is `shift`ed out of the array as it is executed. If the array's integrity must be preserved, it should be copied before the constructor is called:
+The array passed as an argument will be treated as mutable; each element is `shift`ed out of the array as it is executed. If the array’s integrity must be preserved, it should be copied before the constructor is called:
 
 	var array = [ fn1, fn2, fn3 ],
 	    pipeline = Pipeline( array.slice() );
@@ -311,7 +311,7 @@ The array passed as an argument will be treated as mutable; each element is `shi
 
 A sequence of short synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single **frame**, or turn of the event loop, too long a sequence could have a significant impact on the frame _rate_, which on the client may include noticeable interruptions to user experience.
 
-Asynchronous operations advance through the pipeline no faster than one operation per frame, but this has the advantages of not polluting the stack and of long sequences not prolonging the duration of the frame in which it's executing.
+Asynchronous operations advance through the pipeline no faster than one operation per frame, but this has the advantages of not polluting the stack and of long sequences not prolonging the duration of the frame in which it’s executing.
 
 Synchronous and asynchronous operations can be mixed together arbitrarily to provide granular control over this balance of immediacy versus frame imposition.
 
@@ -371,7 +371,7 @@ Resumes execution, or cancels a pending `pause` command.
 
 #### stop
 
-Stops execution and resolves the pipeline's deferral.
+Stops execution and resolves the pipeline’s deferral.
 
 
 ## Examples
@@ -436,7 +436,7 @@ Creates and starts the necessary number of pipelines, limited to `width`, given 
 
 #### stop
 
-Stops execution and resolves the multiplex's deferral.
+Stops execution and resolves the multiplex’s deferral.
 
 
 
