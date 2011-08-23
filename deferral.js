@@ -798,7 +798,7 @@ function Multiplex ( width, operations ) {
 		if ( pipeCount > width ) {
 			pipeCount--;
 			pipe.stop();
-		} else {
+		} else if ( pipeCount < width ) {
 			// operations may have been added
 			fill();
 		}
@@ -826,6 +826,7 @@ function Multiplex ( width, operations ) {
 	});
 	
 	extend( this, {
+		length: valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
 		width: function ( value ) {
 			if ( value !== undefined ) {
@@ -834,6 +835,7 @@ function Multiplex ( width, operations ) {
 			}
 			return width;
 		},
+		isRunning: valueFunction( function () { return running; } ),
 		start: start,
 		stop: getThis
 	});
