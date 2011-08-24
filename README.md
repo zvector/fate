@@ -37,7 +37,7 @@
 		* Interfacing: `promise`
 		* Querying state: `isRunning`, `width`
 		* Control: `start`, `stop`
-* **Procedure** — Serial and parallel operations together, in a concise literal syntax
+* **Procedure** — Arbitrarily complex arrangments of serial and parallel operations, in a concise literal syntax
 	* Methods: `promise`, `start`
 	* Examples
 
@@ -54,15 +54,15 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 ## Overview
 
-A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral’s **resolution state**, where, in the present, the deferral is considered to be in its _unresolved state_, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
+A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral’s **resolution state**, where, in the present, the deferral is considered to be in its _unresolved_ state, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
 
-Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the _unresolved_ state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated _resolved_ substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the unresolved state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated resolved substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 Constructor syntax takes the form
 
 	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
 
-The first argument describes the deferral’s **resolution potential**, using a hashmap that relates the names of each resolution state to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
+The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolution state to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
 
 
 ## Features
