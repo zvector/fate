@@ -1,4 +1,4 @@
-( function ( module, undefined ) {
+( function ( undefined ) {
 
 var global = this;
 // # Core functions
@@ -934,7 +934,8 @@ function Procedure ( input ) {
 }
 
 
-extend( global, module.exports, {
+// TODO export as string (`global['...']`) for Closure Compiler
+extend( typeof module === 'undefined' ? global : module.exports, {
 	Deferral: Deferral,
 	Promise: Promise,
 	Pipeline: Pipeline,
@@ -942,5 +943,5 @@ extend( global, module.exports, {
 	Procedure: Procedure
 });
 
-})( typeof module === 'undefined' ? { exports: {} } : module );
+})();
 

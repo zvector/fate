@@ -1,3 +1,3 @@
-( function ( module, undefined ) {
+( function ( undefined ) {
 
 var global = this;
