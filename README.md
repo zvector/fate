@@ -62,7 +62,7 @@ Constructor syntax takes the form
 
 	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
 
-The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolution state to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
+The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolved substate to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
 
 
 ## Features
@@ -87,7 +87,7 @@ both of which might compare with
 
 `Deferral` supports _n-ary_ futures, in that any number of possible resolution states may be defined. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
 
-	Deferral({ yes: 'affirm', no: 'negate'});
+	Deferral({ yes: 'affirm', no: 'negate' });
 
 This can be extended further if more outcomes are to be accounted for:
 
@@ -310,7 +310,7 @@ The array passed as an argument will be treated as mutable; each element is `shi
 
 ### Considerations of using synchronous versus asynchronous continuations
 
-A sequence of short synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single **frame**, or turn of the event loop, too long a sequence could have a significant impact on the frame _rate_, which on the client may include noticeable interruptions to user experience.
+A sequence of short synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single _frame_, or turn of the event loop, too long a sequence could have a significant impact on the _frame rate_, which on the client may include noticeable interruptions to user experience.
 
 Asynchronous operations advance through the pipeline no faster than one operation per frame, but this has the advantages of not polluting the stack and of long sequences not prolonging the duration of the frame in which it’s executing.
 
@@ -445,9 +445,9 @@ Stops execution and resolves the multiplex’s deferral.
 
 	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
 
-A **procedure** employs `Pipeline`, `when`, and `Multiplex` to describe combinations of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into a nested array structure of arbitrary depth, where:
+A **procedure** employs `Pipeline`, `when`, and `Multiplex` using symbolic literals to describe a concerted progression of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into nested array structures of arbitrary depth, where:
 
-* An array literal `[ ]` represents a group of functions to be executed in a serial queue, using a `Pipeline`.
+* A normal array literal `[ ]` represents a group of functions to be executed in a serial queue, using a `Pipeline`.
 
 * A **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel set, using a `when` invocation.
 
