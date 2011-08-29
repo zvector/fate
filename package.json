@@ -1,12 +1,14 @@
 {
 	'name'			: 'deferral',
-	'version'		: '0.1.0',
+	'version'		: '0.0.1',
 	'description'	: '',
 	'homepage'		: '',
 	'keywords'		: [ 'async', 'promise', 'defer', 'deferred', 'deferral', 'pipeline', 'parallel', 'multiplex' ],
 	'author'		: 'Nick Fargo <nick@zvector.com>',
 	'contributors'	: [],
-	'dependencies'	: [],
+	'dependencies'	: [
+		'z-core'	: '>=0.1.0'
+	],
 	'repository'	: {
 		'type'		: 'git',
 		'url'		: 'git://github.com/zvector/deferral.git'

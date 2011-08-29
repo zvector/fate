@@ -20,7 +20,8 @@ function Procedure ( input ) {
 	function series () {
 		var args = slice.call( arguments );
 		return function () {
-			return Pipeline( args ).start( arguments ).promise();
+			var pipeline = Pipeline( args );
+			return pipeline.start.apply( pipeline, arguments ).promise();
 		};
 	}
 	function parallel () {
@@ -76,9 +77,13 @@ function Procedure ( input ) {
 	extend( this, {
 		start: function () {
 			var result = procedure.apply( this, arguments );
-			function affirm () { return deferral.affirm(); }
-			function negate () { return deferral.negate(); }
-			Promise.resembles( result ) ? result.then( affirm, negate ) : affirm();
+			function affirm () {
+				return deferral.as( result ).given( arguments ).affirm();
+			}
+			function negate () {
+				return deferral.as( result ).given( arguments ).negate();
+			}
+			Promise.resembles( result ) ? result.then( affirm, negate ) : affirm.apply( this, result );
 			return this.promise();
 		},
 		promise: function () {

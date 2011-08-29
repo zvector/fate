@@ -1,4 +1,4 @@
-( function ( undefined ) {
+( function ( assert, undefined ) {
 
 module( "Procedure" );
 
@@ -15,10 +15,10 @@ asyncTest( "Nesting Pipeline/when", 8, function () {
 			}, 10 );
 			return deferral.then(
 				function ( message ) {
-					ok( true, message );
+					assert.ok( true, message );
 				},
 				function ( message ) {
-					ok( false, message );
+					assert.ok( false, message );
 				}
 			);
 		};
@@ -52,6 +52,40 @@ asyncTest( "Nesting Pipeline/when", 8, function () {
 		.then( start );
 });
 
+asyncTest( "Using a plain function", 2, function () {
+	Procedure( function ( a, b, c ) {
+		assert.ok( a === 1 && b === 2 && c === 3 );
+		return [ a + 3, b + 3, c + 3 ];
+	})
+		.start( 1, 2, 3 )
+		.then( function ( d, e, f ) {
+			assert.ok( d === 4 && e === 5 && f === 6 );
+		})
+		.always( start );
+});
+
+asyncTest( "Using a series of plain functions", 4, function () {
+	Procedure([
+		function ( a, b ) {
+			assert.ok( a === 1 && b === 2 );
+			return [ a + 2, b + 2 ];
+		},
+		function ( c, d ) {
+			assert.ok( c === 3 && d === 4 );
+			return [ c + 2, d + 2 ];
+		},
+		function ( e, f ) {
+			assert.ok( e === 5 && f === 6 );
+			return [ e + 2, f + 2 ];
+		}
+	])
+		.start( 1, 2 )
+		.then( function ( g, h ) {
+			assert.ok( g === 7 && h === 8 );
+		})
+		.always( start );
+});
+
 asyncTest( "Using serial/parallel literals", 22, function () {
 	var number = 0,
 		time = ( new Date ).getTime();
@@ -65,10 +99,10 @@ asyncTest( "Using serial/parallel literals", 22, function () {
 			}, 10 );
 			return deferral.then(
 				function ( message ) {
-					ok( true, message );
+					assert.ok( true, message );
 				},
 				function ( message ) {
-					ok( false, message );
+					assert.ok( false, message );
 				}
 			);
 		};
@@ -134,10 +168,10 @@ asyncTest( "Using multiplex literals", 22, function () {
 			}, 10 );
 			return deferral.then(
 				function ( message ) {
-					ok( true, message );
+					assert.ok( true, message );
 				},
 				function ( message ) {
-					ok( false, message );
+					assert.ok( false, message );
 				}
 			);
 		};
@@ -195,7 +229,7 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 	Procedure( [[
 		function () {
 			// console.log("1");
-			ok( true );
+			assert.ok( true );
 			return Deferral.Nullary();
 		},
 		[
@@ -210,7 +244,7 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 						}
 					)
 					.always( function () {
-						ok( true );
+						assert.ok( true );
 					});
 			},
 			function () {
@@ -224,13 +258,13 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 						}
 					)
 					.always( function () {
-						ok( true );
+						assert.ok( true );
 					});
 			}
 		],
 		function () {
 			// console.log("4");
-			ok( true );
+			assert.ok( true );
 			return Deferral.Nullary();
 		}
 	]] )
@@ -238,4 +272,4 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 		.then( start );
 });
 
-})();
+})( QUnit );
