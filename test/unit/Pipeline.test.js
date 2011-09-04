@@ -2,6 +2,9 @@
 
 module( "Pipeline" );
 
+var	Deferral = Fate.Deferral,
+	Pipeline = Fate.Pipeline;
+
 /*
  * This test runs a set of arguments (an Array vector [ 1, 7, -5 ]) through a `Pipeline`.
  * Each operation in the sequence will process the argument set and return a new vector, which is

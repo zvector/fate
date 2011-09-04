@@ -2,6 +2,9 @@
 
 module( "Promise" );
 
+var	Deferral = Fate.Deferral,
+	Promise = Fate.Promise;
+
 asyncTest( "promise()", function () {
 	var d = new Deferral,
 		p1 = d.promise(),

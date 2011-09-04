@@ -1,17 +1,17 @@
 /**
-`Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
-
-@param Object map : Hashmap whose entries represent the set of resolved substates for the deferral;
-		keys specify a name for the substate's callback queue, and values specify a name for the
-		resolution method used to transition to that substate and execute its associated callbacks.
-@param Function fn : A function that will be executed immediately in the context of the deferral.
-@param Array args : Array of arguments to be passed to `fn`.
+ * `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
+ * 
+ * @param Object map : Hashmap whose entries represent the set of resolved substates for the deferral;
+ * 		keys specify a name for the substate's callback queue, and values specify a name for the
+ * 		resolution method used to transition to that substate and execute its associated callbacks.
+ * @param Function fn : A function that will be executed immediately in the context of the deferral.
+ * @param Array args : Array of arguments to be passed to `fn`.
  */
 function Deferral ( map, fn, args ) {
 	if ( !( this instanceof Deferral ) ) {
 		return new Deferral( map, fn, args );
 	}
-	if ( map === undefined || isFunction( map ) ) {
+	if ( map === undefined || Z.isFunction( map ) ) {
 		return new Deferral.Binary( arguments[0], arguments[1] );
 	}
 	
@@ -28,8 +28,8 @@ function Deferral ( map, fn, args ) {
 	function setResolutionArguments ( args ) { return resolutionArguments = args; }
 	
 	
-	extend( this, {
-		resolution: stringFunction( function ( test ) {
+	Z.extend( this, {
+		resolution: Z.stringFunction( function ( test ) {
 			return test ? test === resolution || ( test in map ? false : undefined ) : resolution;
 		}),
 		did: function ( resolver ) {
@@ -49,18 +49,18 @@ function Deferral ( map, fn, args ) {
 	 */
 	if ( map === null ) {
 		resolution = true;
-		this.map = this.queueNames = noop;
-		this.as = this.given = this.empty = getThis;
+		this.map = this.queueNames = Z.noop;
+		this.as = this.given = this.empty = Z.getThis;
 		this.then = Deferral.privileged.invoke( this, null )
 			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
-		this.always = function () { return this.then( slice.call( arguments ) ); };
+		this.always = function () { return this.then( Z.slice.call( arguments ) ); };
 	}
 	
 	// Normal (n > 0)-ary deferral
 	else {
-		extend( this, {
-			map: function () { return extend( {}, map ); },
-			queueNames: stringFunction( function () { return keys( map ); } ),
+		Z.extend( this, {
+			map: function () { return Z.extend( {}, map ); },
+			queueNames: Z.stringFunction( function () { return Z.keys( map ); } ),
 			as: function ( context ) {
 				resolutionContext = context;
 				return this;
@@ -71,7 +71,7 @@ function Deferral ( map, fn, args ) {
 			},
 			empty: function () {
 				callbacks = {};
-				each( map, function ( key ) { callbacks[ key ] = []; });
+				Z.each( map, function ( key ) { callbacks[ key ] = []; });
 				return this;
 			}
 		});
@@ -83,17 +83,17 @@ function Deferral ( map, fn, args ) {
 			callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments
 		);
 	
-		each( map, function ( name, resolver ) {
+		Z.each( map, function ( name, resolver ) {
 			self[ name ] = register( name );
 			self[ resolver ] = resolve( name );
 		});
 	
 		register = resolve = null;
 	
-		fn && isFunction( fn ) && fn.apply( this, args );
+		fn && Z.isFunction( fn ) && fn.apply( this, args );
 	}
 }
-extend( true, Deferral, {
+Z.extend( true, Deferral, {
 	privileged: {
 		/**
 		 * Produces a function that pushes callbacks onto one of the callback queues.
@@ -101,8 +101,8 @@ extend( true, Deferral, {
 		register: function ( callbacks ) {
 			return function ( resolution ) { // e.g. { 'yes' | 'no' }
 				return function ( fn ) {
-					isFunction( fn ) && callbacks[ resolution ].push( fn ) ||
-						isArray( fn ) && forEach( fn, this[ resolution ] );
+					Z.isFunction( fn ) && callbacks[ resolution ].push( fn ) ||
+						Z.isArray( fn ) && Z.forEach( fn, this[ resolution ] );
 					return this;
 				};
 			};
@@ -118,7 +118,7 @@ extend( true, Deferral, {
 						name,
 						map = this.map(),
 						context = getResolutionContext(),
-						args = arguments.length ? setResolutionArguments( slice.call( arguments ) ) : getResolutionArguments();
+						args = arguments.length ? setResolutionArguments( Z.slice.call( arguments ) ) : getResolutionArguments();
 					
 					setResolution( resolution );
 					
@@ -131,10 +131,10 @@ extend( true, Deferral, {
 					 * registrations to any of the other queues are deemed invalid and will be discarded.
 					 */
 					this[ resolution ] = Deferral.privileged.invoke( this, callbacks )( context, args );
-					this[ map[ resolution ] ] = this.as = this.given = getThis;
+					this[ map[ resolution ] ] = this.as = this.given = Z.getThis;
 					delete map[ resolution ];
 					for ( name in map ) {
-						this[ name ] = this[ map[ name ] ] = getThis;
+						this[ name ] = this[ map[ name ] ] = Z.getThis;
 					}
 					
 					Deferral.privileged.invokeAll( this, callbacks )( context, args )( callbacks[ resolution ] );
@@ -157,8 +157,8 @@ extend( true, Deferral, {
 			return function ( context, args ) {
 				return function ( fn ) {
 					try {
-						isFunction( fn ) ? fn.apply( context || deferral, args ) :
-						isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( context, args )( fn );
+						Z.isFunction( fn ) ? fn.apply( context || deferral, args ) :
+						Z.isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( context, args )( fn );
 					} catch ( nothing ) {}
 					return deferral;
 				};
@@ -185,7 +185,7 @@ extend( true, Deferral, {
 		 * first queue (`yes`) and `fn2` to the second queue (`no`).
 		 */
 		then: function () {
-			var map = keys( this.map() ), i = 0, l = Math.min( map.length, arguments.length );
+			var map = Z.keys( this.map() ), i = 0, l = Math.min( map.length, arguments.length );
 			while ( i < l ) { this[ map[i] ]( arguments[ i++ ] ); }
 			return this;
 		},
@@ -195,7 +195,7 @@ extend( true, Deferral, {
 		 * whether it is affirmed or not.
 		 */
 		always: function () {
-			var name, map = this.map(), fns = slice.call( arguments );
+			var name, map = this.map(), fns = Z.slice.call( arguments );
 			for ( name in map ) { this[ name ]( fns ); }
 			return this;
 		},
@@ -225,7 +225,7 @@ extend( true, Deferral, {
 					resolver = map[ key ];
 					fn = arguments[ i++ ];
 					this[ key ](
-						isFunction( fn ) ?
+						Z.isFunction( fn ) ?
 							function () {
 								var key,
 									result = fn.apply( this, arguments ),
@@ -254,7 +254,7 @@ extend( true, Deferral, {
 		 * to that of the first defined callback queue (e.g. `yes` for a standard deferral).
 		 */
 		when: function ( /* promises..., [ resolution ] */ ) {
-			var	promises = flatten( slice.call( arguments ) ),
+			var	promises = Z.flatten( Z.slice.call( arguments ) ),
 				length = promises.length || 1,
 				resolution,
 				master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
@@ -273,7 +273,7 @@ extend( true, Deferral, {
 				};
 			}
 
-			if ( length > 1 && type( promises[ length - 1 ] ) === 'string' ) {
+			if ( length > 1 && Z.type( promises[ length - 1 ] ) === 'string' ) {
 				resolution = promises.splice( --length, 1 )[0];
 			}
 
@@ -321,7 +321,7 @@ extend( true, Deferral, {
 				// other promises by wrapping it in a nullary deferral.
 				else {
 					promises[i] = Deferral.Nullary( master, promise );
-					isFunction( promise ) && promises[i].then( promise );
+					Z.isFunction( promise ) && promises[i].then( promise );
 				}
 			}
 

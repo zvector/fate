@@ -2,6 +2,9 @@
 
 module( "Multiplex" );
 
+var	Deferral = Fate.Deferral,
+	Multiplex = Fate.Multiplex;
+
 asyncTest( "Multiplex", function () {
 	
 	var	multiplex,

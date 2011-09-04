@@ -13,7 +13,8 @@ require '../build/combine.php';
 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.js"></script>
 		
 		<!-- includes -->
-		<script src="../deferral.js"></script>
+		<script src="../../zcore/zcore.js"></script>
+		<script src="../fate.js"></script>
 		
 		<!-- tests -->
 		<script src="qunit.js"></script>
@@ -24,7 +25,7 @@ require '../build/combine.php';
 		<script src="unit/Procedure.test.js"></script>
 	</head>
 	<body>
-		<h1 id="qunit-header">deferral.js Test Suite</h1>
+		<h1 id="qunit-header">Fate.js Test Suite</h1>
 		<h2 id="qunit-banner"></h2>
 		<div id="qunit-testrunner-toolbar"></div>
 		<h2 id="qunit-userAgent"></h2>

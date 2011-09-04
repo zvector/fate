@@ -2,6 +2,8 @@
 
 module( "Deferral" );
 
+var Deferral = Fate.Deferral;
+
 asyncTest( "Deferral", function () {
 	var d = new Deferral( function ( a, b, c ) {
 		this.then( function ( x, y, z ) {

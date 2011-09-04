@@ -9,7 +9,7 @@ function Pipeline ( operations ) {
 		deferral = ( new Deferral ).as( self ),
 		running = false,
 		pausePending = false,
-		events = nullHash([ 'didOperation', 'willContinue' ]);
+		events = Z.nullHash([ 'didOperation', 'willContinue' ]);
 	
 	function next () {
 		return operation = operations.shift();
@@ -27,12 +27,12 @@ function Pipeline ( operations ) {
 	
 	function continuation () {
 		var result;
-		if ( isFunction( this ) ) {
+		if ( Z.isFunction( this ) ) {
 			result = this.apply( self, arguments );
 			if ( Promise.resembles( result ) ) {
 				result.then(
 					function () {
-						args = slice.call( arguments );
+						args = Z.slice.call( arguments );
 						emit( 'didOperation' );
 						pausePending && ( running = pausePending = false );
 						running && ( operation = operations[0] ) && emit( 'willContinue' );
@@ -43,11 +43,11 @@ function Pipeline ( operations ) {
 					}
 				);
 			} else {
-				args = slice.call( arguments );
-				running && continuation.apply( next(), isArray( result ) ? result : [ result ] );
+				args = Z.slice.call( arguments );
+				running && continuation.apply( next(), Z.isArray( result ) ? result : [ result ] );
 			}
 		} else {
-			args = slice.call( arguments );
+			args = Z.slice.call( arguments );
 			self.stop();
 		}
 	}
@@ -57,53 +57,53 @@ function Pipeline ( operations ) {
 			deferral = ( new Deferral ).as( self );
 		}
 		running = true;
-		this.start = getThis, this.pause = pause, this.resume = resume, this.stop = stop;
-		continuation.apply( next(), args = slice.call( arguments ) );
+		this.start = Z.getThis, this.pause = pause, this.resume = resume, this.stop = stop;
+		continuation.apply( next(), args = Z.slice.call( arguments ) );
 		return this;
 	}
 	
 	function pause () {
 		pausePending = true;
-		this.resume = resume, this.pause = getThis;
+		this.resume = resume, this.pause = Z.getThis;
 		return this;
 	}
 	
 	function resume () {
 		running = true, pausePending = false;
-		this.pause = pause, this.resume = getThis;
+		this.pause = pause, this.resume = Z.getThis;
 		continuation.apply( next(), args );
 		return this;
 	}
 	
 	function stop () {
 		running = pausePending = false;
-		this.start = start, this.pause = this.resume = this.stop = getThis;
+		this.start = start, this.pause = this.resume = this.stop = Z.getThis;
 		deferral.given( args ).affirm();
 		return this;
 	}
 	
-	forEach( Pipeline.arrayMethods, function ( method ) {
+	Z.forEach( Pipeline.arrayMethods, function ( method ) {
 		self[ method ] = function () {
 			return Array.prototype[ method ].apply( operations, arguments );
 		};
 	});
 	
-	extend( this, {
-		length: valueFunction( function () { return operations.length; } ),
+	Z.extend( this, {
+		length: Z.valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
 		operation: function () { return operation; },
-		args: function () { return slice.call( args ); },
-		isRunning: valueFunction( function () { return running; } ),
+		args: function () { return Z.slice.call( args ); },
+		isRunning: Z.valueFunction( function () { return running; } ),
 		start: start,
-		pause: getThis,
-		resume: getThis,
-		stop: getThis,
+		pause: Z.getThis,
+		resume: Z.getThis,
+		stop: Z.getThis,
 		on: function ( eventType, fn ) {
 			var callbacks = events[ eventType ] || ( events[ eventType ] = [] );
 			return callbacks && callbacks.push( fn ) && this;
 		}
 	});
 }
-extend( Pipeline, {
+Z.extend( Pipeline, {
 	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
 });

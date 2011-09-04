@@ -1,267 +1,44 @@
 ( function ( undefined ) {
 
-var global = this;
-// # Core functions
-
-
-var	toString = Object.prototype.toString,
-	hasOwn = Object.prototype.hasOwnProperty,
-	trim = String.prototype.trim ?
-		function ( text ) { return text == null ? '' : String.prototype.trim.call( text ); } :
-		function ( text ) { return text == null ? '' : text.toString().replace( /^\s+/, '' ).replace( /\s+$/, '' ); },
-	slice = Array.prototype.slice;
+var	global = this,
 	
-/**
- * General-purpose empty function; also usable as a unique alternative "nil" type in strict-equal matches
- * whenever it's desirable to avoid traditional `null` and `undefined`.
- */
-function noop () {}
+	Z =	typeof require !== 'undefined' ? require('zcore') : global.Z,
+	
+	Fate = Z.extend( Z.env.server ? exports : {}, {
+		version: '0.0.1',
+	
+		Deferral: Deferral,
+		Promise: Promise,
+		Pipeline: Pipeline,
+		Multiplex: Multiplex,
+		Procedure: Procedure,
+	
+		noConflict: ( function () {
+			var autochthon = global.Fate;
+			return function () {
+				global.Fate = autochthon;
+				return this;
+			};
+		})()
+	})
+;
 
-/** */
-function getThis () { return this; }
-
-/**
- * Calls the specified native function if it exists and returns its result; if no such function exists on
- * `obj` as registered in `__native.fn`, returns our unique `noop` (as opposed to `null` or `undefined`,
- * which may be a valid result from the native function itself).
- */
-function __native ( item, obj /* , ... */ ) {
-	var n = __native.fn[item];
-	return n && obj[item] === n ? n.apply( obj, slice.call( arguments, 2 ) ) : noop;
-}
-__native.fn = {
-	forEach: Array.prototype.forEach
-};
-
-/**
- * Safer alternative to `typeof`
- */
-function type ( obj ) {
-	return obj == null ? String( obj ) : type.map[ toString.call( obj ) ] || 'object';
-}
-type.map = {};
-each( 'Array Boolean Date Function Number Object RegExp String'.split(' '), function( i, name ) {
-	type.map[ "[object " + name + "]" ] = name.toLowerCase();
-});
-
-/** isNumber */
-function isNumber ( n ) { return !isNaN( parseFloat( n ) && isFinite( n ) ); }
-
-/** isArray */
-function isArray ( obj ) { return type( obj ) === 'array'; }
-
-/** isFunction */
-function isFunction ( obj ) { return type( obj ) === 'function'; }
-
-/** isPlainObject */
-function isPlainObject ( obj ) {
-	var key;
-	if ( !obj || type( obj ) !== 'object' || obj.nodeType || obj === global ||
-		obj.constructor &&
-		!hasOwn.call( obj, 'constructor' ) &&
-		!hasOwn.call( obj.constructor.prototype, 'isPrototypeOf' )
-	) {
-		return false;
-	}
-	for ( key in obj ) {}
-	return key === undefined || hasOwn.call( obj, key );
-}
-
-/** isEmpty */
-function isEmpty ( obj, andPrototype ) {
-	var key;
-	if ( isArray( obj ) && obj.length ) {
-		return false;
-	}
-	for ( key in obj ) {
-		if ( andPrototype || hasOwn.call( obj, key ) ) {
-			return false;
-		}
-	}
-	return true;
-}
-
-function each ( obj, fn ) {
-	if ( !obj ) { return; }
-	var	key, i, l = obj.length;
-	if ( l === undefined || isFunction( obj ) ) {
-		for ( key in obj ) {
-			if ( fn.call( obj[key], key, obj[key], obj ) === false ) {
-				break;
-			}
-		}
-	} else {
-		for ( i = 0, l = obj.length; i < l; ) {
-			if ( fn.call( obj[i], i, obj[i++], obj ) === false ) {
-				break;
-			}
-		}
-	}
-	return obj;
-}
-
-function forEach ( obj, fn, context ) {
-	var	n, l, key, i;
-	if ( obj == null ) { return; }
-	if ( ( n = __native( 'forEach', obj, fn, context ) ) !== noop ) { return n; }
-	if ( ( l = obj.length ) === undefined || isFunction( obj ) ) {
-		for ( key in obj ) {
-			if ( fn.call( context || obj[key], obj[key], key, obj ) === false ) {
-				break;
-			}
-		}
-	} else {
-		for ( i = 0, l = obj.length; i < l; ) {
-			if ( fn.call( context || obj[i], obj[i], i++, obj ) === false ) {
-				break;
-			}
-		}
-	}
-	return obj;
-}
-
-/** extend */
-function extend () {
-	var options, name, src, copy, copyIsArray, clone,
-		target = arguments[0] || {},
-		i = 1,
-		length = arguments.length,
-		deep = false;
-
-	// Handle a deep copy situation
-	if ( typeof target === "boolean" ) {
-		deep = target;
-		target = arguments[1] || {};
-		// skip the boolean and the target
-		i = 2;
-	}
-
-	// Handle case when target is a string or something (possible in deep copy)
-	if ( typeof target !== "object" && !isFunction( target ) ) {
-		target = {};
-	}
-
-	for ( ; i < length; i++ ) {
-		// Only deal with non-null/undefined values
-		if ( ( options = arguments[i] ) != null ) {
-			// Extend the base object
-			for ( name in options ) {
-				src = target[ name ];
-				copy = options[ name ];
-
-				// Prevent never-ending loop
-				if ( target === copy ) {
-					continue;
-				}
-
-				// Recurse if we're merging plain objects or arrays
-				if ( deep && copy && ( isPlainObject( copy ) || ( copyIsArray = isArray( copy ) ) ) ) {
-					if ( copyIsArray ) {
-						copyIsArray = false;
-						clone = src && isArray( src ) ? src : [];
-					} else {
-						clone = src && isPlainObject( src ) ? src : {};
-					}
-					
-					// Never move original objects, clone them
-					target[ name ] = extend( deep, clone, copy );
-					
-				// 
-				// Don't bring in undefined values
-				} else if ( copy !== undefined ) {
-					target[ name ] = copy;
-				}
-			}
-		}
-	}
-
-	// Return the modified object
-	return target;
-}
+Z.env.client && ( global['Fate'] = Fate );
 
 /**
- * Extracts elements of nested arrays
- */
-function flatten ( array ) {
-	isArray( array ) || ( array = [ array ] );
-	var	i = 0,
-		l = array.length,
-		item,
-		result = [];
-	while ( i < l ) {
-		item = array[i++];
-		isArray( item ) ? ( result = result.concat( flatten( item ) ) ) : result.push( item );
-	}
-	return result;
-}
-
-/**
- * Returns an array containing the keys of a hashmap
- */
-function keys ( obj ) {
-	var key, result = [];
-	for ( key in obj ) if ( hasOwn.call( obj, key ) ) {
-		result.push( key );
-	}
-	return result;
-}
-
-/**
- * Returns a hashmap that is the key-value inversion of the supplied string array
- */
-function invert ( array ) {
-	for ( var i = 0, l = array.length, map = {}; i < l; ) {
-		map[ array[i] ] = i++;
-	}
-	return map;
-}
-
-/**
- * Sets all of an object's values to a specified value
- */
-function setAll ( obj, value ) {
-	for ( var i in obj ) if ( hasOwn.call( obj, i ) ) {
-		obj[i] = value;
-	}
-	return obj;
-}
-
-/**
- * Sets all of an object's values to `null`
- */
-function nullify ( obj ) {
-	for ( var i in obj ) if ( hasOwn.call( obj, i ) ) {
-		obj[i] = null;
-	}
-	return obj;
-}
-
-/**
- * Produces a hashmap whose keys are the supplied string array, with values all set to `null`
- */
-function nullHash( keys ) { return nullify( invert( keys ) ); }
-
-/** */
-function valueFunction ( fn ) { return fn.valueOf = fn; }
-
-/** */
-function stringFunction ( fn ) { return fn.toString = fn; }
-
-
-/**
-`Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
-
-@param Object map : Hashmap whose entries represent the set of resolved substates for the deferral;
-		keys specify a name for the substate's callback queue, and values specify a name for the
-		resolution method used to transition to that substate and execute its associated callbacks.
-@param Function fn : A function that will be executed immediately in the context of the deferral.
-@param Array args : Array of arguments to be passed to `fn`.
+ * `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
+ * 
+ * @param Object map : Hashmap whose entries represent the set of resolved substates for the deferral;
+ * 		keys specify a name for the substate's callback queue, and values specify a name for the
+ * 		resolution method used to transition to that substate and execute its associated callbacks.
+ * @param Function fn : A function that will be executed immediately in the context of the deferral.
+ * @param Array args : Array of arguments to be passed to `fn`.
  */
 function Deferral ( map, fn, args ) {
 	if ( !( this instanceof Deferral ) ) {
 		return new Deferral( map, fn, args );
 	}
-	if ( map === undefined || isFunction( map ) ) {
+	if ( map === undefined || Z.isFunction( map ) ) {
 		return new Deferral.Binary( arguments[0], arguments[1] );
 	}
 	
@@ -278,8 +55,8 @@ function Deferral ( map, fn, args ) {
 	function setResolutionArguments ( args ) { return resolutionArguments = args; }
 	
 	
-	extend( this, {
-		resolution: stringFunction( function ( test ) {
+	Z.extend( this, {
+		resolution: Z.stringFunction( function ( test ) {
 			return test ? test === resolution || ( test in map ? false : undefined ) : resolution;
 		}),
 		did: function ( resolver ) {
@@ -299,18 +76,18 @@ function Deferral ( map, fn, args ) {
 	 */
 	if ( map === null ) {
 		resolution = true;
-		this.map = this.queueNames = noop;
-		this.as = this.given = this.empty = getThis;
+		this.map = this.queueNames = Z.noop;
+		this.as = this.given = this.empty = Z.getThis;
 		this.then = Deferral.privileged.invoke( this, null )
 			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
-		this.always = function () { return this.then( slice.call( arguments ) ); };
+		this.always = function () { return this.then( Z.slice.call( arguments ) ); };
 	}
 	
 	// Normal (n > 0)-ary deferral
 	else {
-		extend( this, {
-			map: function () { return extend( {}, map ); },
-			queueNames: stringFunction( function () { return keys( map ); } ),
+		Z.extend( this, {
+			map: function () { return Z.extend( {}, map ); },
+			queueNames: Z.stringFunction( function () { return Z.keys( map ); } ),
 			as: function ( context ) {
 				resolutionContext = context;
 				return this;
@@ -321,7 +98,7 @@ function Deferral ( map, fn, args ) {
 			},
 			empty: function () {
 				callbacks = {};
-				each( map, function ( key ) { callbacks[ key ] = []; });
+				Z.each( map, function ( key ) { callbacks[ key ] = []; });
 				return this;
 			}
 		});
@@ -333,17 +110,17 @@ function Deferral ( map, fn, args ) {
 			callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments
 		);
 	
-		each( map, function ( name, resolver ) {
+		Z.each( map, function ( name, resolver ) {
 			self[ name ] = register( name );
 			self[ resolver ] = resolve( name );
 		});
 	
 		register = resolve = null;
 	
-		fn && isFunction( fn ) && fn.apply( this, args );
+		fn && Z.isFunction( fn ) && fn.apply( this, args );
 	}
 }
-extend( true, Deferral, {
+Z.extend( true, Deferral, {
 	privileged: {
 		/**
 		 * Produces a function that pushes callbacks onto one of the callback queues.
@@ -351,8 +128,8 @@ extend( true, Deferral, {
 		register: function ( callbacks ) {
 			return function ( resolution ) { // e.g. { 'yes' | 'no' }
 				return function ( fn ) {
-					isFunction( fn ) && callbacks[ resolution ].push( fn ) ||
-						isArray( fn ) && forEach( fn, this[ resolution ] );
+					Z.isFunction( fn ) && callbacks[ resolution ].push( fn ) ||
+						Z.isArray( fn ) && Z.forEach( fn, this[ resolution ] );
 					return this;
 				};
 			};
@@ -368,7 +145,7 @@ extend( true, Deferral, {
 						name,
 						map = this.map(),
 						context = getResolutionContext(),
-						args = arguments.length ? setResolutionArguments( slice.call( arguments ) ) : getResolutionArguments();
+						args = arguments.length ? setResolutionArguments( Z.slice.call( arguments ) ) : getResolutionArguments();
 					
 					setResolution( resolution );
 					
@@ -381,10 +158,10 @@ extend( true, Deferral, {
 					 * registrations to any of the other queues are deemed invalid and will be discarded.
 					 */
 					this[ resolution ] = Deferral.privileged.invoke( this, callbacks )( context, args );
-					this[ map[ resolution ] ] = this.as = this.given = getThis;
+					this[ map[ resolution ] ] = this.as = this.given = Z.getThis;
 					delete map[ resolution ];
 					for ( name in map ) {
-						this[ name ] = this[ map[ name ] ] = getThis;
+						this[ name ] = this[ map[ name ] ] = Z.getThis;
 					}
 					
 					Deferral.privileged.invokeAll( this, callbacks )( context, args )( callbacks[ resolution ] );
@@ -407,8 +184,8 @@ extend( true, Deferral, {
 			return function ( context, args ) {
 				return function ( fn ) {
 					try {
-						isFunction( fn ) ? fn.apply( context || deferral, args ) :
-						isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( context, args )( fn );
+						Z.isFunction( fn ) ? fn.apply( context || deferral, args ) :
+						Z.isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( context, args )( fn );
 					} catch ( nothing ) {}
 					return deferral;
 				};
@@ -435,7 +212,7 @@ extend( true, Deferral, {
 		 * first queue (`yes`) and `fn2` to the second queue (`no`).
 		 */
 		then: function () {
-			var map = keys( this.map() ), i = 0, l = Math.min( map.length, arguments.length );
+			var map = Z.keys( this.map() ), i = 0, l = Math.min( map.length, arguments.length );
 			while ( i < l ) { this[ map[i] ]( arguments[ i++ ] ); }
 			return this;
 		},
@@ -445,7 +222,7 @@ extend( true, Deferral, {
 		 * whether it is affirmed or not.
 		 */
 		always: function () {
-			var name, map = this.map(), fns = slice.call( arguments );
+			var name, map = this.map(), fns = Z.slice.call( arguments );
 			for ( name in map ) { this[ name ]( fns ); }
 			return this;
 		},
@@ -475,7 +252,7 @@ extend( true, Deferral, {
 					resolver = map[ key ];
 					fn = arguments[ i++ ];
 					this[ key ](
-						isFunction( fn ) ?
+						Z.isFunction( fn ) ?
 							function () {
 								var key,
 									result = fn.apply( this, arguments ),
@@ -504,7 +281,7 @@ extend( true, Deferral, {
 		 * to that of the first defined callback queue (e.g. `yes` for a standard deferral).
 		 */
 		when: function ( /* promises..., [ resolution ] */ ) {
-			var	promises = flatten( slice.call( arguments ) ),
+			var	promises = Z.flatten( Z.slice.call( arguments ) ),
 				length = promises.length || 1,
 				resolution,
 				master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
@@ -523,7 +300,7 @@ extend( true, Deferral, {
 				};
 			}
 
-			if ( length > 1 && type( promises[ length - 1 ] ) === 'string' ) {
+			if ( length > 1 && Z.type( promises[ length - 1 ] ) === 'string' ) {
 				resolution = promises.splice( --length, 1 )[0];
 			}
 
@@ -571,7 +348,7 @@ extend( true, Deferral, {
 				// other promises by wrapping it in a nullary deferral.
 				else {
 					promises[i] = Deferral.Nullary( master, promise );
-					isFunction( promise ) && promises[i].then( promise );
+					Z.isFunction( promise ) && promises[i].then( promise );
 				}
 			}
 
@@ -622,7 +399,7 @@ function Promise ( deferral ) {
 	}
 	this.serves = function ( master ) { return master === deferral; };
 }
-extend( true, Promise, {
+Z.extend( true, Promise, {
 	methods: 'then always pipe promise did resolution map queueNames'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.
@@ -630,7 +407,7 @@ extend( true, Promise, {
 		return obj && (
 			obj instanceof Promise ||
 			obj instanceof Deferral ||
-			isFunction( obj.then ) && isFunction( obj.promise )
+			Z.isFunction( obj.then ) && Z.isFunction( obj.promise )
 		);
 	}
 });
@@ -647,7 +424,7 @@ function Pipeline ( operations ) {
 		deferral = ( new Deferral ).as( self ),
 		running = false,
 		pausePending = false,
-		events = nullHash([ 'didOperation', 'willContinue' ]);
+		events = Z.nullHash([ 'didOperation', 'willContinue' ]);
 	
 	function next () {
 		return operation = operations.shift();
@@ -665,12 +442,12 @@ function Pipeline ( operations ) {
 	
 	function continuation () {
 		var result;
-		if ( isFunction( this ) ) {
+		if ( Z.isFunction( this ) ) {
 			result = this.apply( self, arguments );
 			if ( Promise.resembles( result ) ) {
 				result.then(
 					function () {
-						args = slice.call( arguments );
+						args = Z.slice.call( arguments );
 						emit( 'didOperation' );
 						pausePending && ( running = pausePending = false );
 						running && ( operation = operations[0] ) && emit( 'willContinue' );
@@ -681,11 +458,11 @@ function Pipeline ( operations ) {
 					}
 				);
 			} else {
-				args = slice.call( arguments );
-				running && continuation.apply( next(), isArray( result ) ? result : [ result ] );
+				args = Z.slice.call( arguments );
+				running && continuation.apply( next(), Z.isArray( result ) ? result : [ result ] );
 			}
 		} else {
-			args = slice.call( arguments );
+			args = Z.slice.call( arguments );
 			self.stop();
 		}
 	}
@@ -695,54 +472,54 @@ function Pipeline ( operations ) {
 			deferral = ( new Deferral ).as( self );
 		}
 		running = true;
-		this.start = getThis, this.pause = pause, this.resume = resume, this.stop = stop;
-		continuation.apply( next(), args = slice.call( arguments ) );
+		this.start = Z.getThis, this.pause = pause, this.resume = resume, this.stop = stop;
+		continuation.apply( next(), args = Z.slice.call( arguments ) );
 		return this;
 	}
 	
 	function pause () {
 		pausePending = true;
-		this.resume = resume, this.pause = getThis;
+		this.resume = resume, this.pause = Z.getThis;
 		return this;
 	}
 	
 	function resume () {
 		running = true, pausePending = false;
-		this.pause = pause, this.resume = getThis;
+		this.pause = pause, this.resume = Z.getThis;
 		continuation.apply( next(), args );
 		return this;
 	}
 	
 	function stop () {
 		running = pausePending = false;
-		this.start = start, this.pause = this.resume = this.stop = getThis;
+		this.start = start, this.pause = this.resume = this.stop = Z.getThis;
 		deferral.given( args ).affirm();
 		return this;
 	}
 	
-	forEach( Pipeline.arrayMethods, function ( method ) {
+	Z.forEach( Pipeline.arrayMethods, function ( method ) {
 		self[ method ] = function () {
 			return Array.prototype[ method ].apply( operations, arguments );
 		};
 	});
 	
-	extend( this, {
-		length: valueFunction( function () { return operations.length; } ),
+	Z.extend( this, {
+		length: Z.valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
 		operation: function () { return operation; },
-		args: function () { return slice.call( args ); },
-		isRunning: valueFunction( function () { return running; } ),
+		args: function () { return Z.slice.call( args ); },
+		isRunning: Z.valueFunction( function () { return running; } ),
 		start: start,
-		pause: getThis,
-		resume: getThis,
-		stop: getThis,
+		pause: Z.getThis,
+		resume: Z.getThis,
+		stop: Z.getThis,
 		on: function ( eventType, fn ) {
 			var callbacks = events[ eventType ] || ( events[ eventType ] = [] );
 			return callbacks && callbacks.push( fn ) && this;
 		}
 	});
 }
-extend( Pipeline, {
+Z.extend( Pipeline, {
 	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
 });
 
@@ -805,28 +582,28 @@ function Multiplex ( width, operations ) {
 	}
 	
 	function start () {
-		args = slice.call( arguments );
+		args = Z.slice.call( arguments );
 		running = true;
-		this.start = getThis, this.stop = stop;
+		this.start = Z.getThis, this.stop = stop;
 		fill();
 		return this;
 	}
 	
 	function stop () {
 		running = false;
-		this.start = start, this.stop = getThis;
+		this.start = start, this.stop = Z.getThis;
 		deferral.given( args ).affirm();
 		return this;
 	}
 	
-	forEach( Multiplex.arrayMethods, function ( method ) {
+	Z.forEach( Multiplex.arrayMethods, function ( method ) {
 		self[ method ] = function () {
 			return Array.prototype[ method ].apply( operations, arguments );
 		};
 	});
 	
-	extend( this, {
-		length: valueFunction( function () { return operations.length; } ),
+	Z.extend( this, {
+		length: Z.valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
 		width: function ( value ) {
 			if ( value !== undefined ) {
@@ -835,12 +612,12 @@ function Multiplex ( width, operations ) {
 			}
 			return width;
 		},
-		isRunning: valueFunction( function () { return running; } ),
+		isRunning: Z.valueFunction( function () { return running; } ),
 		start: start,
-		stop: getThis
+		stop: Z.getThis
 	});
 }
-extend( Multiplex, {
+Z.extend( Multiplex, {
 	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
 });
 
@@ -864,19 +641,19 @@ function Procedure ( input ) {
 		procedure = parse.call( this, input );
 	
 	function series () {
-		var args = slice.call( arguments );
+		var args = Z.slice.call( arguments );
 		return function () {
 			var pipeline = Pipeline( args );
 			return pipeline.start.apply( pipeline, arguments ).promise();
 		};
 	}
 	function parallel () {
-		var args = slice.call( arguments );
+		var args = Z.slice.call( arguments );
 		return function () {
 			var obj;
 			for ( var i = 0, l = args.length; i < l; i++ ) {
 				obj = args[i].apply( self, arguments );
-				if ( !( isFunction( obj ) || Promise.resembles( obj ) ) ) {
+				if ( !( Z.isFunction( obj ) || Promise.resembles( obj ) ) ) {
 					obj = Deferral.Nullary( self, obj );
 				}
 				args[i] = obj;
@@ -893,13 +670,13 @@ function Procedure ( input ) {
 	function parse ( obj ) {
 		var fn, array, i, l, kk, width;
 		
-		if ( isFunction( obj ) ) {
+		if ( Z.isFunction( obj ) ) {
 			return obj;
 		}
 		
 		// Simple series or parallel literal: `[ ... ]` | `[[ ... ]]`
-		else if ( isArray( obj ) ) {
-			fn = obj.length === 1 && isArray( obj[0] ) ? ( obj = obj[0], parallel ) : series;
+		else if ( Z.isArray( obj ) ) {
+			fn = obj.length === 1 && Z.isArray( obj[0] ) ? ( obj = obj[0], parallel ) : series;
 			for ( array = [], i = 0, l = obj.length; i < l; ) {
 				array.push( parse.call( self, obj[ i++ ] ) );
 			}
@@ -908,9 +685,9 @@ function Procedure ( input ) {
 		
 		// Multiplex literal: `{n:[ ... ]}`
 		else if (
-			isPlainObject( obj ) &&
-			( kk = keys( obj ) ).length === 1 &&
-			isNumber( width = +kk[0] )
+			Z.isPlainObject( obj ) &&
+			( kk = Z.keys( obj ) ).length === 1 &&
+			Z.isNumber( width = +kk[0] )
 		){
 			obj = obj[ width ];
 			for ( array = [], i = 0, l = obj.length; i < l; ) {
@@ -920,7 +697,7 @@ function Procedure ( input ) {
 		}
 	}
 	
-	extend( this, {
+	Z.extend( this, {
 		start: function () {
 			var result = procedure.apply( this, arguments );
 			function affirm () {
@@ -938,15 +715,6 @@ function Procedure ( input ) {
 	});
 }
 
-
-// TODO export as string (`global['...']`) for Closure Compiler
-extend( typeof module === 'undefined' ? global : module.exports, {
-	Deferral: Deferral,
-	Promise: Promise,
-	Pipeline: Pipeline,
-	Multiplex: Multiplex,
-	Procedure: Procedure
-});
 
 })();
 

@@ -18,19 +18,19 @@ function Procedure ( input ) {
 		procedure = parse.call( this, input );
 	
 	function series () {
-		var args = slice.call( arguments );
+		var args = Z.slice.call( arguments );
 		return function () {
 			var pipeline = Pipeline( args );
 			return pipeline.start.apply( pipeline, arguments ).promise();
 		};
 	}
 	function parallel () {
-		var args = slice.call( arguments );
+		var args = Z.slice.call( arguments );
 		return function () {
 			var obj;
 			for ( var i = 0, l = args.length; i < l; i++ ) {
 				obj = args[i].apply( self, arguments );
-				if ( !( isFunction( obj ) || Promise.resembles( obj ) ) ) {
+				if ( !( Z.isFunction( obj ) || Promise.resembles( obj ) ) ) {
 					obj = Deferral.Nullary( self, obj );
 				}
 				args[i] = obj;
@@ -47,13 +47,13 @@ function Procedure ( input ) {
 	function parse ( obj ) {
 		var fn, array, i, l, kk, width;
 		
-		if ( isFunction( obj ) ) {
+		if ( Z.isFunction( obj ) ) {
 			return obj;
 		}
 		
 		// Simple series or parallel literal: `[ ... ]` | `[[ ... ]]`
-		else if ( isArray( obj ) ) {
-			fn = obj.length === 1 && isArray( obj[0] ) ? ( obj = obj[0], parallel ) : series;
+		else if ( Z.isArray( obj ) ) {
+			fn = obj.length === 1 && Z.isArray( obj[0] ) ? ( obj = obj[0], parallel ) : series;
 			for ( array = [], i = 0, l = obj.length; i < l; ) {
 				array.push( parse.call( self, obj[ i++ ] ) );
 			}
@@ -62,9 +62,9 @@ function Procedure ( input ) {
 		
 		// Multiplex literal: `{n:[ ... ]}`
 		else if (
-			isPlainObject( obj ) &&
-			( kk = keys( obj ) ).length === 1 &&
-			isNumber( width = +kk[0] )
+			Z.isPlainObject( obj ) &&
+			( kk = Z.keys( obj ) ).length === 1 &&
+			Z.isNumber( width = +kk[0] )
 		){
 			obj = obj[ width ];
 			for ( array = [], i = 0, l = obj.length; i < l; ) {
@@ -74,7 +74,7 @@ function Procedure ( input ) {
 		}
 	}
 	
-	extend( this, {
+	Z.extend( this, {
 		start: function () {
 			var result = procedure.apply( this, arguments );
 			function affirm () {

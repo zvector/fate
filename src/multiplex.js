@@ -56,28 +56,28 @@ function Multiplex ( width, operations ) {
 	}
 	
 	function start () {
-		args = slice.call( arguments );
+		args = Z.slice.call( arguments );
 		running = true;
-		this.start = getThis, this.stop = stop;
+		this.start = Z.getThis, this.stop = stop;
 		fill();
 		return this;
 	}
 	
 	function stop () {
 		running = false;
-		this.start = start, this.stop = getThis;
+		this.start = start, this.stop = Z.getThis;
 		deferral.given( args ).affirm();
 		return this;
 	}
 	
-	forEach( Multiplex.arrayMethods, function ( method ) {
+	Z.forEach( Multiplex.arrayMethods, function ( method ) {
 		self[ method ] = function () {
 			return Array.prototype[ method ].apply( operations, arguments );
 		};
 	});
 	
-	extend( this, {
-		length: valueFunction( function () { return operations.length; } ),
+	Z.extend( this, {
+		length: Z.valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
 		width: function ( value ) {
 			if ( value !== undefined ) {
@@ -86,11 +86,11 @@ function Multiplex ( width, operations ) {
 			}
 			return width;
 		},
-		isRunning: valueFunction( function () { return running; } ),
+		isRunning: Z.valueFunction( function () { return running; } ),
 		start: start,
-		stop: getThis
+		stop: Z.getThis
 	});
 }
-extend( Multiplex, {
+Z.extend( Multiplex, {
 	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
 });

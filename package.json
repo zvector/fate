@@ -1,9 +1,9 @@
 {
-	'name'			: 'deferral',
+	'name'			: 'fate',
 	'version'		: '0.0.1',
 	'description'	: '',
 	'homepage'		: '',
-	'keywords'		: [ 'async', 'promise', 'defer', 'deferred', 'deferral', 'pipeline', 'parallel', 'multiplex' ],
+	'keywords'		: [ 'async', 'promise', 'defer', 'deferred', 'deferral', 'pipeline', 'parallel', 'multiplex', 'procedure' ],
 	'author'		: 'Nick Fargo <nick@zvector.com>',
 	'contributors'	: [],
 	'dependencies'	: [
@@ -11,7 +11,7 @@
 	],
 	'repository'	: {
 		'type'		: 'git',
-		'url'		: 'git://github.com/zvector/deferral.git'
+		'url'		: 'git://github.com/zvector/fate.git'
 	},
-	'main'			: 'deferral.js'
+	'main'			: 'fate.js'
 }

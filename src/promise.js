@@ -17,7 +17,7 @@ function Promise ( deferral ) {
 	}
 	this.serves = function ( master ) { return master === deferral; };
 }
-extend( true, Promise, {
+Z.extend( true, Promise, {
 	methods: 'then always pipe promise did resolution map queueNames'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.
@@ -25,7 +25,7 @@ extend( true, Promise, {
 		return obj && (
 			obj instanceof Promise ||
 			obj instanceof Deferral ||
-			isFunction( obj.then ) && isFunction( obj.promise )
+			Z.isFunction( obj.then ) && Z.isFunction( obj.promise )
 		);
 	}
 });

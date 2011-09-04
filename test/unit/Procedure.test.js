@@ -2,6 +2,10 @@
 
 module( "Procedure" );
 
+var	Deferral = Fate.Deferral,
+	Pipeline = Fate.Pipeline,
+	Procedure = Fate.Procedure;
+
 asyncTest( "Nesting Pipeline/when", 8, function () {
 	var	number = 0,
 		time = ( new Date ).getTime();
@@ -188,6 +192,7 @@ asyncTest( "Using multiplex literals", 22, function () {
 					fn(6),
 					[[
 						fn(9),
+						// { yes: fn(10), no: fn(0) },
 						fn(10),
 						[[ fn(11), fn(12) ]]
 					]],
