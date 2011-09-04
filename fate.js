@@ -20,8 +20,7 @@ var	global = this,
 				return this;
 			};
 		})()
-	})
-;
+	});
 
 Z.env.client && ( global['Fate'] = Fate );
 
@@ -379,6 +378,7 @@ function BinaryDeferral ( fn, args ) {
 }
 BinaryDeferral.prototype = Deferral.prototype;
 Deferral.Binary = BinaryDeferral;
+
 
 /**
  * `Promise` is a limited interface into a `Deferral` instance, consisting of a particular subset of

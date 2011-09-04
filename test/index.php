@@ -6,7 +6,7 @@ require '../build/combine.php';
 <html>
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-		<title>deferral.js Test Suite</title>
+		<title>Fate.js Test Suite</title>
 		<link rel="stylesheet" media="screen" href="qunit.css" />
 		
 		<!-- libs -->
