@@ -1,6 +1,6 @@
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-## Contents
+### Contents
 
 * **Deferral** — Stateful callback management for groups of synchronous and asynchronous operations
 	* Background
