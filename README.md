@@ -36,31 +36,48 @@
 			[{ `affirm`, `negate` } | `resolve`](#deferral--methods--resolution--resolver),
 			[`empty`](#deferral--methods--resolution--empty)
 * [**Promise**](#promise) — The public interface to a deferral
-	* Methods
-		* Constructor: `resembles`
-		* Inherited
-		* Introspection: `serves`
+	* [Methods](#promise--methods)
+		* [Constructor](#promise--methods--constructor):
+			[`resembles`](#promise--methods--constructor--resembles)
+		* [Inherited](#promise--methods--inherited)
+		* [Introspection](#promise--methods--introspection):
+			[`serves`](#promise--methods--serves)
 * [**Pipeline**](#pipeline) — Deferrals arranged serially in continuation-passing style
-	* Remarks
-		* Considerations of using synchronous versus asynchronous continuations
-		* Comparison to Deferral().pipe()
-	* Methods
-		* Array methods: `push`, `pop`, `shift`, `unshift`, `reverse`, `splice`, `length`
-		* Interfacing: `promise`
-		* Querying state: `operation`, `args`, `isRunning`
-		* Control: `start`, `pause`, `resume`, `stop`
-	* Examples
+	* [Remarks](#pipeline--remarks)
+		* [Considerations of using synchronous versus asynchronous continuations](#pipeline--remarks--sync-vs-async)
+		* [Comparison to Deferral().pipe()](#pipeline--remarks--comparison-to-pipe)
+	* [Methods](#pipeline--methods)
+		* [Array methods](#pipeline--methods--array-methods): `push`, `pop`, `shift`, `unshift`, `reverse`, `splice`, `length`
+		* [Interfacing](#pipeline--methods--interfacing):
+			[`promise`](#pipeline--methods--interfacing--promise)
+		* [Querying state](#pipeline--methods--querying-state):
+			[`operation`](#pipeline--methods--querying-state--operation),
+			[`args`](#pipeline--methods--querying-state--args),
+			[`isRunning`](#pipeline--methods--querying-state--isRunning)
+		* [Control](#pipeline--methods--control):
+			[`start`](#pipeline--methods--control--start),
+			[`pause`](#pipeline--methods--control--pause),
+			[`resume`](#pipeline--methods--control--resume),
+			[`stop`](#pipeline--methods--control--stop)
+	* [Examples](#pipeline--examples)
 * [**Multiplex**](#multiplex) — Multiple pipelines operating in parallel over the same array of deferrals
-	* Remarks
-		* Comparison to Deferral.when()
-	* Methods
-		* Array methods: `push`, `pop`, `shift`, `unshift`, `reverse`, `splice`, `length`
-		* Interfacing: `promise`
-		* Querying state: `isRunning`, `width`
-		* Control: `start`, `stop`
+	* [Remarks](#multiplex--remarks)
+		* [Comparison to Deferral.when()](#multiplex--remarks--comparison-to-when)
+	* [Methods](#multiplex--methods)
+		* [Array methods](#multiplex--methods--array-methods): `push`, `pop`, `shift`, `unshift`, `reverse`, `splice`, `length`
+		* [Interfacing](#multiplex--methods--interfacing):
+			[`promise`](#multiplex--methods--interfacing--promise)
+		* [Querying state](#multiplex--methods--querying-state):
+			[`isRunning`](#multiplex--methods--querying-state--isRunning),
+			[`width`](#multiplex--methods--querying-state--width)
+		* [Control](#multiplex--methods--control):
+			[`start`](#multiplex--methods--control--start),
+			[`stop`](#multiplex--methods--control--stop)
 * [**Procedure**](#procedure) — Arbitrarily complex arrangments of serial and parallel operations, in a concise literal syntax
-	* Methods: `promise`, `start`
-	* Examples
+	* [Methods](#procedure--methods):
+		[`promise`](#procedure--methods----promise),
+		[`start`](#procedure--methods----start)
+	* [Examples](#procedure--examples)
 
 
 <a name="deferral" />
@@ -288,6 +305,7 @@ Clears all callback queues.
 
 
 
+<a name="promise" />
 # Promise
 
 	deferral.promise()
@@ -298,14 +316,18 @@ Because a deferral is in a sense an extension of its associated promise, in most
 
 As a matter of usage, while it is possible to acquire a promise given an available deferral reference by instantiating `new Promise( deferral )`, the preferred approach is to call `deferral.promise()`, which can retrieve a promise generated from previous invocations instead of unnecessarily instantiating a new one.
 
+<a name="promise--methods" />
 ## Methods
 
+<a name="promise--methods--constructor" />
 ### Constructor
 
+<a name="promise--methods--constructor--resembles" />
 #### Promise.resembles( obj )
 
 Returns a boolean indicating whether `obj` is a `Promise` or `Deferral`, or if it at least exposes methods `then` and `promise`; this duck-typing allows foreign promise-like objects to participate in most of the promise based functionality.
 
+<a name="promise--methods--inherited" />
 ### Inherited
 
 Each method listed here wraps the corresponding method in the deferral associated with this promise.
@@ -319,14 +341,17 @@ Each method listed here wraps the corresponding method in the deferral associate
 #### always
 #### pipe
 
+<a name="promise--methods--introspection" />
 ### Introspection
 
+<a name="promise--methods--introspection--serves" />
 #### serves( `Deferral` deferral )
 
 Returns a boolean indicating whether `this` promise belongs to `deferral`.
 
 
 
+<a name="pipeline" />
 # Pipeline
 
 	[new] Pipeline( /*Array*/ operations )
@@ -357,8 +382,10 @@ The array passed as an argument will be treated as mutable; each element is `shi
 	    pipeline = Pipeline( array.slice() );
 
 
+<a name="pipeline--remarks" />
 ## Remarks
 
+<a name="pipeline--remarks--sync-vs-async" />
 ### Considerations of using synchronous versus asynchronous continuations
 
 A sequence of short synchronous operations can be processed more quickly since its operations continue immediately. However, because immediate continuations accumulate on the stack, and JavaScript does not employ tail-call optimization, these sequences incur a memory overhead that may become problematic as more synchronous operations are strung together. In addition, because contiguous synchronous operations are processed within a single _frame_, or turn of the event loop, too long a sequence could have a significant impact on the _frame rate_, which on the client may include noticeable interruptions to user experience.
@@ -367,12 +394,15 @@ Asynchronous operations advance through the pipeline no faster than one operatio
 
 Synchronous and asynchronous operations can be mixed together arbitrarily to provide granular control over this balance of immediacy versus frame imposition.
 
+<a name="pipeline--remarks--comparison-to-pipe" />
 ### Comparison to Deferral().pipe()
 
 `Pipeline` and `pipe()` are conceptually similar, in that both arrange a succession of deferrals using continuation-style passing to relay a set of arguments from one deferral to the next. With `pipe()`, this can be arranged on the fly given any promise or deferral; however, `Pipeline` consumes stack space more efficiently when processing synchronous functions.
 
+<a name="pipeline--methods" />
 ## Methods
 
+<a name="pipeline--methods--array-methods" />
 ### Array methods
 
 Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions contained within the pipeline; `length` is an exception in that it is a method rather than a property.
@@ -385,53 +415,66 @@ Each method in this section mirrors that of `Array`, acting upon the internal ar
 #### splice
 #### length
 
+<a name="pipeline--methods--interfacing" />
 ### Interfacing
 
+<a name="pipeline--methods--interfacing--promise" />
 #### promise
 
 Returns a promise to the internal binary deferral, which will be `affirm`ed after each item in the pipeline has itself been affirmatively resolved, or `negate`d if any item is non-affirmatively resolved.
 
+<a name="pipeline--methods--querying-state" />
 ### Querying state
 
+<a name="pipeline--methods--querying-state--operation" />
 #### operation
 
 Returns the currently running or most recently completed operation.
 
+<a name="pipeline--methods--querying-state--args" />
 #### args
 
 Returns the arguments passed to the most recent operation function.
 
+<a name="pipeline--methods--querying-state--isRunning" />
 #### isRunning
 
 Returns a boolean indicating whether an operation is currently underway.
 
+<a name="pipeline--methods--control" />
 ### Control
 
 Methods in this section return the `Pipeline` itself.
 
+<a name="pipeline--methods--control--start" />
 #### start( ...arguments )
 
 Starts execution of operations through the pipeline, passing any supplied arguments to the first operation function.
 
+<a name="pipeline--methods--control--pause" />
 #### pause
 
 Commands the pipeline to pause execution after the currently executing operation completes.
 
+<a name="pipeline--methods--control--resume" />
 #### resume
 
 Resumes execution, or cancels a pending `pause` command.
 
+<a name="pipeline--methods--control--stop" />
 #### stop
 
 Stops execution and resolves the pipeline’s deferral.
 
 
+<a name="pipeline--methods--examples" />
 ## Examples
 
 * [This unit test](https://github.com/nickfargo/deferral.js/blob/master/test/unit/Pipeline.test.js) provides a step-by-step demonstration of a `Pipeline` at work. It mixes together both synchronous and asynchronous operations, and illustrates some of the tail-call considerations mentioned above.
 
 
 
+<a name="multiplex" />
 # Multiplex
 
 	[new] Multiplex( /*Number*/ width, /*Array*/ operations )
@@ -441,15 +484,19 @@ A **multiplex** employs a specific number of concurrent pipelines to process an 
 As with `Pipeline`, the `operations` array is considered mutable. All of the constituent pipelines reference this shared array, which will be `shift`ed by each pipeline as it proceeds to consume an operation.
 
 
+<a name="multiplex--remarks" />
 ## Remarks
 
+<a name="multiplex--remarks--comparison-to-when" />
 ### Comparison to Deferral.when()
 
 It is worth nothing that the mechanism of `when` is essentially an infinite-width multiplex applied to a static array of operations. It is a simpler construct, however, and can be expected to be as performant or better compared to an equivalent `Multiplex`. Therefore, if it is certain that the operations array need not be dynamic, and that concurrency limits are unnecessary, then `when` should be considered preferable to `Multiplex`.
 
 
+<a name="multiplex--methods" />
 ## Methods
 
+<a name="multiplex--methods--array-methods" />
 ### Array methods
 
 Each method in this section mirrors that of `Array`, acting upon the internal array of operation functions; `length` is an exception in that it is a method rather than a property.
@@ -462,36 +509,45 @@ Each method in this section mirrors that of `Array`, acting upon the internal ar
 #### splice
 #### length
 
+<a name="multiplex--methods--interfacing" />
 ### Interfacing
 
+<a name="multiplex--methods--interfacing--promise" />
 #### promise
 
 Returns a promise to the internal deferral that will be resolved once all of the constituent pipelines have been resolved.
 
+<a name="multiplex--methods--querying-state" />
 ### Querying state
 
+<a name="multiplex--methods--querying-state--isRunning" />
 #### isRunning
 
 Returns a boolean indicating whether any pipelines are currently running.
 
+<a name="multiplex--methods--querying-state--width" />
 #### width( [ `Number` n ] )
 
 If no arguments are provided, `width()` gets and returns the upper limit on the number of concurrent pipelines.
 
 If a numeric value is provided as an argument, `width( n )` sets and returns a new upper limit `n` on the number of concurrent pipelines. Widening a running multiplex will automatically start additional pipelines as necessary, which will begin processing the next available operations. Narrowing the multiplex may not take effect immediately; the necessary number of pipelines will be terminated only once each has completed its current operation.
 
+<a name="multiplex--methods--control" />
 ### Control
 
+<a name="multiplex--methods--control--start" />
 #### start
 
 Creates and starts the necessary number of pipelines, limited to `width`, given the supplied `arguments`.
 
+<a name="multiplex--methods--control--stop" />
 #### stop
 
 Stops execution and resolves the multiplex’s deferral.
 
 
 
+<a name="procedure" />
 # Procedure
 
 	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
@@ -505,17 +561,21 @@ A **procedure** employs `Pipeline`, `when`, and `Multiplex` using symbolic liter
 * A **numerically-keyed object–bound array literal** `{n:[ ]}` represents a group of functions to be executed in parallel, up to `n` items concurrently, using a `Multiplex` of width `n`.
 
 
+<a name="procedure--methods" />
 ## Methods
 
+<a name="procedure--methods----promise" />
 #### promise
 
 Returns a promise to the internal deferral that will be resolved once the procedure is completed.
 
+<a name="procedure--methods----start" />
 #### start
 
 Initiates the procedure. (Does not currently define behavior for arguments.)
 
 
+<a name="procedure--methods--examples" />
 ## Examples
 
 In the following exmaple, a procedure is constructed from both parallel and serial sets of asynchronous functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
