@@ -1,10 +1,9 @@
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-<p style="font-size: 150%">
-<strong>Fate</strong> makes reasoning about the future easy, and callback hell a thing of the past. Extending on the familiar promise pattern, Fate offers a powerful yet simple API, featuring a wonderfully elegant and concise literal syntax.
+**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. Building on the familiar promise pattern, Fate offers a powerful yet simple API, featuring a wonderfully elegant and concise literal syntax.
 
-Dig into the fundamentals below for a comprehensive tour, or <a href="#procedure--examples">jump straight into the pot of gold at the end</a> to see just how neatly Fate makes quick work of otherwise mind-numbingly complicated tasks.
-</p>
+Dig into the fundamentals below for a comprehensive tour, or [jump straight into the pot of gold at the end](#procedure--examples) to see just how neatly Fate makes quick work of otherwise mind-numbingly complicated tasks.
+
 
 ### Contents
 
@@ -593,7 +592,7 @@ Returns a promise to the internal deferral that will be resolved once the proced
 Initiates the procedure. (Does not currently define behavior for arguments.)
 
 
-<a name="procedure--methods--examples" />
+<a name="procedure--examples" />
 ## Examples
 
 In the following exmaple, a procedure is constructed from both parallel and serial sets of asynchronous functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
