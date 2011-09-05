@@ -8,16 +8,33 @@
 	* [Features](#deferral--features)
 		* [Early binding](#deferral--features--early-binding)
 		* [Arity](#deferral--features--arity)
-		* [Formal subtypes](#deferral--features--formal-subtypes):Binary, Unary, Nullary
+		* [Formal subtypes](#deferral--features--formal-subtypes):
+			[Binary](#deferral--features--formal-subtypes--binary),
+			[Unary](#deferral--features--formal-subtypes--unary),
+			[Nullary](#deferral--features--formal-subtypes--nullary)
 	* [Remarks](#deferral--remarks)
 		* [Terminology](#deferral--remarks--terminology)
 	* [Methods](#deferral--methods)
-		* [Interfacing](#deferral--methods--interfacing): `promise`
-		* [Querying](#deferral--methods--querying): `map`, `queueNames`, `did`, `resolution`
-		* [Registration](#deferral--methods--registration): { `yes`, `no` } | `resolved`, `then`, `always`
-		* [Sequencing](#deferral--methods--sequencing): `pipe`
-		* [Concurrency](#deferral--methods--concurrency): `when`
-		* [Resolution](#deferral--methods--resolution): `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
+		* [Interfacing](#deferral--methods--interfacing):
+			[`promise`](#deferral--methods--interfacing--promise)
+		* [Querying](#deferral--methods--querying):
+			[`map`](#deferral--methods--querying--map),
+			[`queueNames`](#deferral--methods--querying--queueNames),
+			[`did`](#deferral--methods--querying--did),
+			[`resolution`](#deferral--methods--querying--resolution)
+		* [Registration](#deferral--methods--registration):
+			[{ `yes`, `no` } | `resolved`](#deferral--methods--registration--registrar),
+			[`then`](#deferral--methods--registration--then),
+			[`always`](#deferral--methods--registration--always)
+		* [Sequencing](#deferral--methods--sequencing):
+			[`pipe`](#deferral--methods--sequencing--pipe)
+		* [Concurrency](#deferral--methods--concurrency):
+			[`when`](#deferral--methods--concurrency--when)
+		* [Resolution](#deferral--methods--resolution):
+			[`as`](#deferral--methods--resolution--as),
+			[`given`](#deferral--methods--resolution--given),
+			[{ `affirm`, `negate` } | `resolve`](#deferral--methods--resolution--resolver),
+			[`empty`](#deferral--methods--resolution--empty)
 * [**Promise**](#promise) — The public interface to a deferral
 	* Methods
 		* Constructor: `resembles`
