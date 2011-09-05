@@ -1,6 +1,6 @@
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-**Fate.js** makes reasoning about the future easy, and “callback hell” a thing of the past. Building on the familiar promise pattern, Fate provides JavaScript applications with several powerful tools and functions to help manage and simplify their asynchronicities, all presented through a straightforward, expressive API and an elegantly concise literal syntax. Managing and mixing asynchronous and synchronous operations together in any combination, while precisely controlling the flow of execution — it’s all made beautifully simple.
+**Fate.js** makes reasoning about the future easy, and “callback hell” a thing of the past. Building on the familiar promise pattern, Fate provides JavaScript applications with several powerful tools and functions to help manage and simplify their asynchronicities, all presented through a straightforward, expressive API and an elegantly concise literal syntax. Managing and mixing asynchronous and synchronous operations together in any combination, while precisely controlling the flow of execution — it all becomes beautifully simple with Fate.
 
 Dig into the grist below for a comprehensive, enlightening tour through the fundamentals of deferrals and promises, as well as the cool gadgets that are built from them, such as pipelines and multiplexes. Or, go ahead and [jump straight to the pot of gold at the end](#procedure--examples) to see just how neatly Fate can help you tame even the most mind-numbingly complicated asynchronous tasks.
 
