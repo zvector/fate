@@ -3,27 +3,27 @@
 ### Contents
 
 * [**Deferral**](#deferral) — Stateful callback management for groups of synchronous and asynchronous operations
-	* Background
-	* Overview
-	* Features
-		* Early binding
-		* Arity
-		* Formal subtypes: Binary, Unary, Nullary
-	* Remarks
-		* Terminology
-	* Methods
-		* Interfacing: `promise`
-		* Querying: `map`, `queueNames`, `did`, `resolution`
-		* Registration: { `yes`, `no` } | `resolved`, `then`, `always`
-		* Sequencing: `pipe`
-		* Concurrency: `when`
-		* Resolution: `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
-* **Promise** — The public interface to a deferral
+	* [Background](#deferral--background)
+	* [Overview](#deferral--overview)
+	* [Features](#deferral--features)
+		* [Early binding](#deferral--features--early-binding)
+		* [Arity](#deferral--features--arity)
+		* [Formal subtypes](#deferral--features--formal-subtypes):Binary, Unary, Nullary
+	* [Remarks](#deferral--remarks)
+		* [Terminology](#deferral--remarks--terminology)
+	* [Methods](#deferral--methods)
+		* [Interfacing](#deferral--methods--interfacing): `promise`
+		* [Querying](#deferral--methods--querying): `map`, `queueNames`, `did`, `resolution`
+		* [Registration](#deferral--methods--registration): { `yes`, `no` } | `resolved`, `then`, `always`
+		* [Sequencing](#deferral--methods--sequencing): `pipe`
+		* [Concurrency](#deferral--methods--concurrency): `when`
+		* [Resolution](#deferral--methods--resolution): `as`, `given`, { `affirm`, `negate` } | `resolve`, `empty`
+* [**Promise**](#promise) — The public interface to a deferral
 	* Methods
 		* Constructor: `resembles`
 		* Inherited
 		* Introspection: `serves`
-* **Pipeline** — Deferrals arranged serially in continuation-passing style
+* [**Pipeline**](#pipeline) — Deferrals arranged serially in continuation-passing style
 	* Remarks
 		* Considerations of using synchronous versus asynchronous continuations
 		* Comparison to Deferral().pipe()
@@ -33,7 +33,7 @@
 		* Querying state: `operation`, `args`, `isRunning`
 		* Control: `start`, `pause`, `resume`, `stop`
 	* Examples
-* **Multiplex** — Multiple pipelines operating in parallel over the same array of deferrals
+* [**Multiplex**](#multiplex) — Multiple pipelines operating in parallel over the same array of deferrals
 	* Remarks
 		* Comparison to Deferral.when()
 	* Methods
@@ -41,7 +41,7 @@
 		* Interfacing: `promise`
 		* Querying state: `isRunning`, `width`
 		* Control: `start`, `stop`
-* **Procedure** — Arbitrarily complex arrangments of serial and parallel operations, in a concise literal syntax
+* [**Procedure**](#procedure) — Arbitrarily complex arrangments of serial and parallel operations, in a concise literal syntax
 	* Methods: `promise`, `start`
 	* Examples
 
@@ -52,11 +52,13 @@
 A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated **promise** interface, it is a fundamental unit of the composite entities **pipeline**, which processes an array of operations sequentially, **multiplex**, which processes an array of operations concurrently by bundling multiple pipelines together, and **procedure**, which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
 
 
+<a name="deferral--background" />
 ## Background
 
 `Deferral` is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
 
 
+<a name="deferral--overview" />
 ## Overview
 
 A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral’s **resolution state**, where, in the present, the deferral is considered to be in its _unresolved_ state, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
@@ -70,8 +72,10 @@ Constructor syntax takes the form
 The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolved substate to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
 
 
+<a name="deferral--features" />
 ## Features
 
+<a name="deferral--features--early-binding" />
 ### Early binding
 
 When a deferral is resolved it is commonly desirable to specify a context and set of arguments that will be applied to the callbacks. An unresolved `Deferral` provides the chainable method `as()` that will set the resolution context to be used when the deferral is later resolved. The arguments may be set in this manner as well with the method `given()`, which takes an array. These allow parts of the deferral’s future resolution state to be set early, if they are known, and the deferral to be resolved agnostically later.
@@ -88,6 +92,7 @@ both of which might compare with
 
 	jQuery.Deferred().resolveWith( context, arg1, arg2, ... );
 
+<a name="deferral--features--arity" />
 ### Arity
 
 `Deferral` supports _n-ary_ futures, in that any number of possible resolution states may be defined. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
@@ -102,6 +107,7 @@ Alternatively, if we wish to mimic the syntax of the jQuery Deferred object, we 
 
 	Deferral({ done: 'resolve', fail: 'reject' });
 
+<a name="deferral--features--formal-subtypes" />
 ### Formal subtypes
 
 Most applicable use cases for `Deferral` are served by its built-in subtypes. As introduced above, the most common usage is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, invoked by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
@@ -122,36 +128,46 @@ There is also the special case where it may be desirable to work with a deferral
 	d.then( fn ); // === ( fn1.apply( asContext, givenArguments ), d.promise() )
 
 
+<a name="deferral--remarks" />
 ## Remarks
 
+<a name="deferral--remarks--terminology" />
 ### Terminology
 
 In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a jQuery `Deferred` instance implies a “successful” outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolution method, which stands to reason given its one possible resolution state.)
 
 
+<a name="deferral--methods" />
 ## Methods
 
+<a name="deferral--methods--interfacing" />
 ### Interfacing
 
+<a name="deferral--methods--interfacing--promise" />
 #### promise()
 
 Returns a `Promise`, a limited interface into the deferral that allows callback registration and resolution state querying.
 
 
+<a name="deferral--methods--querying" />
 ### Querying
 
+<a name="deferral--methods--querying--map" />
 #### map()
 
 Returns a hashmap relating the names of the deferral’s callback queues to the names of their corresponding resolver methods.
 
+<a name="deferral--methods--querying--queueNames" />
 #### queueNames()
 
 Returns an Array that is an ordered list of the names of the deferral’s callback queues.
 
+<a name="deferral--methods--querying--did" />
 #### did( `String` resolver )
 
 Returns `true` if the deferral has been resolved using the specified `resolver` method. Returns `false` if it was resolved to a different resolution substate, and returns `undefined` if it is still unresolved.
 
+<a name="deferral--methods--querying--resolution" />
 #### resolution( [ `String` test ] )
 
 If no arguments are provided, `resolution()` returns the deferral’s resolution in the form of the `String` name of the corresponding callback queue, or returns `undefined` if the deferral is still unresolved.
@@ -159,10 +175,12 @@ If no arguments are provided, `resolution()` returns the deferral’s resolution
 If a `String` is provided as an argument, `resolution( test )` returns `true` if the deferral’s `resolution()` matches `test`, returns `false` if the deferral was otherwise resolved, or returns `undefined` if it is still unresolved.
 
 
+<a name="deferral--methods--registration" />
 ### Registration
 
 Methods listed here return a `Promise` to this deferral.
 
+<a name="deferral--methods--registration--registrar" />
 #### (_registrar_)( `Function` callback | `Array` callbacks, ... )
 
 Administers the supplied callback functions according to the deferral’s state:
@@ -179,17 +197,21 @@ Values for built-in `Deferral` subtypes:
 		
 * `BinaryDeferral` : _registrar_ = { `yes` | `no` }
 
+<a name="deferral--methods--registration--then" />
 #### then( `Function` callback | `Array` callbacks, ... )
 
 Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `queueNames()`.
 
+<a name="deferral--methods--registration--always" />
 #### always( `Function` callback | `Array` callbacks, ... )
 
 Registers callbacks to all queues, ensuring they will be called no matter how the deferral is resolved.
 
 
+<a name="deferral--methods--sequencing" />
 ### Sequencing
 
+<a name="deferral--methods--sequencing--pipe" />
 #### pipe( `Function` callback | `Array` callbacks, ... )
 
 Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. (Note the distinction between this ad-hoc pipeline and the formal `Pipeline` type described below.) Once resolved, the original deferral (`this`) passes its resolution state, context, and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
@@ -197,8 +219,10 @@ Registers callbacks to a separate new deferral, whose resolver methods are regis
 Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback’s return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback’s own deferral is resolved.
 
 
+<a name="deferral--methods--concurrency" />
 ### Concurrency
 
+<a name="deferral--methods--concurrency--when" />
 #### when()
 
 Facilitates parallel execution by binding together the fate of multiple promises. The promises represented by each supplied argument are overseen by a master binary deferral, such that the master deferral will be `affirm`ed only once each individual promise has itself resolved to the expected resolution, or will be `negate`d if any promise is otherwise resolved.
@@ -214,18 +238,22 @@ By default, `when` monitors the promises for their implicitly affirmative resolu
 will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
 
 
+<a name="deferral--methods--resolution" />
 ### Resolution
 
 Methods listed here return the deferral itself.
 
+<a name="deferral--methods--resolution--as" />
 #### as( `Object` context )
 
 Sets the context in which all executed callbacks will be called after the deferral is resolved. Context may be overwritten any number of times prior to the deferral’s resolution; if not specified, the context defaults to the deferral itself. After resolution, the context is frozen; subsequent calls to `as` have no effect.
 
+<a name="deferral--methods--resolution--given" />
 #### given( `Array` args )
 
 Preloads resolution arguments in an unresolved deferral. Like `as()` for context, resolution arguments may be overwritten with `given` any number of times prior to the deferral’s resolution, but after resolution the arguments are frozen, and subsequent calls to `given` have no effect. Will be overridden if arguments are included with a call to one of the _resolver_ methods.
 
+<a name="deferral--methods--resolution--resolver" />
 #### (_resolver_)( ...arguments )
 
 Resolves the deferral to the associated resolution substate, executing all registered callbacks for the corresponding queue, now and in the future, in the context specified previously via `as()`, with arguments supplied here as `...arguments` if included, or those specified previously via `given()`.
@@ -236,6 +264,7 @@ Values for built-in `Deferral` subtypes:
 		
 * `BinaryDeferral` : _resolver_ = { `affirm` | `negate` }
 
+<a name="deferral--methods--resolution--empty" />
 #### empty()
 
 Clears all callback queues.
