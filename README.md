@@ -564,7 +564,7 @@ Stops execution and resolves the multiplex’s deferral.
 	var Procedure = Fate.Procedure;
 	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
 
-A **procedure** employs `Pipeline`, `when`, and `Multiplex` using symbolic literals to describe a concerted progression of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into nested array structures of arbitrary depth, where:
+A **procedure** conveniently employs `Pipeline`, `when`, and `Multiplex`, using symbolic JSON literals, to describe a concerted progression of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into nested array structures of arbitrary depth, where:
 
 * A normal array literal `[ ]` represents a group of functions to be executed in a serial queue, using a `Pipeline`.
 
