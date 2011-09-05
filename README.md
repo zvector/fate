@@ -1,6 +1,6 @@
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. Building on the familiar promise pattern, Fate provides a dead-simple, all-powerful API, topped with a wonderfully elegant and concise literal syntax. Managing and mixing asynchronous and synchronous operations in any combination, while precisely controlling the flow of execution — it all becomes trivially easy.
+**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. Building on the familiar promise pattern, Fate provides a dead-simple, all-powerful API, topped with beautifully concise literals. Managing and mixing asynchronous and synchronous operations in any combination, while precisely controlling the flow of execution — it all becomes elegantly easy.
 
 Dig into the grist below for a comprehensive and enlightening tour through the fundamentals of deferrals and promises, as well as the cool gadgets like pipelines and multiplexes that are built from them. Or, go ahead and [jump straight to the pot of gold at the end](#procedure--examples) to see just how neatly Fate can simplify some of your most mind-numbingly complicated tasks.
 
@@ -595,7 +595,7 @@ Initiates the procedure. (Does not currently define behavior for arguments.)
 <a name="procedure--examples" />
 ## Examples
 
-In the following exmaple, a procedure is constructed from both parallel and serial sets of asynchronous functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
+In the following example, a procedure is constructed from both parallel and serial sets of asynchronous functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
 
 	var Deferral = Fate.Deferral,
 	    Procedure = Fate.Procedure,
