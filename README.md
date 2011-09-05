@@ -592,7 +592,9 @@ Initiates the procedure. (Does not currently define behavior for arguments.)
 
 In the following exmaple, a procedure is constructed from both parallel and serial sets of asynchronous functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
 
-	var number = 0;
+	var Deferral = Fate.Deferral,
+	    Procedure = Fate.Procedure,
+	    number = 0;
 	
 	function fn ( n ) {
 		return function () {
@@ -620,8 +622,10 @@ In the following exmaple, a procedure is constructed from both parallel and seri
 	
 The next example further illustrates this principle using a significantly more complex graph. Again, each function must execute in the proper order for the procedure to complete successfully (this time with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind that: (a) the function elements of a series (`[ ]`) must await the completion of their preceeding element; (b) elements of a parallel set (`[[ ]]`) are invoked as soon as possible; and (c) elements of a multiplexed set (`{n:[ ]}`) are invoked as soon as possible but no sooner than `n` elements at a time.
 
-	var number = 0;
-
+	var Deferral = Fate.Deferral,
+	    Procedure = Fate.Procedure,
+	    number = 0;
+	
 	function fn ( n ) {
 		return function () {
 			var deferral = new Deferral;
@@ -631,7 +635,7 @@ The next example further illustrates this principle using a significantly more c
 			return deferral.promise();
 		};
 	}
-
+	
 	Procedure([
 		fn(1),
 		[[
