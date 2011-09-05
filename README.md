@@ -1,8 +1,8 @@
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. Building on the familiar promise pattern, Fate offers a powerful yet simple API, featuring a wonderfully elegant and concise literal syntax.
+**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. Building on the familiar promise pattern, Fate provides an all-powerful, dead-simple API, topped with a wonderfully elegant and concise literal syntax. Managing and mixing asynchronous and synchronous operations in any combination, while precisely controlling the flow of execution — it all becomes trivially easy.
 
-Dig into the fundamentals below for a comprehensive tour, or [jump straight into the pot of gold at the end](#procedure--examples) to see just how neatly Fate makes quick work of otherwise mind-numbingly complicated tasks.
+Dig into the contents below for a comprehensive tour through the fundamentals as well as cool gadgets such as pipelines and multiplexes — or [jump straight into the pot of gold at the end](#procedure--examples) to see just how neatly Fate can simplify some of your most mind-numbingly complicated tasks.
 
 
 ### Contents
