@@ -5,6 +5,8 @@
 * [**Deferral**](#deferral) — Stateful callback management for groups of synchronous and asynchronous operations
 	* [Background](#deferral--background)
 	* [Overview](#deferral--overview)
+		* [Responding to a deferral’s resolution](#deferral--overview--responding-to-a-deferrals-resolution)
+		* [Constructor syntax](#deferral--overview--constructor-syntax)
 	* [Features](#deferral--features)
 		* [Early binding](#deferral--features--early-binding)
 		* [Arity](#deferral--features--arity)
@@ -83,13 +85,13 @@
 <a name="deferral" />
 # Deferral
 
-A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated **promise** interface, it is a fundamental unit of the composite entities **pipeline**, which processes an array of operations sequentially, **multiplex**, which processes an array of operations concurrently by bundling multiple pipelines together, and **procedure**, which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
+A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated [**promise**](#promise) interface, it is a fundamental unit of the composite entities [**pipeline**](#pipeline), which processes an array of operations sequentially, [**multiplex**](#multiplex), which processes an array of operations concurrently by bundling multiple pipelines together, and [**procedure**](#procedure), which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
 
 
 <a name="deferral--background" />
 ## Background
 
-`Deferral` is an extension of the _promise_ pattern. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object that it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
+`Deferral` is an extension of the _promise pattern_. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object, which it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
 
 
 <a name="deferral--overview" />
@@ -97,9 +99,15 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 
 A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral’s **resolution state**, where, in the present, the deferral is considered to be in its _unresolved_ state, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
 
-Each resolved substate is directly associated with an eponymous **callback queue** and **registrar method**, which consumers of the deferral may use to add callbacks at any time. However, the deferral will react to a callback addition differently according to its state. While in the unresolved state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated resolved substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+<a name="deferral--overview--responding-to-a-deferrals-resolution" />
+### Responding to a deferral’s resolution
 
-Constructor syntax takes the form
+Each resolved substate is directly associated with an eponymous **callback queue** and identically named **registrar method**. Consumers of the deferral may at any time use a registrar method to add callbacks to the registrar’s associated callback queue; however, the deferral will react to a callback addition differently based on its resolution state. While in the unresolved state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated resolved substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+
+<a name="deferral--overview--constructor-syntax" />
+### Constructor syntax
+
+Instantiating a deferral takes the form
 
 	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
 
