@@ -2,7 +2,7 @@
 
 ### Contents
 
-* **Deferral** — Stateful callback management for groups of synchronous and asynchronous operations
+* [**Deferral**](#deferral) — Stateful callback management for groups of synchronous and asynchronous operations
 	* Background
 	* Overview
 	* Features
@@ -46,6 +46,7 @@
 	* Examples
 
 
+<a name="deferral" />
 # Deferral
 
 A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated **promise** interface, it is a fundamental unit of the composite entities **pipeline**, which processes an array of operations sequentially, **multiplex**, which processes an array of operations concurrently by bundling multiple pipelines together, and **procedure**, which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
