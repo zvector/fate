@@ -1,3 +1,4 @@
+<a name="!" title="lol a hashbangy link -- commence hate" />
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
 **Fate.js** makes reasoning about the future easy, and “callback hell” a thing of the past. Building on the familiar promise pattern, Fate provides JavaScript applications with several powerful tools and functions to help manage and simplify their asynchronicities, all presented through a straightforward, expressive API and an elegantly concise literal syntax. Managing and mixing asynchronous and synchronous operations together in any combination, while precisely controlling the flow of execution — it all becomes beautifully simple with Fate.
@@ -80,7 +81,7 @@ Dig into the grist below for a comprehensive, enlightening tour through the fund
 		* [Control](#multiplex--methods--control):
 			[`start`](#multiplex--methods--control--start),
 			[`stop`](#multiplex--methods--control--stop)
-* [**Procedure**](#procedure) — Arbitrarily complex arrangments of serial and parallel operations, in a concise literal syntax
+* [**Procedure**](#procedure) — Arbitrarily complex arrangements of serial and parallel operations, in a concise literal syntax
 	* [Methods](#procedure--methods):
 		[`promise`](#procedure--methods----promise),
 		[`start`](#procedure--methods----start)
