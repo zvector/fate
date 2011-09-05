@@ -1,5 +1,11 @@
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
+<p style="font-size: 150%">
+<strong>Fate</strong> makes reasoning about the future easy, and callback hell a thing of the past. Extending on the familiar promise pattern, Fate offers a powerful yet simple API, featuring a wonderfully elegant and concise literal syntax.
+
+Dig into the fundamentals below for a comprehensive tour, or <a href="#procedure--examples">jump straight into the pot of gold at the end</a> to see just how neatly Fate makes quick work of otherwise mind-numbingly complicated tasks.
+</p>
+
 ### Contents
 
 * [**Deferral**](#deferral) — Stateful callback management for groups of synchronous and asynchronous operations
