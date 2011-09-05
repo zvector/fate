@@ -85,7 +85,7 @@
 <a name="deferral" />
 # Deferral
 
-A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated [**promise**](#promise) interface, it is a fundamental unit of the composite entities [**pipeline**](#pipeline), which processes an array of operations sequentially, [**multiplex**](#multiplex), which processes an array of operations concurrently by bundling multiple pipelines together, and [**procedure**](#procedure), which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
+A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated [**promise**](#promise) interface, it is the fundamental unit of the composite devices [**pipeline**](#pipeline), which processes an array of operations sequentially, [**multiplex**](#multiplex), which processes an array of operations concurrently by bundling multiple pipelines together, and [**procedure**](#procedure), which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
 
 
 <a name="deferral--background" />
@@ -97,7 +97,7 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 <a name="deferral--overview" />
 ## Overview
 
-A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These define the domain of the deferral’s **resolution state**, where, in the present, the deferral is considered to be in its _unresolved_ state, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its _resolved substates_.
+A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These comprise the domain of the deferral’s **resolution state**, where, starting in the present, the deferral is considered to be in its **unresolved state**, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its **resolved substates**.
 
 <a name="deferral--overview--responding-to-a-deferrals-resolution" />
 ### Responding to a deferral’s resolution
@@ -109,6 +109,7 @@ Each resolved substate is directly associated with an eponymous **callback queue
 
 Instantiating a deferral takes the form
 
+	var Deferral = Fate.Deferral;
 	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
 
 The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolved substate to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
@@ -176,7 +177,7 @@ There is also the special case where it may be desirable to work with a deferral
 <a name="deferral--remarks--terminology" />
 ### Terminology
 
-In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a jQuery `Deferred` instance implies a “successful” outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolution method, which stands to reason given its one possible resolution state.)
+In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a jQuery `Deferred` instance implies a “successful” outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolver method, which stands to reason given its lone resolved substate.)
 
 
 <a name="deferral--methods" />
@@ -322,7 +323,7 @@ At any time a deferral can issue a partial interface to itself in the form of a 
 
 Because a deferral is in a sense an extension of its associated promise, in most cases it is possible for a `Deferral` to be substituted wherever `Promise` is called for.
 
-As a matter of usage, while it is possible to acquire a promise given an available deferral reference by instantiating `new Promise( deferral )`, the preferred approach is to call `deferral.promise()`, which can retrieve a promise generated from previous invocations instead of unnecessarily instantiating a new one.
+As a matter of usage, while it is possible to acquire a promise given an available deferral reference by instantiating `new Fate.Promise( deferral )`, the preferred approach is to call `deferral.promise()`, which can retrieve a promise generated from previous invocations instead of unnecessarily instantiating a new one.
 
 <a name="promise--methods" />
 ## Methods
@@ -362,6 +363,7 @@ Returns a boolean indicating whether `this` promise belongs to `deferral`.
 <a name="pipeline" />
 # Pipeline
 
+	var Pipeline = Fate.Pipeline;
 	[new] Pipeline( /*Array*/ operations )
 
 Deferrals facilitate the use of **continuations** to create a special type of operation `Pipeline`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
@@ -485,6 +487,7 @@ Stops execution and resolves the pipeline’s deferral.
 <a name="multiplex" />
 # Multiplex
 
+	var Multiplex = Fate.Multiplex;
 	[new] Multiplex( /*Number*/ width, /*Array*/ operations )
 
 A **multiplex** employs a specific number of concurrent pipelines to process an array of operations in parallel. Its `width`, which is the maximum number of pipelines that are allowed to operate concurrently, can be adjusted dynamically as the multiplex is running; this will cause pipelines to be automatically added as necessary, or removed as necessary once their current operations complete.
@@ -558,6 +561,7 @@ Stops execution and resolves the multiplex’s deferral.
 <a name="procedure" />
 # Procedure
 
+	var Procedure = Fate.Procedure;
 	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
 
 A **procedure** employs `Pipeline`, `when`, and `Multiplex` using symbolic literals to describe a concerted progression of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into nested array structures of arbitrary depth, where:
