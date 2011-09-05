@@ -1,8 +1,8 @@
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-**<span style="font-size: 150%">Fate.js </span>**makes reasoning about the future easy, and callback hell a thing of the past. Building on the familiar promise pattern, Fate provides a straightforward, expressive API, topped with beautifully concise literals. Managing and mixing asynchronous and synchronous operations in any combination, while precisely controlling the flow of execution — it all becomes elegantly simple.
+**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. Building on the familiar promise pattern, Fate provides a straightforward, expressive API, topped with elegantly concise literals. Managing and mixing asynchronous and synchronous operations in any combination, while precisely controlling the flow of execution — it all becomes beautifully simple.
 
-Dig into the grist below for a comprehensive and enlightening tour through the fundamentals of deferrals and promises, as well as the cool gadgets like pipelines and multiplexes that are built from them. Or, go ahead and [jump straight to the pot of gold at the end](#procedure--examples) to see just how neatly Fate can help you tame even the most mind-numbingly complicated asynchronous tasks.
+Dig into the grist below for a comprehensive and enlightening tour through the fundamentals of deferrals and promises, as well as the cool gadgets that are built from them including pipelines and multiplexes. Or, go ahead and [jump straight to the pot of gold at the end](#procedure--examples) to see just how neatly Fate can help you tame even the most mind-numbingly complicated asynchronous tasks.
 
 
 ### Contents
@@ -115,6 +115,7 @@ Each resolved substate is directly associated with an eponymous **callback queue
 Instantiating a deferral takes the form
 
 	var Deferral = Fate.Deferral;
+	
 	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
 
 The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolved substate to the name of its associated resolver method (examples follow, under the section “Arity”). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
@@ -369,6 +370,7 @@ Returns a boolean indicating whether `this` promise belongs to `deferral`.
 # Pipeline
 
 	var Pipeline = Fate.Pipeline;
+	
 	[new] Pipeline( /*Array*/ operations )
 
 Deferrals facilitate the use of **continuations** to create a special type of operation `Pipeline`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
@@ -493,6 +495,7 @@ Stops execution and resolves the pipeline’s deferral.
 # Multiplex
 
 	var Multiplex = Fate.Multiplex;
+	
 	[new] Multiplex( /*Number*/ width, /*Array*/ operations )
 
 A **multiplex** employs a specific number of concurrent pipelines to process an array of operations in parallel. Its `width`, which is the maximum number of pipelines that are allowed to operate concurrently, can be adjusted dynamically as the multiplex is running; this will cause pipelines to be automatically added as necessary, or removed as necessary once their current operations complete.
@@ -567,6 +570,7 @@ Stops execution and resolves the multiplex’s deferral.
 # Procedure
 
 	var Procedure = Fate.Procedure;
+	
 	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
 
 A **procedure** conveniently employs `Pipeline`, `when`, and `Multiplex`, using symbolic JSON literals, to describe a concerted progression of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into nested array structures of arbitrary depth, where:

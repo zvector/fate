@@ -413,6 +413,10 @@ Z.extend( true, Promise, {
 });
 
 
+/**
+ * A **pipeline** executes a sequence of synchronous or asynchronous functions in order, passing a set of
+ * arguments from one to the next as each operation completes.
+ */
 function Pipeline ( operations ) {
 	if ( !( this instanceof Pipeline ) ) {
 		return new Pipeline( operations );
@@ -524,12 +528,18 @@ Z.extend( Pipeline, {
 });
 
 
+/**
+ * A **multiplex** employs a specific number of concurrent pipelines to process an array of operations in
+ * parallel. Its `width`, which is the maximum number of pipelines that are allowed to operate concurrently,
+ * can be adjusted dynamically as the multiplex is running; this will cause pipelines to be automatically
+ * added as necessary, or removed as necessary once their current operations complete.
+ */
 function Multiplex ( width, operations ) {
 	if ( !( this instanceof Multiplex ) ) {
 		return new Multiplex( width, operations );
 	}
 	if ( arguments.length === 1 ) {
-		operations = argument[0], width = operations.length;
+		operations = width, width = operations.length;
 	}
 	
 	var	self = this,
@@ -576,7 +586,7 @@ function Multiplex ( width, operations ) {
 			pipeCount--;
 			pipe.stop();
 		} else if ( pipeCount < width ) {
-			// operations may have been added
+			// because operations may have been added
 			fill();
 		}
 	}
@@ -606,7 +616,7 @@ function Multiplex ( width, operations ) {
 		length: Z.valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
 		width: function ( value ) {
-			if ( value !== undefined ) {
+			if ( Z.isNumber( value = +value ) ) {
 				width = value;
 				fill();
 			}
