@@ -485,7 +485,7 @@ Stops execution and resolves the pipeline’s deferral.
 <a name="pipeline--methods--examples" />
 ## Examples
 
-* [This unit test](https://github.com/nickfargo/deferral.js/blob/master/test/unit/Pipeline.test.js) provides a step-by-step demonstration of a `Pipeline` at work. It mixes together both synchronous and asynchronous operations, and illustrates some of the tail-call considerations mentioned above.
+* [This unit test](https://github.com/zvector/fate/blob/master/test/unit/Pipeline.test.js) provides a step-by-step demonstration of a `Pipeline` at work. It mixes together both synchronous and asynchronous operations, and illustrates some of the tail-call considerations mentioned above.
 
 
 
