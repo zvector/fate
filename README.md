@@ -260,36 +260,6 @@ Registers callbacks as above to each callback queue in order, such that the indi
 Registers callbacks to all queues, ensuring they will be called no matter how the deferral is resolved.
 
 
-<a name="deferral--methods--sequencing" />
-### Sequencing
-
-<a name="deferral--methods--sequencing--pipe" />
-#### pipe( `Function` callback | `Array` callbacks, ... )
-
-Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. (Note the distinction between this ad-hoc pipeline and the formal `Pipeline` type described below.) Once resolved, the original deferral (`this`) passes its resolution state, context, and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
-
-Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback’s return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback’s own deferral is resolved.
-
-
-<a name="deferral--methods--concurrency" />
-### Concurrency
-
-<a name="deferral--methods--concurrency--when" />
-#### when()
-
-Facilitates parallel execution by binding together the fate of multiple promises. The promises represented by each supplied argument are overseen by a master binary deferral, such that the master deferral will be `affirm`ed only once each individual promise has itself resolved to the expected resolution, or will be `negate`d if any promise is otherwise resolved.
-
-Returns a promise to this master deferral.
-
-If `when` is called as a method of an unresolved binary deferral, then that deferral is used as the master deferral; otherwise, a new binary deferral is created for this purpose. The method is also available as a static member of the `Deferral` constuctor.
-
-By default, `when` monitors the promises for their implicitly affirmative resolution state, i.e., the state targeted by the first argument of `then()`. A specific resolution state can be supplied as a `String` at the last argument position in the `when()` call. For example, the promise returned by:
-
-	var promise = Deferral.when( promiseA, promiseB, 'no' );
-
-will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
-
-
 <a name="deferral--methods--resolution" />
 ### Resolution
 
@@ -322,6 +292,36 @@ Values for built-in `Deferral` subtypes:
 Clears all callback queues.
 
 
+<a name="deferral--methods--sequencing" />
+### Sequencing
+
+<a name="deferral--methods--sequencing--pipe" />
+#### pipe( `Function` callback | `Array` callbacks, ... )
+
+Registers callbacks to a separate new deferral, whose resolver methods are registered to the queues of this deferral (`this`), and returns a promise bound to the succeeding deferral. This arrangement forms an ad-hoc **pipeline**, which can be extended indefinitely with chained calls to `pipe`. (Note the distinction between this ad-hoc pipeline and the formal `Pipeline` type described below.) Once resolved, the original deferral (`this`) passes its resolution state, context, and arguments on to the succeeding deferral, whose callbacks may then likewise dictate the resolution parameters of its succeeding `pipe`d deferral, and so on.
+
+Synchronous callbacks that return immediately will cause the succeeding deferral to resolve immediately, with the same resolution state and context from its receiving deferral, and the callback’s return value as its lone resolution argument. Asynchronous callbacks that return their own promise or deferral will cause the succeeding deferral to resolve similarly once the callback’s own deferral is resolved.
+
+
+<a name="deferral--methods--concurrency" />
+### Concurrency
+
+<a name="deferral--methods--concurrency--when" />
+#### when()
+
+Facilitates parallel execution by binding together the fate of multiple promises. The promises represented by each supplied argument are overseen by a master binary deferral, such that the master deferral will be `affirm`ed only once each individual promise has itself resolved to the expected resolution, or will be `negate`d if any promise is otherwise resolved.
+
+Returns a promise to this master deferral.
+
+If `when` is called as a method of an unresolved binary deferral, then that deferral is used as the master deferral; otherwise, a new binary deferral is created for this purpose. The method is also available as a static member of the `Deferral` constuctor.
+
+By default, `when` monitors the promises for their implicitly affirmative resolution state, i.e., the state targeted by the first argument of `then()`. A specific resolution state can be supplied as a `String` at the last argument position in the `when()` call. For example, the promise returned by:
+
+	var promise = Deferral.when( promiseA, promiseB, 'no' );
+
+will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
+
+
 
 <a name="promise" />
 # Promise
@@ -351,7 +351,7 @@ Returns a boolean indicating whether `obj` is a `Promise` or `Deferral`, or if i
 Each method listed here wraps the corresponding method in the deferral associated with this promise.
 
 #### promise
-#### map
+#### potential
 #### futures
 #### did
 #### resolution
