@@ -237,17 +237,18 @@ Returns an Array that is an ordered list of the names of the deferral’s resolu
 <a name="deferral--methods--querying--did" />
 #### did( `String` resolver )
 
-Returns `true` if the deferral has been resolved using the specified `resolver` method. Returns `false` if it was resolved to a different resolution substate, and returns `undefined` if it is still unresolved.
+Returns `true` if the deferral has been resolved using the specified `resolver` method, or `false` otherwise. If no argument is provided, `did()` indicates simply whether the deferral has been resolved.
 
-	Deferral().did(); // undefined
+	Deferral().did(); // false
 	Deferral().affirm().did('affirm'); // true
 	Deferral().negate().did('affirm'); // false
+	Deferral().negate().did(); // true
 	Deferral.Nullary().did(); // true
 	
 <a name="deferral--methods--querying--resolution" />
 #### resolution( [ `String` test ] )
 
-If no arguments are provided, `resolution()` returns the deferral’s resolution state as a `String`, or returns `undefined` if the deferral is still unresolved. For a nullary deferral, `resolution()` always returns `true`.
+If no arguments are provided, `resolution()` returns the name of the state to which the deferral has resolved, or returns `undefined` if the deferral is still unresolved. For a nullary deferral, `resolution()` always returns `true`.
 
 	Deferral().resolution(); // undefined
 	Deferral().affirm().resolution(); // "yes"
@@ -292,7 +293,7 @@ Examples:
 	
 	setTimeout( Deferral.Unary().done( function () { console.log("At last!"); }).resolve, 1000 );
 	// (one second later) console << "At last!"
-	
+
 <a name="deferral--methods--registration--then" />
 #### then( `Function` callback | `Array` callbacks, ... )
 
