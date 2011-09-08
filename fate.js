@@ -75,7 +75,7 @@ function Deferral ( potential, fn, args ) {
 	 */
 	if ( potential === null ) {
 		resolution = true;
-		this.potential = this.queueNames = Z.noop;
+		this.potential = this.futures = Z.noop;
 		this.as = this.given = this.empty = Z.getThis;
 		this.then = Deferral.privileged.invoke( this, null )
 			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
@@ -86,7 +86,7 @@ function Deferral ( potential, fn, args ) {
 	else {
 		Z.extend( this, {
 			potential: function () { return Z.extend( {}, potential ); },
-			queueNames: Z.stringFunction( function () { return Z.keys( potential ); } ),
+			futures: function () { return Z.keys( potential ); },
 			as: function ( context ) {
 				resolutionContext = context;
 				return this;
@@ -285,7 +285,7 @@ Z.extend( true, Deferral, {
 				resolution,
 				master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
 				list = [],
-				i, promise, queueNames, affirmativeQueue, map, name;
+				i, promise, futures, affirmativeQueue, map, name;
 
 			function affirmed ( p ) {
 				return function () {
@@ -306,13 +306,13 @@ Z.extend( true, Deferral, {
 			for ( i = 0; i < length; i++ ) {
 				promise = promises[i];
 				if ( promise instanceof Deferral || promise instanceof Promise ) {
-					queueNames = promise.queueNames();
+					futures = promise.futures();
 
 					// (n > 0)-ary deferral: affirm on the matching queue and negate on any others
-					if ( queueNames && queueNames.length ) {
+					if ( futures && futures.length ) {
 
 						// Determine which of this promise's callback queues matches the specified `resolution`
-						affirmativeQueue = resolution || queueNames[0];
+						affirmativeQueue = resolution || futures[0];
 
 						// `map` becomes a list referencing the callback queues not considered affirmative in this context
 						map = promise.potential();
@@ -386,7 +386,7 @@ Deferral.Binary = BinaryDeferral;
  */
 function Promise ( deferral ) {
 	var self = this,
-		list = Promise.methods.concat( deferral.queueNames() ),
+		list = Promise.methods.concat( deferral.futures() ),
 		i = list.length;
 	while ( i-- ) {
 		( function ( name ) {
@@ -399,7 +399,7 @@ function Promise ( deferral ) {
 	this.serves = function ( master ) { return master === deferral; };
 }
 Z.extend( true, Promise, {
-	methods: 'then always pipe promise did resolution potential queueNames'.split(' '),
+	methods: 'then always pipe promise did resolution potential futures'.split(' '),
 	
 	// Used to test whether an object is or might be able to act as a Promise.
 	resembles: function ( obj ) {
