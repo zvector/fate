@@ -277,4 +277,31 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 		.then( start );
 });
 
+asyncTest( "If a deferral element negates", 1, function () {
+	Procedure( [
+		function () {
+			var deferral = Deferral();
+			setTimeout( function () {
+				assert.ok( true );
+				deferral.affirm();
+			}, 10 );
+			return deferral.promise();
+		},
+		function () {
+			return Deferral().negate();
+		},
+		function () {
+			var deferral = Deferral();
+			setTimeout( function () {
+				assert.ok( true );
+				deferral.affirm();
+			}, 10 );
+			return deferral.promise();
+		}
+	] )
+		.start()
+		.always( start );
+});
+
+
 })( QUnit );

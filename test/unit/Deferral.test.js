@@ -33,9 +33,9 @@ asyncTest( "Nullary Deferral", function () {
 
 asyncTest( "then()", function () {
 	var result,
-		map = { yes: 'affirm', no: 'negate', maybe: 'punt', unanswerable: 'reject' },
-		d1 = new Deferral( map ),
-		d2 = new Deferral( map );
+		potential = { yes: 'affirm', no: 'negate', maybe: 'punt', unanswerable: 'reject' },
+		d1 = new Deferral( potential ),
+		d2 = new Deferral( potential );
 	
 	function setResult ( value ) {
 		return function () { result = value; };
