@@ -1,9 +1,11 @@
-<a name="!" title="lol a hashbangy link -- commence hate" />
+<a name="!" title="hahahashbang" />
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-**Fate.js** makes reasoning about the future easy, and “callback hell” a thing of the past. Building on the familiar promise pattern, Fate provides JavaScript applications with several powerful tools and functions to help manage and simplify their asynchronicities, all presented through a straightforward, expressive API and an elegantly concise literal syntax. Managing and mixing asynchronous and synchronous operations together in any combination, while precisely controlling the flow of execution — it all becomes beautifully simple with Fate.
+**Fate.js** makes reasoning about the future easy, and “callback hell” a thing of the past. 
 
-Dig into the grist below for a comprehensive, enlightening tour through the fundamentals of deferrals and promises, as well as the cool gadgets that are built from them, such as pipelines and multiplexes. Or, go ahead and [jump straight to the pot of gold at the end](#procedure--examples) to see just how neatly Fate can help you tame even the most mind-numbingly complicated asynchronous tasks.
+Building on concepts from the familiar promise pattern, **Fate** provides JavaScript applications with powerful tools and functions to help manage execution flow and simplify asynchronicity, all presented through a straightforward, expressive API and an elegantly concise literal syntax.
+
+Dig into the grist below for a tour through the fundamentals of deferrals and promises, and the awesome machinery that’s built from them, like pipelines and multiplexes. Or, go ahead and [jump straight to the pot of gold at the end](#procedure--examples) to see just how neatly **Fate** can help you tame even the most dauntingly complicated asynchronous tasks.
 
 
 ### Contents
@@ -97,7 +99,7 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 <a name="deferral--background" />
 ## Background
 
-`Deferral` is an extension of the _promise pattern_. Implementations of this pattern have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object, which it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
+`Deferral` is an extension of the promise pattern, implementations of which have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object, which it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
 
 
 <a name="deferral--overview" />
@@ -108,7 +110,7 @@ A deferral can be thought of as a liaison between the present and a definite set
 <a name="deferral--overview--responding-to-a-deferrals-resolution" />
 ### Responding to a deferral’s resolution
 
-Each resolved substate is directly associated with an eponymous **callback queue** and identically named **registrar method**. Consumers of the deferral may at any time use a registrar method to add callbacks to the registrar’s associated callback queue; however, the deferral will react to a callback addition differently based on its resolution state. While in the unresolved state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to its associated resolved substate, the functions in that queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with an eponymous **callback queue** and identically named **registrar method**. Consumers of the deferral may at any time use a registrar method to add callbacks to the registrar’s associated callback queue; however, the deferral will react to a callback addition differently based on its resolution state. While in the unresolved state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to the resolver’s associated resolved substate, the callbacks in its queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 <a name="deferral--overview--constructor-syntax" />
 ### Constructor syntax
@@ -145,7 +147,7 @@ both of which might compare with
 <a name="deferral--features--arity" />
 ### Arity
 
-`Deferral` supports _n-ary_ futures, in that any number of possible resolution states may be defined. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
+`Deferral` is variadic, in that any number of possible futures may be defined as resolution states. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
 
 	Deferral({ yes: 'affirm', no: 'negate' });
 
