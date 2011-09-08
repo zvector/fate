@@ -28,8 +28,8 @@ Dig into the grist below for a tour through the fundamentals of deferrals and pr
 		* [Interfacing](#deferral--methods--interfacing):
 			[`promise`](#deferral--methods--interfacing--promise)
 		* [Querying](#deferral--methods--querying):
-			[`map`](#deferral--methods--querying--map),
-			[`queueNames`](#deferral--methods--querying--queueNames),
+			[`potential`](#deferral--methods--querying--potential),
+			[`futures`](#deferral--methods--querying--futures),
 			[`did`](#deferral--methods--querying--did),
 			[`resolution`](#deferral--methods--querying--resolution)
 		* [Registration](#deferral--methods--registration):
@@ -204,13 +204,13 @@ Returns a `Promise`, a limited interface into the deferral that allows callback 
 <a name="deferral--methods--querying" />
 ### Querying
 
-<a name="deferral--methods--querying--map" />
-#### map()
+<a name="deferral--methods--querying--potential" />
+#### potential()
 
 Returns a hashmap relating the names of the deferral’s callback queues to the names of their corresponding resolver methods.
 
-<a name="deferral--methods--querying--queueNames" />
-#### queueNames()
+<a name="deferral--methods--querying--futures" />
+#### futures()
 
 Returns an Array that is an ordered list of the names of the deferral’s callback queues.
 
@@ -252,7 +252,7 @@ Values for built-in `Deferral` subtypes:
 <a name="deferral--methods--registration--then" />
 #### then( `Function` callback | `Array` callbacks, ... )
 
-Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `queueNames()`.
+Registers callbacks as above to each callback queue in order, such that the indices of the local `arguments` correspond with the array returned by `futures()`.
 
 <a name="deferral--methods--registration--always" />
 #### always( `Function` callback | `Array` callbacks, ... )
@@ -352,7 +352,7 @@ Each method listed here wraps the corresponding method in the deferral associate
 
 #### promise
 #### map
-#### queueNames
+#### futures
 #### did
 #### resolution
 #### then
