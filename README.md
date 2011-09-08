@@ -105,7 +105,7 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 <a name="deferral--overview" />
 ## Overview
 
-A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These comprise the domain of the deferral’s **resolution state**, where, starting in the present, the deferral is considered to be in its **unresolved state**, and at some point in the future, the deferral will _resolve_ by irreversibly transitioning into one of its **resolved substates**.
+A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These comprise the domain of the deferral’s **resolution state**, where, starting in the present, the deferral is considered to be in its **unresolved state**, and sometime in the future, the deferral will _resolve_ by irreversibly transitioning into one of its **resolved substates**, and invoking any callbacks that have been registered to that particular resolution.
 
 <a name="deferral--overview--responding-to-a-deferrals-resolution" />
 ### Responding to a deferral’s resolution
@@ -147,7 +147,7 @@ both of which might compare with
 <a name="deferral--features--arity" />
 ### Arity
 
-`Deferral` is variadic, in that any number of possible futures may be defined as resolution states. An instantiation of `Deferral` may include its own one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
+`Deferral` is variadic, in that any number of possible futures may be defined as resolution states. An instantiation of `Deferral` may include a specification of its resolution potential, a one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
 
 	Deferral({ yes: 'affirm', no: 'negate' });
 
@@ -207,25 +207,41 @@ Returns a `Promise`, a limited interface into the deferral that allows callback 
 <a name="deferral--methods--querying--potential" />
 #### potential()
 
-Returns a hashmap relating the names of the deferral’s callback queues to the names of their corresponding resolver methods.
+Returns a hashmap relating the names of the deferral’s resolution states (and callback queues) to the names of their corresponding resolver methods.
+
+	JSON.stringify( Deferral().potential() ); // {"yes":"affirm","no":"negate"}
 
 <a name="deferral--methods--querying--futures" />
 #### futures()
 
-Returns an Array that is an ordered list of the names of the deferral’s callback queues.
+Returns an Array that is an ordered list of the names of the deferral’s resolution states (and callback queues).
+
+	Deferral().futures(); // ["yes", "no"]
 
 <a name="deferral--methods--querying--did" />
 #### did( `String` resolver )
 
 Returns `true` if the deferral has been resolved using the specified `resolver` method. Returns `false` if it was resolved to a different resolution substate, and returns `undefined` if it is still unresolved.
 
+	Deferral().did(); // undefined
+	Deferral().affirm().did('affirm'); // true
+	Deferral().negate().did('affirm'); // false
+	Deferral.Nullary().did(); // true
+	
 <a name="deferral--methods--querying--resolution" />
 #### resolution( [ `String` test ] )
 
-If no arguments are provided, `resolution()` returns the deferral’s resolution in the form of the `String` name of the corresponding callback queue, or returns `undefined` if the deferral is still unresolved.
+If no arguments are provided, `resolution()` returns the deferral’s resolution state as a `String`, or returns `undefined` if the deferral is still unresolved. For a nullary deferral, `resolution()` always returns `true`.
 
+	Deferral().resolution(); // undefined
+	Deferral().affirm().resolution(); // "yes"
+	Deferral.Unary().resolve().resolution(); // "resolved"
+	Deferral.Nullary().resolution(); // true
+	
 If a `String` is provided as an argument, `resolution( test )` returns `true` if the deferral’s `resolution()` matches `test`, returns `false` if the deferral was otherwise resolved, or returns `undefined` if it is still unresolved.
 
+	Deferral().resolution('no'); // undefined
+	Deferral().negate().resolution('yes'); // false
 
 <a name="deferral--methods--registration" />
 ### Registration

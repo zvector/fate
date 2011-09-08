@@ -101,6 +101,7 @@ function Deferral ( potential, fn, args ) {
 				return this;
 			}
 		});
+		this.futures.toString = function () { return this.futures().join(' '); };
 		
 		this.empty();
 
@@ -285,7 +286,7 @@ Z.extend( true, Deferral, {
 				resolution,
 				master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
 				list = [],
-				i, promise, futures, affirmativeQueue, map, name;
+				i, promise, futures, affirmativeState, negativePotential, state;
 
 			function affirmed ( p ) {
 				return function () {
@@ -308,16 +309,15 @@ Z.extend( true, Deferral, {
 				if ( promise instanceof Deferral || promise instanceof Promise ) {
 					futures = promise.futures();
 
-					// (n > 0)-ary deferral: affirm on the matching queue and negate on any others
+					// (n > 0)-ary deferral: affirm for the matching resolution state and negate for any others
 					if ( futures && futures.length ) {
 
-						// Determine which of this promise's callback queues matches the specified `resolution`
-						affirmativeQueue = resolution || futures[0];
+						// Determine which of this promise's resolution states is to be considered affirmative in this context
+						affirmativeState = resolution || futures[0];
 
-						// `map` becomes a list referencing the callback queues not considered affirmative in this context
-						map = promise.potential();
-						if ( affirmativeQueue in map ) {
-							delete map[ affirmativeQueue ];
+						// `negativePotential` is a map of resolution states not considered affirmative in this context
+						if ( affirmativeState in ( negativePotential = promise.potential() ) ) {
+							delete negativePotential[ affirmativeState ];
 						} else {
 							// Because this promise will never be resolved to match `resolution`, the master deferral
 							// can be negated immediately
@@ -326,9 +326,9 @@ Z.extend( true, Deferral, {
 							break;
 						}
 
-						promise[ affirmativeQueue ]( affirmed( promise ) );
-						for ( name in map ) {
-							promise[ name ]( negated( promise ) );
+						promise[ affirmativeState ]( affirmed( promise ) );
+						for ( state in negativePotential ) {
+							promise[ state ]( negated( promise ) );
 						}
 					}
 
@@ -345,7 +345,7 @@ Z.extend( true, Deferral, {
 
 				// Coerce anything else into a nullary deferral.
 				else {
-					promises[i] = Deferral.Nullary( master, promise );
+					promises[i] = NullaryDeferral( master, promise );
 					Z.isFunction( promise ) && promises[i].then( promise );
 				}
 			}
@@ -356,12 +356,14 @@ Z.extend( true, Deferral, {
 });
 Deferral.when = Deferral.prototype.when;
 
+
 function NullaryDeferral ( as, given ) {
 	if ( !( this instanceof NullaryDeferral ) ) { return new NullaryDeferral( as, given ); }
 	Deferral.call( this, null, as, given );
 }
 NullaryDeferral.prototype = Deferral.prototype;
 Deferral.Nullary = NullaryDeferral;
+
 
 function UnaryDeferral ( fn, args ) {
 	if ( !( this instanceof UnaryDeferral ) ) { return new UnaryDeferral( fn, args ); }
@@ -686,10 +688,10 @@ function Procedure ( input ) {
 		// Simple series or parallel literal: `[ ... ]` | `[[ ... ]]`
 		else if ( Z.isArray( obj ) ) {
 			fn = obj.length === 1 && Z.isArray( obj[0] ) ? ( obj = obj[0], parallel ) : series;
-			for ( array = [], i = 0, l = obj.length; i < l; ) {
-				array.push( parse.call( self, obj[ i++ ] ) );
+			for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
+				array.push( parse( obj[i] ) );
 			}
-			return fn.apply( this, array );
+			return fn.apply( self, array );
 		}
 		
 		// Multiplex literal: `{n:[ ... ]}`
@@ -699,10 +701,10 @@ function Procedure ( input ) {
 			Z.isNumber( width = +kk[0] )
 		){
 			obj = obj[ width ];
-			for ( array = [], i = 0, l = obj.length; i < l; ) {
-				array.push( parse.call( self, obj[ i++ ] ) );
+			for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
+				array.push( parse( obj[i] ) );
 			}
-			return multiplex.apply( this, [ width, array ] );
+			return multiplex( width, array );
 		}
 	}
 	
