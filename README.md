@@ -36,15 +36,15 @@ Dig into the grist below for a tour through the fundamentals of deferrals and pr
 			[{ `yes`, `no` } | `resolved`](#deferral--methods--registration--registrar),
 			[`then`](#deferral--methods--registration--then),
 			[`always`](#deferral--methods--registration--always)
-		* [Sequencing](#deferral--methods--sequencing):
-			[`pipe`](#deferral--methods--sequencing--pipe)
-		* [Concurrency](#deferral--methods--concurrency):
-			[`when`](#deferral--methods--concurrency--when)
+			[`empty`](#deferral--methods--registration--empty)
 		* [Resolution](#deferral--methods--resolution):
 			[`as`](#deferral--methods--resolution--as),
 			[`given`](#deferral--methods--resolution--given),
 			[{ `affirm`, `negate` } | `resolve`](#deferral--methods--resolution--resolver),
-			[`empty`](#deferral--methods--resolution--empty)
+		* [Sequencing](#deferral--methods--sequencing):
+			[`pipe`](#deferral--methods--sequencing--pipe)
+		* [Concurrency](#deferral--methods--concurrency):
+			[`when`](#deferral--methods--concurrency--when)
 * [**Promise**](#promise) — The public interface to a deferral
 	* [Methods](#promise--methods)
 		* [Constructor](#promise--methods--constructor):
@@ -246,25 +246,37 @@ If a `String` is provided as an argument, `resolution( test )` returns `true` if
 <a name="deferral--methods--registration" />
 ### Registration
 
-Methods listed here return a `Promise` to this deferral.
+Methods listed here return the deferral itself. (Note however that, when invoked from a `Promise` to this deferral, these methods return the promise, not the deferral.)
 
 <a name="deferral--methods--registration--registrar" />
 #### (_registrar_)( `Function` callback | `Array` callbacks, ... )
 
-Administers the supplied callback functions according to the deferral’s state:
-	
+Administers the supplied callback functions according to the deferral’s resolution state:
+
 * In the unresolved state, the callbacks are registered to the corresponding queue, and will be called if the deferral is later resolved accordingly.
-		
+
 * If the deferral has already been resolved accordingly, the callbacks are called immediately.
-		
+
 * If the deferral has been otherwise resolved, the callbacks are discarded.
-		
+
 Values for built-in `Deferral` subtypes:
 	
-* `UnaryDeferral` : _registrar_ = { `resolved` }
-		
+* `UnaryDeferral` : _registrar_ = { `resolved` } (For the unary deferral, `resolved` is also aliased to `done`.)
+
 * `BinaryDeferral` : _registrar_ = { `yes` | `no` }
 
+Examples:
+
+	Deferral()
+		.yes( function () { console.log("hooray!"); } )
+		.no( function () { console.log("boooo!"); } )
+		.affirm() // console << "hooray!"
+		.yes( function () { console.log("Sorry I'm late!"); } ) // console << "Sorry I'm late!"
+		.no( function () { console.log("I said BOOOO!"); } ); // (no output)
+	
+	setTimeout( Deferral.Unary().done( function () { console.log("At last!"); }).resolve, 1000 );
+	// (one second later) console << "At last!"
+	
 <a name="deferral--methods--registration--then" />
 #### then( `Function` callback | `Array` callbacks, ... )
 
@@ -274,6 +286,11 @@ Registers callbacks as above to each callback queue in order, such that the indi
 #### always( `Function` callback | `Array` callbacks, ... )
 
 Registers callbacks to all queues, ensuring they will be called no matter how the deferral is resolved.
+
+<a name="deferral--methods--registration--empty" />
+#### empty()
+
+Clears all callback queues. (Not available from a `Promise`.)
 
 
 <a name="deferral--methods--resolution" />
@@ -301,11 +318,6 @@ Values for built-in `Deferral` subtypes:
 * `UnaryDeferral` : _resolver_ = { `resolve` }
 		
 * `BinaryDeferral` : _resolver_ = { `affirm` | `negate` }
-
-<a name="deferral--methods--resolution--empty" />
-#### empty()
-
-Clears all callback queues.
 
 
 <a name="deferral--methods--sequencing" />
