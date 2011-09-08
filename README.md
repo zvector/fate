@@ -24,6 +24,9 @@ Dig into the grist below for a tour through the fundamentals of deferrals and pr
 			[Nullary](#deferral--features--formal-subtypes--nullary)
 	* [Remarks](#deferral--remarks)
 		* [Terminology](#deferral--remarks--terminology)
+			* [“Deferral”](#deferral--remarks--terminology--deferral)
+			* [“Future”, et al](#deferral--remarks--terminology--future)
+			* [“Resolved”](#deferral--remarks--terminology--resolved)
 	* [Methods](#deferral--methods)
 		* [Interfacing](#deferral--methods--interfacing):
 			[`promise`](#deferral--methods--interfacing--promise)
@@ -105,7 +108,7 @@ A **deferral** is a stateful callback device used to manage the eventualities of
 <a name="deferral--overview" />
 ## Overview
 
-A deferral can be thought of as a liaison between the present and a definite set of possible _futures_. These comprise the domain of the deferral’s **resolution state**, where, starting in the present, the deferral is considered to be in its **unresolved state**, and sometime in the future, the deferral will _resolve_ by irreversibly transitioning into one of its **resolved substates**, and invoking any callbacks that have been registered to that particular resolution.
+A deferral can be thought of as a liaison between the “present” and a definite set of possible **futures**. Together, these comprise the domain of the deferral’s **resolution state**, where, starting in the present, the deferral is considered to be in its **unresolved state**, and sometime later, the deferral will _resolve_ by irreversibly transitioning into one of its **resolved substates**, and invoking any callbacks that have been registered to that particular resolution.
 
 <a name="deferral--overview--responding-to-a-deferrals-resolution" />
 ### Responding to a deferral’s resolution
@@ -186,7 +189,20 @@ There is also the special case where it may be desirable to work with a deferral
 <a name="deferral--remarks--terminology" />
 ### Terminology
 
-In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a jQuery `Deferred` instance implies a “successful” outcome, `Deferral` considers _resolved_ to denote only the opposite of _unresolved_, that the deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolver method, which stands to reason given its lone resolved substate.)
+<a name="deferral--remarks--terminology--deferral" />
+#### “Deferral”
+
+Whereas other frameworks follow the legacy of Twisted by adopting the term “Deferred” as a nominalized contraction of “deferred object”, the design choice in **Fate** is to name the analogous type using the grammatically appropriate noun, “Deferral”. However, apart from nomenclature and implementation, the core concept that underlies `Deferral` and the various incarnations of `Deferred` is largely the same.
+
+<a name="deferral--remarks--terminology--future" />
+#### “Future”, et al
+
+In the context of `Deferral`, the concepts of a “future” and “resolved substate” are essentially identical. Moreover, each future (or resolved substate) necessarily shares its explicit name with the entities “callback queue” and “registrar method” associated with it; thus as a matter of usage, a named reference to any of these entities can be thought to implicate the others.
+
+<a name="deferral--remarks--terminology--resolved" />
+#### “Resolved”
+
+In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a jQuery `Deferred` instance explicitly indicates a “successful” outcome, **Fate** considers _resolved_ to denote only the opposite of _unresolved_, i.e., that a deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolver method, which stands to reason given that it has only one resolved substate.)
 
 
 <a name="deferral--methods" />
@@ -235,7 +251,7 @@ If no arguments are provided, `resolution()` returns the deferral’s resolution
 
 	Deferral().resolution(); // undefined
 	Deferral().affirm().resolution(); // "yes"
-	Deferral.Unary().resolve().resolution(); // "resolved"
+	Deferral.Unary().resolve().resolution(); // "done"
 	Deferral.Nullary().resolution(); // true
 	
 If a `String` is provided as an argument, `resolution( test )` returns `true` if the deferral’s `resolution()` matches `test`, returns `false` if the deferral was otherwise resolved, or returns `undefined` if it is still unresolved.
@@ -261,7 +277,7 @@ Administers the supplied callback functions according to the deferral’s resolu
 
 Values for built-in `Deferral` subtypes:
 	
-* `UnaryDeferral` : _registrar_ = { `resolved` } (For the unary deferral, `resolved` is also aliased to `done`.)
+* `UnaryDeferral` : _registrar_ = { `done` }
 
 * `BinaryDeferral` : _registrar_ = { `yes` | `no` }
 
