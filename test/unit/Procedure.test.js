@@ -279,6 +279,7 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 
 asyncTest( "If a deferral element negates", 1, function () {
 	Procedure( [
+		// this will run and assert ...
 		function () {
 			var deferral = Deferral();
 			setTimeout( function () {
@@ -287,9 +288,12 @@ asyncTest( "If a deferral element negates", 1, function () {
 			}, 10 );
 			return deferral.promise();
 		},
+		
 		function () {
 			return Deferral().negate();
 		},
+		
+		// ... but this won't
 		function () {
 			var deferral = Deferral();
 			setTimeout( function () {
@@ -298,10 +302,76 @@ asyncTest( "If a deferral element negates", 1, function () {
 			}, 10 );
 			return deferral.promise();
 		}
+		
+		// so the asyncTest will count only 1 test
 	] )
 		.start()
 		.always( start );
 });
 
+/* Coughyscript
+p3 = [
+	-> 0
+	[ 'if'
+		-> ( d = Deferral( -> setTimeout( -> d.affirm, 100 ) ) ).promise()
+		{
+			yes: []
+			no: []
+		}
+	]
+	[ 'while', -> ( d = Deferral( -> setTimeout( -> d.affirm, 100 ) ) ).promise()
+		[
+			-> 'something'
+			'break'
+		]
+	]
+	-> 0
+]
+// */
+
+0&&
+asyncTest( "Control structures", function () {
+	function fn ( i ) { return function () {}; }
+	var	p1 = [ fn(1), [[ fn(2), fn(3) ]], {2:[ fn(4), fn(5), fn(6) ]} ],
+		p2 = [[ [ fn(7), fn(9) ], fn(8) ]],
+		p3 = [
+			function () {},
+			[ 'if',
+				function () {
+					return Deferral().promise();
+				}, {
+					yes: [
+						fn(1),
+						[[ fn(2), fn(3) ]]
+					],
+					no: p2
+				}
+			],
+			[ 'while', function () { return jQuery.ajax('/'); }, [
+				p1,
+				[ 'if', function () { return this.whatever }, 'return' ],
+				p2
+			]],
+			[ 'for', [ function () {/*initialization*/}, function () {/*condition*/}, function () {/*iteration*/} ], [
+				p1,
+				[ 'if', function () { return this.whatever }, 'break' ],
+				p2
+			]],
+			[ 'try', [ p1, p2 ], 'catch', p1 ],
+			function () {}
+		];
+	Procedure( p3 ).start().always( start );
+});
+
+0&&
+asyncTest( "Recursion", function () {
+	var n = 0,
+		p1 = [
+			function () { return promise; }, {
+				yes: [ function () { n++; }, function () { return Procedure( p1 ); } ]
+			}
+		];
+	Procedure( p1 ).start().always( start );
+});
 
 })( QUnit );

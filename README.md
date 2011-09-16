@@ -1,11 +1,11 @@
-<a name="!" title="hahahashbang" />
+<a name="!" title="hahahashbang!" />
 <img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
 
-**Fate.js** makes reasoning about the future easy, and “callback hell” a thing of the past. 
+**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. 
 
-Building on concepts from the familiar promise pattern, **Fate** provides JavaScript applications with powerful tools and functions to help manage execution flow and simplify asynchronicity, all presented through a straightforward, expressive API and an elegantly concise literal syntax.
+Building on concepts from the familiar promise pattern, **Fate** helps you seriously simplify asynchronous execution flow with powerful tools and a straightforward, expressive API, presented with an elegantly concise literal syntax.
 
-Dig into the grist below for a tour through the fundamentals of deferrals and promises, and the awesome machinery that’s built from them, like pipelines and multiplexes. Or, go ahead and [jump straight to the pot of gold at the end](#procedure--examples) to see just how neatly **Fate** can help you tame even the most dauntingly complicated asynchronous tasks.
+Dig into the goodies below for a guided tour through the fundamentals of deferrals and promises, and the awesome machinery that’s built from them, like pipelines and multiplexes, or [jump straight to the fun stuff](#procedure--examples) to see just how neatly **Fate** can help you knock out even the most dauntingly complicated asynchronous tasks.
 
 
 ### Contents
@@ -18,7 +18,7 @@ Dig into the grist below for a tour through the fundamentals of deferrals and pr
 	* [Features](#deferral--features)
 		* [Early binding](#deferral--features--early-binding)
 		* [Arity](#deferral--features--arity)
-		* [Formal subtypes](#deferral--features--formal-subtypes):
+		* [Formal variadic subtypes](#deferral--features--formal-variadic-subtypes):
 			[Binary](#deferral--features--formal-subtypes--binary),
 			[Unary](#deferral--features--formal-subtypes--unary),
 			[Nullary](#deferral--features--formal-subtypes--nullary)
@@ -96,7 +96,7 @@ Dig into the grist below for a tour through the fundamentals of deferrals and pr
 <a name="deferral" />
 # Deferral
 
-A **deferral** is a stateful callback device used to manage the eventualities of synchronous and asynchronous operations. With its associated [**promise**](#promise) interface, it is the fundamental unit of the composite devices [**pipeline**](#pipeline), which processes an array of operations sequentially, [**multiplex**](#multiplex), which processes an array of operations concurrently by bundling multiple pipelines together, and [**procedure**](#procedure), which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
+A **deferral** is a miniature state machine built to organize callbacks. Its stateful design makes it a powerful tool for managing the eventualities of synchronous and asynchronous operations alike. With its associated [**promise**](#promise) interface, it is the fundamental unit of the composite devices [**pipeline**](#pipeline), which processes an array of operations sequentially, [**multiplex**](#multiplex), which processes an array of operations concurrently by bundling multiple pipelines together, and [**procedure**](#procedure), which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
 
 
 <a name="deferral--background" />
@@ -158,29 +158,29 @@ This can be extended further if more outcomes are to be accounted for:
 
 	Deferral({ yes: 'affirm', no: 'negate', maybe: 'punt', confused: 'waffle', distracted: 'squirrel' });
 
-Alternatively, if we wish to mimic the syntax of the jQuery Deferred object, we are also free to create:
+Alternatively, supposing we wish to mimic the syntax of the jQuery Deferred object, we’re also free to create:
 
 	Deferral({ done: 'resolve', fail: 'reject' });
 
-<a name="deferral--features--formal-subtypes" />
-### Formal subtypes
+<a name="deferral--features--formal-variadic-subtypes" />
+### Formal variadic subtypes
 
 Most applicable use cases for `Deferral` are served by its built-in subtypes. As introduced above, the most common usage is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, invoked by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
 
-	var d = Deferral(); // BinaryDeferral
-	d.yes( fn1 ).no( fn2 ); // === d.then( fn1, fn2 )
-	d.as( context ).given( args ).affirm(); // === fn1.apply( context, args )
+	var deferral = Deferral(); // BinaryDeferral
+	deferral.yes( fn1 ).no( fn2 ); // === d.then( fn1, fn2 )
+	deferral.as( context ).given( args ).affirm(); // === fn1.apply( context, args )
 
-For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, which contains a single callback queue, `resolved`, invoked by calling `resolve()`.
+For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, which contains a single callback queue, `done`, invoked by calling `resolve()`.
 
-	var d = Deferral.Unary(); // UnaryDeferral
-	d.resolved( fn1, fn2 ); // === d.always( fn1, fn2 )
-	d.as( context ).resolve( arg ); // === ( fn1.call( context, arg ), fn2.call( context, arg ), d )
-	
-There is also the special case where it may be desirable to work with a deferral in which all added callbacks are executed immediately; for this there is the `NullaryDeferral` at `Deferral.Nullary`. Effectively equivalent to a "pre-resolved" deferral, a nullary deferral has no callback queue or resolver method, but does provide conformance to the fundamental promise interface via `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
+	var deferral = Deferral.Unary(); // UnaryDeferral
+	deferral.done( fn1, fn2 ); // === d.always( fn1, fn2 )
+	deferral.as( context ).resolve( arg ); // === ( fn1.call( context, arg ), fn2.call( context, arg ), d )
 
-	var d = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
-	d.then( fn ); // === ( fn1.apply( asContext, givenArguments ), d.promise() )
+Sometimes it may also be desirable to incorporate synchronous logic into an asynchronous environment — a situation that involves, in a sense, _zero_ possible futures. For this special case there is the `NullaryDeferral` at `Deferral.Nullary`, essentially a “pre-resolved” deferral, wherein all callbacks added are simply executed immediately. A nullary deferral has no resolution potential, and thus no callback queues and no registrar or resolver methods, but it does provide conformance to the fundamental promise interface via `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
+
+	var deferral = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
+	deferral.then( fn ); // === ( fn1.apply( asContext, givenArguments ), deferral.promise() )
 
 
 <a name="deferral--remarks" />
@@ -202,7 +202,7 @@ In the context of `Deferral`, the concepts of a “future” and “resolved sub
 <a name="deferral--remarks--terminology--resolved" />
 #### “Resolved”
 
-In particular, those familiar with the jQuery `Deferred` implementation may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a jQuery `Deferred` instance explicitly indicates a “successful” outcome, **Fate** considers _resolved_ to denote only the opposite of _unresolved_, i.e., that a deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely _which_ state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a jQuery `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolver method, which stands to reason given that it has only one resolved substate.)
+In particular, those familiar with the jQuery and Dojo `Deferred` implementations may note a difference in usage regarding the notion of “resolved”. Whereas to `resolve()` a `Deferred` instance explicitly indicates a “successful” outcome, **Fate** considers _resolved_ to denote only the opposite of _unresolved_, i.e., that a deferral has transitioned into its final resolution state, without implication as to success or failure or any concept of precisely which state that is. In the case of the default type `BinaryDeferral`, which compares most directly to a canonical `Deferred`, rather than being either `resolve`d or `reject`ed, it may be either `affirm`ed or `negate`d, as alluded to above. (Note however that the `UnaryDeferral` type _does_ in fact use `resolve` as its resolver method, which stands to reason given that it has only one resolved substate.)
 
 
 <a name="deferral--methods" />
@@ -214,7 +214,7 @@ In particular, those familiar with the jQuery `Deferred` implementation may note
 <a name="deferral--methods--interfacing--promise" />
 #### promise()
 
-Returns a `Promise`, a limited interface into the deferral that allows callback registration and resolution state querying.
+Returns a `Promise`, a limited interface into the deferral that allows callback registration and resolution state querying, but disallows any means of affecting the deferral’s resolution state.
 
 
 <a name="deferral--methods--querying" />
@@ -223,21 +223,21 @@ Returns a `Promise`, a limited interface into the deferral that allows callback 
 <a name="deferral--methods--querying--potential" />
 #### potential()
 
-Returns a hashmap relating the names of the deferral’s resolution states (and callback queues) to the names of their corresponding resolver methods.
+Returns a hashmap relating the names of the deferral’s resolution states (and likewise its callback queues and registrar methods) to the names of their corresponding resolver methods.
 
 	JSON.stringify( Deferral().potential() ); // {"yes":"affirm","no":"negate"}
 
 <a name="deferral--methods--querying--futures" />
 #### futures()
 
-Returns an Array that is an ordered list of the names of the deferral’s resolution states (and callback queues).
+Returns an Array that is an ordered list of the names of the deferral’s resolution states (and likewise its callback queues and registrar methods).
 
 	Deferral().futures(); // ["yes", "no"]
 
 <a name="deferral--methods--querying--did" />
-#### did( `String` resolver )
+#### did( [`String` resolver] )
 
-Returns `true` if the deferral has been resolved using the specified `resolver` method, or `false` otherwise. If no argument is provided, `did()` indicates simply whether the deferral has been resolved.
+If no argument is provided, `did()` indicates simply whether the deferral has been resolved; or, given a specified `resolver` method name, `did( resolver )` returns `true` if the deferral was resolved using `resolver`, and `false` otherwise. 
 
 	Deferral().did(); // false
 	Deferral().affirm().did('affirm'); // true
@@ -246,7 +246,7 @@ Returns `true` if the deferral has been resolved using the specified `resolver` 
 	Deferral.Nullary().did(); // true
 	
 <a name="deferral--methods--querying--resolution" />
-#### resolution( [ `String` test ] )
+#### resolution( [`String` test] )
 
 If no arguments are provided, `resolution()` returns the name of the state to which the deferral has resolved, or returns `undefined` if the deferral is still unresolved. For a nullary deferral, `resolution()` always returns `true`.
 
@@ -362,7 +362,7 @@ If `when` is called as a method of an unresolved binary deferral, then that defe
 
 By default, `when` monitors the promises for their implicitly affirmative resolution state, i.e., the state targeted by the first argument of `then()`. A specific resolution state can be supplied as a `String` at the last argument position in the `when()` call. For example, the promise returned by:
 
-	var promise = Deferral.when( promiseA, promiseB, 'no' );
+	var bizzaro = Deferral.when( promiseA, promiseB, 'no' );
 
 will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
 
