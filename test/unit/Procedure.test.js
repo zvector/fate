@@ -366,9 +366,12 @@ asyncTest( "Control structures", function () {
 0&&
 asyncTest( "Recursion", function () {
 	var n = 0,
-		p1 = [
+		p1 = [ 'if',
 			function () { return promise; }, {
-				yes: [ function () { n++; }, function () { return Procedure( p1 ); } ]
+				yes: [
+					function () { n++; },
+					function () { return Procedure( p1 ); }
+				]
 			}
 		];
 	Procedure( p1 ).start().always( start );

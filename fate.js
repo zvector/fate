@@ -107,8 +107,7 @@ function Deferral ( potential, fn, args ) {
 
 		register = Deferral.privileged.register( this, callbacks );
 		resolve = Deferral.privileged.resolve( this, callbacks, setResolution, getResolutionContext,
-			getResolutionArguments, setResolutionArguments
-		);
+			getResolutionArguments, setResolutionArguments );
 		
 		Z.each( potential, function ( name, resolver ) {
 			self[ name ] = register( name );
@@ -139,6 +138,9 @@ Z.extend( true, Deferral, {
 		 * Produces a function that resolves the deferral, transitioning it to one of its resolved substates.
 		 */
 		resolve: function ( self, callbacks, setResolution, getResolutionContext, getResolutionArguments, setResolutionArguments ) {
+			var	invokeFn = this.invoke( self, callbacks ),
+				invokeAllFn = this.invokeAll( self, callbacks );
+			
 			return function ( resolution ) {
 				return function () {
 					var	name,
@@ -156,14 +158,14 @@ Z.extend( true, Deferral, {
 					 * called immediately with the saved `context` and `args`, while subsequent callback
 					 * registrations to any of the other queues are deemed invalid and will be discarded.
 					 */
-					self[ resolution ] = Deferral.privileged.invoke( self, callbacks )( context, args );
+					self[ resolution ] = invokeFn( context, args );
 					self[ potential[ resolution ] ] = self.as = self.given = Z.getThis;
 					delete potential[ resolution ];
 					for ( name in potential ) {
 						self[ name ] = self[ potential[ name ] ] = Z.getThis;
 					}
 					
-					Deferral.privileged.invokeAll( self, callbacks )( context, args )( callbacks[ resolution ] );
+					invokeAllFn( context, args )( callbacks[ resolution ] );
 					
 					delete callbacks[ resolution ];
 					for ( name in potential ) { delete callbacks[ name ]; }
@@ -180,11 +182,13 @@ Z.extend( true, Deferral, {
 		 * callback after the deferral is resolved will cause the callback to be invoked immediately.
 		 */
 		invoke: function ( deferral, callbacks ) {
+			var self = this;
 			return function ( context, args ) {
+				var invokeAll = self.invokeAll( deferral, callbacks )( context, args );
 				return function ( fn ) {
 					try {
 						Z.isFunction( fn ) ? fn.apply( context || deferral, args ) :
-						Z.isArray( fn ) && Deferral.privileged.invokeAll( deferral, callbacks )( context, args )( fn );
+						Z.isArray( fn ) && invokeAll( fn );
 					} catch ( nothing ) {}
 					return deferral;
 				};
@@ -309,7 +313,9 @@ Z.extend( true, Deferral, {
 			}
 
 			if ( length > 1 && Z.type( promises[ length - 1 ] ) === 'string' ) {
-				resolution = promises.splice( --length, 1 )[0];
+				// resolution = promises.splice( --length, 1 )[0];
+				resolution = promises.pop();
+				length--;
 			}
 
 			for ( i = 0; i < length; i++ ) {
@@ -654,11 +660,13 @@ Z.extend( Multiplex, {
  * A **procedure** defines an execution flow by nesting multiple parallel and serial function arrays.
  * 
  * Input is accepted in the form of nested function arrays, of arbitrary depth, where an array
- * literal `[ ]` represents a group of functions to be executed in a serial queue using a `Pipeline`,
+ * literal `[ ]` represents a group of functions to be executed in a serial queue using a `Pipeline`;
  * a **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel
- * set using a `when` invocation, and a **numerically-keyed object–bound array literal** `{n:[ ]}`
+ * set using a `when` invocation; a **numerically-keyed object–bound array literal** `{n:[ ]}`
  * represents a group of functions to be executed in parallel, up to `n` items concurrently, using a
- * `Multiplex` of width `n`.
+ * `Multiplex` of width `n`; and a **block literal** `['type', ... ]` represents a control structure,
+ * where `type` may be a statement such as `if`, `while`, `for`, etc., any of which direct the flow
+ * of asynchronous execution in a manner analogous to their respective language-level counterparts.
  */
 function Procedure ( input, scope ) {
 	if ( !( this instanceof Procedure ) ) {
@@ -669,9 +677,9 @@ function Procedure ( input, scope ) {
 		deferral = ( new Deferral ).as( scope ),
 		procedure = parse.call( scope, input );
 	
-	function downscope ( within ) {
+	function downscope ( from ) {
 		// TODO: shim for Object.create
-		return Object.create( within || scope || null, { __procedure__: self } );
+		return Object.create( from || scope || null, { __procedure__: self } );
 	}
 	
 	function parse ( obj, index, container ) {
@@ -725,15 +733,26 @@ function Procedure ( input, scope ) {
 	}
 	
 	Z.extend( this, {
+		as: function () {
+			return deferral.as.apply( deferral, arguments );
+		},
+		given: function () {
+			return deferral.given.apply( deferral, arguments );
+		},
 		start: function () {
 			var result = procedure.apply( self, arguments );
+			
 			function affirm () {
 				return deferral.as( result ).given( arguments ).affirm();
 			}
 			function negate () {
 				return deferral.as( result ).given( arguments ).negate();
 			}
-			Promise.resembles( result ) ? result.then( affirm, negate ) : affirm.apply( self, result );
+			
+			Promise.resembles( result ) ?
+				result.then( affirm, negate ) :
+				( result ? affirm : negate ).apply( self, result );
+			
 			return self.promise();
 		},
 		promise: function () {
@@ -777,24 +796,28 @@ Z.extend( true, Procedure, {
 			var scope = this;
 			return function () {
 				var promise;
-			
-				Procedure( condition, scope ).start.apply( scope, arguments ).then(
 				
-				)
-			
+				// Evaluate `condition` as a new Procedure
+				( condition = Procedure( condition, scope ) )
+					.start.apply( condition, arguments )
+					.then(
+						
+					)
+				;
+				
 				Z.isFunction( condition ) && ( condition = condition.apply( arguments ) );
-			
+				
 				promise = Promise.resembles( condition ) ?
 					condition :
 					Deferral().as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]().promise();
-			
+				
 				promise.always( function () {
 					var resolution = promise.resolution();
 					condition[ resolution ]( function () {
 						return Procedure( potential[ resolution ], scope ).start.apply( this, arguments ).promise();
 					});
 				});
-			
+				
 				return promise;
 			};
 		},
