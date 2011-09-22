@@ -313,7 +313,6 @@ Z.extend( true, Deferral, {
 			}
 
 			if ( length > 1 && Z.type( promises[ length - 1 ] ) === 'string' ) {
-				// resolution = promises.splice( --length, 1 )[0];
 				resolution = promises.pop();
 				length--;
 			}
@@ -733,11 +732,11 @@ function Procedure ( input, scope ) {
 	}
 	
 	Z.extend( this, {
-		as: function () {
-			return deferral.as.apply( deferral, arguments );
+		as: function ( context ) {
+			return deferral.as( context );
 		},
-		given: function () {
-			return deferral.given.apply( deferral, arguments );
+		given: function ( args ) {
+			return deferral.given( args );
 		},
 		start: function () {
 			var result = procedure.apply( self, arguments );
