@@ -505,10 +505,7 @@ function Pipeline ( operations ) {
 	function start () {
 		( !deferral || deferral.did() ) && reset();
 		running = true;
-		
-		self.as = self.given = self.start = returnSelf;
-		self.pause = pause, self.resume = resume, self.stop = stop, self.abort = abort;
-		
+		self.as = self.given = self.start = returnSelf, self.pause = pause, self.resume = resume, self.stop = stop, self.abort = abort;
 		continuation.apply( shift(), arguments.length ? ( args = Z.slice.call( arguments ) ) : args );
 		return self;
 	}
@@ -528,20 +525,14 @@ function Pipeline ( operations ) {
 	
 	function stop () {
 		running = pausePending = false;
-		
-		self.as = as, self.given = given, self.start = start;
-		self.pause = self.resume = self.stop = self.abort = returnSelf;
-		
+		self.as = as, self.given = given, self.start = start, self.pause = self.resume = self.stop = self.abort = returnSelf;
 		deferral.given( args ).affirm();
 		return self;
 	}
 	
 	function abort () {
 		running = pausePending = false;
-		
-		self.as = as, self.given = given, self.start = start;
-		self.pause = self.resume = self.stop = self.abort = returnSelf;
-		
+		self.as = as, self.given = given, self.start = start, self.pause = self.resume = self.stop = self.abort = returnSelf;
 		deferral.given( args ).negate();
 		return self;
 	}
@@ -599,10 +590,6 @@ function Multiplex ( width, operations ) {
 		pipeCount = 0,
 		first, last;
 	
-	function returnSelf () {
-		return self;
-	}
-	
 	function fill () {
 		while ( pipeCount < width && operations.length ) {
 			addPipe();
@@ -658,21 +645,21 @@ function Multiplex ( width, operations ) {
 	function start () {
 		arguments.length && ( args = Z.slice.call( arguments ) );
 		running = true;
-		self.as = self.given = self.start = returnSelf, self.stop = stop, self.abort = abort;
+		self.as = self.given = self.start = Z.getThis, self.stop = stop, self.abort = abort;
 		fill();
 		return self;
 	}
 	
 	function stop () {
 		running = false;
-		self.start = start, self.as = as, self.given = given, self.stop = self.abort = returnSelf;
+		self.start = start, self.as = as, self.given = given, self.stop = self.abort = Z.getThis;
 		deferral.given( args ).affirm();
 		return self;
 	}
 	
 	function abort () {
 		running = false;
-		self.start = start, self.as = as, self.given = given, self.stop = self.abort = returnSelf;
+		self.start = start, self.as = as, self.given = given, self.stop = self.abort = Z.getThis;
 		deferral.given( args ).negate();
 		return self;
 	}
@@ -697,7 +684,7 @@ function Multiplex ( width, operations ) {
 		as: as,
 		given: given,
 		start: start,
-		stop: returnSelf
+		stop: Z.getThis
 	});
 }
 Z.extend( Multiplex, {
@@ -783,11 +770,11 @@ function Procedure ( input, scope ) {
 	Z.extend( this, {
 		as: function ( context ) {
 			deferral.as( context );
-			return self;
+			return this;
 		},
 		given: function ( args ) {
 			deferral.given( args );
-			return self;
+			return this;
 		},
 		start: function () {
 			var result = procedure.apply( self, arguments );
@@ -811,18 +798,20 @@ function Procedure ( input, scope ) {
 	});
 }
 
-function ExecutionDeferral () {
-	if ( !( this instanceof ExecutionDeferral ) ) { return new ExecutionDeferral; }
-	Deferral.call( this, { ok: 'proceed', error: 'throw' } );
-}
-ExecutionDeferral.prototype = Deferral.prototype;
-
 Z.extend( true, Procedure, {
 	structures: {
 		series: function () {
-			var	pipeline = Pipeline( Z.slice.call( arguments ) ).as( this );
+			var	scope = this,
+				operations = Z.slice.call( arguments );
 			return function () {
-				return pipeline.given( arguments ).start().promise();
+				// var pipeline = Pipeline( args );
+				// return pipeline.start.apply( pipeline, arguments ).promise();
+				return Pipeline( operations )
+					.as( scope )
+					.given( arguments )
+					.start()
+					.promise()
+				;
 			};
 		},
 	
@@ -842,52 +831,47 @@ Z.extend( true, Procedure, {
 		},
 	
 		multiplex: function ( width, operations ) {
-			var multiplex = Multiplex( width, operations ).as( this );
+			var scope = this;
 			return function () {
-				return multiplex.given( arguments ).start().promise();
+				return Multiplex( width, operations )
+					.as( scope )
+					.given( arguments )
+					.start()
+					.promise()
+				;
 			};
 		},
 	
 		branch: function ( condition, potential ) {
-			var	scope = this,
-				execution = ( new ExecutionDeferral ).as( scope );
-			
+			var scope = this;
 			return function () {
+				var promise;
 				
-				// If `condition` is a function, treat it like a closure over the actual object of interest
-				Z.isFunction( condition ) && ( condition = condition.apply( scope, arguments ) );
+				// Create the enclosing deferral
+				var deferral = Deferral().as( scope ).given( arguments );
 				
-				return condition = (
-					Promise.resembles( condition ) ? condition :
-					Z.isArray( condition ) ? Procedure( condition, scope ).given( arguments ).start() :
-					( new Deferral ).as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]()
-				)
-					.promise()
-				
-					// After the condition is resolved, match its resolution with the corresponding value in
-					// `potential`, evaluate that as a new Procedure, and use its result to resolve `execution`.
-					.always( function () {
-						var	resolution = condition.resolution().split('.'),
-							i = 0, l = resolution.length, block;
+				// Evaluate `condition` as a new Procedure
+				( condition = Procedure( condition, scope ) )
+					.start.apply( condition, arguments )
+					.then(
 						
-						// Identify the entry within `potential` that corresponds to the resolution of
-						// `condition`, and use that to create a procedural block.
-						while ( i < l ) {
-							block = potential[ resolution[ i++ ] ];
-						}
-						Z.isPlainObject( block ) && ( block = block[''] );
-						block = Procedure( block, scope );
-						
-						// Register a callback that executes the procedural block
-						condition.register( resolution, function () {
-							return block
-								.given( arguments )
-								.start()
-								.promise()
-								.then( execution.given( arguments ).proceed, execution.throw )
-							;
-						});
+					)
+				;
+				
+				Z.isFunction( condition ) && ( condition = condition.apply( arguments ) );
+				
+				promise = Promise.resembles( condition ) ?
+					condition :
+					Deferral().as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]().promise();
+				
+				promise.always( function () {
+					var resolution = promise.resolution();
+					condition[ resolution ]( function () {
+						return Procedure( potential[ resolution ], scope ).start.apply( this, arguments ).promise();
 					});
+				});
+				
+				return promise;
 			};
 		},
 	
