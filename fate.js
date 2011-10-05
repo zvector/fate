@@ -38,7 +38,7 @@ function Deferral ( potential, fn, args ) {
 		return new Deferral( potential, fn, args );
 	}
 	if ( potential === undefined || Z.isFunction( potential ) ) {
-		return new Deferral.Binary( potential, fn );
+		return new Deferral.Binary( arguments[0], arguments[1] );
 	}
 	
 	
@@ -58,15 +58,6 @@ function Deferral ( potential, fn, args ) {
 		resolution: Z.stringFunction( function ( test ) {
 			return test ? test === resolution || ( test in potential ? false : undefined ) : resolution;
 		}),
-		$resolution: function ( test ) {
-			if ( test === undefined ) {
-				return {
-					name: '',
-					context: resolutionContext,
-					arguments: resolutionArguments
-				};
-			}
-		},
 		did: function ( resolver ) {
 			return resolver ? !!resolution && resolver === potential[ resolution ] : !!resolution;
 		},
@@ -87,19 +78,15 @@ function Deferral ( potential, fn, args ) {
 		this.potential = this.futures = Z.noop;
 		this.as = this.given = this.empty = Z.getThis;
 		this.then = Deferral.privileged.invoke( this, null )
-			( resolutionContext = fn, resolutionArguments = args );
+			( resolutionContext = arguments[1], resolutionArguments = arguments[2] );
 		this.always = function () { return this.then( Z.slice.call( arguments ) ); };
 	}
 	
 	// Normal (n > 0)-ary deferral
 	else {
 		Z.extend( this, {
-			potential: function () {
-				return Z.extend( {}, potential );
-			},
-			futures: function () {
-				return Z.keys( potential );
-			},
+			potential: function () { return Z.extend( {}, potential ); },
+			futures: function () { return Z.keys( potential ); },
 			as: function ( context ) {
 				resolutionContext = context;
 				return this;
@@ -109,15 +96,8 @@ function Deferral ( potential, fn, args ) {
 				return this;
 			},
 			empty: function () {
-				function empty ( obj ) {
-					var key, value;
-					for ( key in obj ) if ( Z.hasOwn.call( obj, key ) ) {
-						Z.isPlainObject( value = obj[ key ] ) ?
-							empty( value ) :
-							( obj[ key ] = [] );
-					}
-				}
-				empty( callbacks = Z.extend( {}, potential ) );
+				callbacks = {};
+				Z.each( potential, function ( key ) { callbacks[ key ] = []; });
 				return this;
 			}
 		});
@@ -237,9 +217,9 @@ Z.extend( true, Deferral, {
 		 */
 		then: function () {
 			var	potential = Z.keys( this.potential() ),
-				i, l;
-			potential[0] === '' && potential.shift();
-			for ( i = 0, l = Math.min( potential.length, arguments.length ); i < l; i++ ) {
+				i = 0,
+				l = Math.min( potential.length, arguments.length );
+			for ( ; i < l; i++ ) {
 				this[ potential[i] ]( arguments[i] );
 			}
 			return this;
@@ -288,11 +268,11 @@ Z.extend( true, Deferral, {
 							function () {
 								var key,
 									result = fn.apply( this, arguments ),
-									promise_ = result && Promise.resembles( result ) ?
+									promise = result && Promise.resembles( result ) ?
 										result.promise() : undefined;
-								if ( promise_ ) {
+								if ( promise ) {
 									for ( key in potential ) {
-										promise_[ key ]( next[ potential[ key ] ] );
+										promise[ key ]( next[ potential[ key ] ] );
 									}
 								} else {
 									next.as( this === self ? next : this )[ resolver ]( result );
@@ -319,7 +299,7 @@ Z.extend( true, Deferral, {
 				master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
 				list = [],
 				i, promise, futures, affirmativeState, negativePotential, state;
-			
+
 			function affirmed ( promise_ ) {
 				return function () {
 					list.push( promise_ ) === length && master.affirm.apply( master, list );
@@ -331,22 +311,23 @@ Z.extend( true, Deferral, {
 					master.negate.apply( master, list );
 				};
 			}
-			
+
 			if ( length > 1 && Z.type( promises[ length - 1 ] ) === 'string' ) {
 				resolution = promises.pop();
 				length--;
 			}
-			
+
 			for ( i = 0; i < length; i++ ) {
 				promise = promises[i];
 				if ( promise instanceof Deferral || promise instanceof Promise ) {
-					
+					futures = promise.futures();
+
 					// (n > 0)-ary deferral: affirm for the matching resolution state and negate for any others
-					if ( ( futures = promise.futures() ) && futures.length ) {
-						
+					if ( futures && futures.length ) {
+
 						// Determine which of this promise's resolution states is to be considered affirmative in this context
 						affirmativeState = resolution || futures[0];
-						
+
 						// `negativePotential` is a map of resolution states not considered affirmative in this context
 						if ( affirmativeState in ( negativePotential = promise.potential() ) ) {
 							delete negativePotential[ affirmativeState ];
@@ -357,31 +338,31 @@ Z.extend( true, Deferral, {
 							master.negate.apply( master, list );
 							break;
 						}
-						
+
 						promise[ affirmativeState ]( affirmed( promise ) );
 						for ( state in negativePotential ) {
 							promise[ state ]( negated( promise ) );
 						}
 					}
-					
+
 					// Nullary deferral: affirm immediately
 					else {
 						promise.then( affirmed( promise ) );
 					}
 				}
-				
+
 				// For foreign promise objects, we utilize the standard `then` interface
 				else if ( Promise.resembles( promise ) ) {
 					promise.then( affirmed( promise ), negated( promise ) );
 				}
-				
+
 				// Coerce anything else into a nullary deferral.
 				else {
 					promises[i] = NullaryDeferral( master, promise );
 					Z.isFunction( promise ) && promises[i].then( promise );
 				}
 			}
-			
+
 			return master.promise();
 		}
 	}
@@ -765,7 +746,7 @@ function Procedure ( input, scope ) {
 		
 		else if ( Z.isArray( obj ) ) {
 			
-			// Control block
+			// Control block: `[ 'if' etc, function, [ ... ] ]`
 			if ( Z.type( statement = obj[0] ) === 'string' ) {
 				// TODO: labels ??
 				return Procedure.statements[ statement ].apply( this, obj.slice(1) );
@@ -882,7 +863,7 @@ Z.extend( true, Procedure, {
 					( new Deferral ).as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]()
 				)
 					.promise()
-					
+				
 					// After the condition is resolved, match its resolution with the corresponding value in
 					// `potential`, evaluate that as a new Procedure, and use its result to resolve `execution`.
 					.always( function () {
@@ -897,13 +878,13 @@ Z.extend( true, Procedure, {
 						Z.isPlainObject( block ) && ( block = block[''] );
 						block = Procedure( block, scope );
 						
-						// Arrange for the block to be executed once `condition` is resolved.
+						// Register a callback that executes the procedural block
 						condition.register( resolution, function () {
 							return block
 								.given( arguments )
 								.start()
 								.promise()
-								.then( execution.proceed, execution.throw )
+								.then( execution.given( arguments ).proceed, execution.throw )
 							;
 						});
 					});
@@ -924,10 +905,9 @@ Z.extend( true, Procedure, {
 			return Procedure.structures.branch.call( this, condition, potential );
 		},
 		'do': function () {
-			var	argsIn = Z.slice.call( arguments ),
-				argsOut = [ null, null, argsIn[0] ];
-			argsIn[1] === 'while' && argsOut.push( argsIn[2] );
-			return Procedure.structures.loop.apply( this, argsOut );
+			var args = [ null, null, input[0] ];
+			input[1] === 'while' && args.push( input[2] );
+			return Procedure.structures.loop.apply( this, args );
 		},
 		'while': function ( condition, procedure ) {
 			return Procedure.structures.loop.call( this, null, condition, procedure );
@@ -937,10 +917,9 @@ Z.extend( true, Procedure, {
 			return Procedure.structures.loop.call( this, initialization, condition, [ procedure, iteration ] );
 		},
 		'try': function () {
-			var	argsIn = Z.slice.call( arguments ),
-				argsOut = [ argsIn[0] ];
-			argsIn[1] === 'catch' && argsOut.push( argsIn[2] );
-			return Procedure.structures.exception.apply( this, argsOut );
+			var args = [ input[0] ];
+			input[1] === 'catch' && args.push( input[2] );
+			return Procedure.structures.exception.apply( this, args );
 		}
 	}
 });
