@@ -4,6 +4,7 @@ module( "Deferral" );
 
 var Deferral = Fate.Deferral;
 
+1&&
 asyncTest( "Deferral", function () {
 	var d = new Deferral( function ( a, b, c ) {
 		this.then( function ( x, y, z ) {
@@ -16,21 +17,24 @@ asyncTest( "Deferral", function () {
 	start();
 });
 
+1&&
 asyncTest( "Nullary Deferral", function () {
 	var	context = {},
-		d = Deferral.Nullary( context, [ 1, 2, 3 ] );
-	strictEqual( d.did(), true );
-	strictEqual( d.resolution(), true );
-	ok( d.promise() );
-	strictEqual( d.did(), d.promise().did() );
-	strictEqual( d.resolution(), d.promise().resolution() );
-	ok( d.as() === d );
-	d.promise().then( function ( a, b, c ) {
+		d = Deferral.Nullary( context, [ 1, 2, 3 ] ),
+		p;
+	strictEqual( d.did(), true, "No resolver methods; parameterless `did` returns `true`" );
+	strictEqual( d.resolution().state.name(), 'resolved', "Null state is 'resolved'" );
+	strictEqual( p = d.promise(), d.promise(), "Memoized promise" );
+	strictEqual( d.did(), p.did() );
+	strictEqual( d.resolution().state, p.resolution().state, "State reference consistent between deferral and promise" );
+	strictEqual( d.as(), d, "`as` returns self" );
+	p.then( function ( a, b, c ) {
 		ok( this === context && a === 1 && b === 2 && c === 3 );
 	});
 	start();
 });
 
+1&&
 asyncTest( "then()", function () {
 	var result,
 		potential = { yes: 'affirm', no: 'negate', maybe: 'punt', unanswerable: 'reject' },
@@ -45,13 +49,13 @@ asyncTest( "then()", function () {
 		.then( setResult( true ), setResult( false ), setResult( null ), setResult( undefined ) )
 		.always( function () {
 			ok( result === null, "punted, result === null" );
-			equal( d1.resolution(), 'maybe', "Resolved to 'maybe'" );
+			equal( d1.resolution().state.name(), 'maybe', "Resolved to 'maybe'" );
 		});
 	d2
 		.then( setResult( true ), setResult( false ), setResult( null ), setResult( undefined ) )
 		.always( function () {
 			ok( result === undefined, "rejected, result === undefined" );
-			equal( d2.resolution(), 'unanswerable', "Resolved to 'unanswerable'" );
+			equal( d2.resolution().state.name(), 'unanswerable', "Resolved to 'unanswerable'" );
 		});
 	
 	setTimeout( function () { d1.punt(); }, 50 );
@@ -59,13 +63,16 @@ asyncTest( "then()", function () {
 	setTimeout( start, 100 );
 });
 
+1&&
 asyncTest( "pipe()", function () {
-	var deferral = new Deferral;
+	var	deferral = new Deferral;
 	deferral
 		.pipe( function ( value ) {
 			equal( value, 3 );
 			var d = new Deferral;
-			setTimeout( function () { d.affirm( 4 ); }, 60 );
+			setTimeout( function () {
+				d.affirm( 4 );
+			}, 60 );
 			return d.promise();
 		})
 		.pipe( function ( value ) {
@@ -110,6 +117,7 @@ asyncTest( "pipe()", function () {
 	deferral.affirm( 3 );
 });
 
+1&&
 asyncTest( "when()", function () {
 	var	d1 = new Deferral,
 		d2 = new Deferral,
@@ -134,14 +142,15 @@ asyncTest( "when()", function () {
 	setTimeout( function () {
 		d1.affirm();
 		equal( result, d1, "Deferral.when( Deferral )" );
-	}, 200 );
+	}, 20 );
 	
 	setTimeout( function () {
 		d2.affirm();
 		equal( result, p2, "Deferral.when( Promise )" );
-	}, 400 );
+	}, 40 );
 });
 
+1&&
 asyncTest( "when(), all affirmed", function () {
 	var	a, b,
 		likeDojo = { addCallback: 'callback', addErrback: 'errback' },
@@ -183,6 +192,7 @@ asyncTest( "when(), all affirmed", function () {
 	}, 75 );
 });
 
+1&&
 asyncTest( "when(), early negation", function () {
 	var	a, b,
 		d1 = new Deferral,

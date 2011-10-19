@@ -1,4 +1,4 @@
-( function ( assert, undefined ) {
+0&&( function ( assert, undefined ) {
 
 module( "Procedure" );
 
@@ -340,11 +340,18 @@ asyncTest( "Control structures", function () {
 				function () {
 					return Deferral().promise();
 				}, {
-					yes: [
-						fn(1),
-						[[ fn(2), fn(3) ]]
-					],
-					no: p2
+					ok: p1,
+					error: {
+						'': [
+							fn(1),
+							[[ fn(2), fn(3) ]]
+						],
+						client: {
+							'': [],
+							notFound: []
+						},
+						server: []
+					}
 				}
 			],
 			[ 'while', function () { return jQuery.ajax('/'); }, [
