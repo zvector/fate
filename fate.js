@@ -58,8 +58,21 @@ function State ( superstate, name ) {
 }
 Z.extend( true, State, {
 	prototype: {
+		toString: function () {
+			return this.path();
+		},
+		
 		substate: function ( path ) {
 			return path ? Z.lookup( this.substates, path.replace( /\./g, '.substates.' ) ) : this;
+		},
+		
+		substateList: function () {
+			var	states = this.substates,
+				key, result = [];
+			for ( key in states ) {
+				result.push( states[ key ] );
+			}
+			return result;
 		},
 		
 		root: function () {
@@ -82,6 +95,18 @@ Z.extend( true, State, {
 		
 		isOrIsSuperstateOf: function ( state ) {
 			return this === state || this.isSuperstateOf( state );
+		},
+		
+		isRelated: function ( state ) {
+			return this.root() === state.root();
+		},
+		
+		counterpart: function ( foreignState ) {
+			return foreignState.root().substate( this.path() );
+		},
+		
+		isCounterpartOf: function ( foreignState ) {
+			return this.path() === foreignState.path();
 		},
 		
 		addSubstate: function ( type, name ) {
@@ -107,7 +132,7 @@ Z.extend( true, State, {
 				substates[ key ] =
 					value instanceof State ?
 						( value.superstate( this ), value.name( key ), value ) :
-					Z.type( value ) === 'string' ?
+					Z.isString( value ) ?
 						this.addSubstate( key, value ) :
 					Z.isPlainObject( value ) ?
 						this.addSubstate( key ).addSubstates( value ) :
@@ -121,10 +146,12 @@ Z.extend( true, State, {
 	},
 	
 	lookup: function ( subject, state ) {
-		state instanceof this || Z.type( state ) === 'string' && ( state = subject.substate( state ) );
+		state instanceof this || Z.isString( state ) && ( state = subject.substate( state ) );
 		return state && subject.isSuperstateOf( state ) && state;
 	}
 });
+
+Deferral.State = State;
 
 
 Z.inherit( ResolvedState, State );
@@ -132,15 +159,13 @@ Z.inherit( ResolvedState, State );
 function ResolvedState ( superstate, name, resolverName ) {
 	State.call( this, superstate, name );
 	
-	Z.extend( this, {
-		resolverName: function () {
-			return resolverName;
-		}
-	});
+	( this.resolverName = function () { return resolverName; })
+		.toString = this.resolverName;
 	
 	return this;
 }
 
+Deferral.ResolvedState = ResolvedState;
 
 /**
  * Potential represents the branch of possible terminal states of a deferral; i.e., a deferral's
@@ -169,489 +194,13 @@ Z.extend( Potential.prototype, {
 	}
 });
 
+Deferral.Potential = Potential;
+
 function Future () {
 	throw new TypeError; // abstract
 }
 
-Z.inherit( Future, {
-	/**
-	 * Unified interface for registering callbacks. Multiple arguments are registered to callback
-	 * queues in respective order; e.g. `Deferral().then( fn1, fn2 )` registers `fn1` to the
-	 * first queue (`yes`) and `fn2` to the second queue (`no`).
-	 */
-	then: function () {
-		var	potential = Z.keys( this.potential() ),
-			i, l;
-		potential[0] === '' && potential.shift();
-		for ( i = 0, l = Math.min( potential.length, arguments.length ); i < l; i++ ) {
-			this[ potential[i] ]( arguments[i] );
-		}
-		return this;
-	},
-	
-	/**
-	 * Interface for adding callbacks that will execute once the deferral is resolved, regardless of
-	 * whether it is affirmed or not.
-	 */
-	always: function () {
-		var	name,
-			potential = this.potential(),
-			fns = Z.slice.call( arguments );
-		for ( name in potential ) {
-			this[ name ]( fns );
-		}
-		return this;
-	},
-	
-	/**
-	 * Registers callbacks to a separate deferral, whose resolver methods are registered to the
-	 * queues of this deferral, and returns a promise bound to the succeeding deferral. This
-	 * arrangement forms a pipeline structure, which can be extended indefinitely with chained
-	 * calls to `pipe`. Once resolved, the original deferral (`this`) passes its resolution
-	 * state, context and arguments on to the succeeding deferral, whose callbacks may then
-	 * likewise dictate the resolution parameters of a further `pipe`d deferral, and so on.
-	 * 
-	 * Synchronous callbacks that return immediately will cause the succeeding deferral to
-	 * resolve immediately, with the same resolution state and context from its receiving
-	 * deferral, and the callback's return value as its lone resolution argument. Asynchronous
-	 * callbacks that return their own promise or deferral will cause the succeeding deferral
-	 * to resolve similarly once the callback's own deferral is resolved.
-	 */
-	pipe: function () {
-		var	self = this,
-			potential = this.potential(),
-			key, resolver, fn,
-			i = 0, l = arguments.length,
-			next = new Deferral( potential );
-		for ( key in potential ) {
-			if ( i < l ) {
-				resolver = potential[ key ];
-				fn = arguments[ i++ ];
-				this[ key ](
-					Z.isFunction( fn ) ?
-						function () {
-							var key,
-								result = fn.apply( this, arguments ),
-								promise_ = result && Promise.resembles( result ) ?
-									result.promise() : undefined;
-							if ( promise_ ) {
-								for ( key in potential ) {
-									promise_[ key ]( next[ potential[ key ] ] );
-								}
-							} else {
-								next.as( this === self ? next : this )[ resolver ]( result );
-							}
-						} :
-						next[ resolver ]
-				);
-			} else break;
-		}
-		return next.promise();
-	}
-}, {
-	// Used to test whether an object is or might be able to act as a Future/Deferral/Promise.
-	resembles: function ( obj ) {
-		return obj && (
-			obj instanceof Future ||
-			Z.isFunction( obj.then ) && Z.isFunction( obj.promise )
-		);
-	}
-});
-
-/**
- * Object used by a deferral instance to store callback queues that are associated with its
- * resolved substates.
- */
-function CallbackQueueTree ( rootState ) {
-	var root, cache;
-	
-	Z.extend( this, {
-		/**
-		 * Returns the callback queue Array associated with the specified `state`; creates it if necessary.
-		 */
-		get: function ( state, readonly ) {
-			var	path = state.path(),
-				obj = cache[ path ],
-				derivation, name, next, i, l;
-			
-			if ( obj ) { return obj; }
-			
-			obj = root;
-			derivation = state.derivation( rootState );
-			for ( i = 0, l = derivation.length; i < l; ) {
-				name = derivation[i].name();
-				next = ( obj[ name ] || !readonly && ( obj[ name ] = [] ) );
-				++i < l && Z.isArray( next ) && ( next = obj[ name ] = { '': next } );
-				obj = next;
-			}
-			return cache[ path ] = obj;
-		},
-		
-		/**
-		 * Discards callback queues; optionally limited to those associated with the specified state
-		 * and its substates.
-		 */
-		empty: function ( state ) {
-			var obj, path, pathDot, key, deletions, i, l;
-			
-			if ( !state || state === baseState ) {
-				root = { '':[] }, cache = {};
-			}
-			else if ( baseState.isSuperstateOf( state ) ) {
-				path = state.superstate().path();
-				obj = Z.lookup( root, path );
-				if ( obj ) {
-					// Prune the branch associated with this state
-					obj[ state.name() ] = null;
-					
-					// Remove any related cached entries
-					pathDot = path + '.';
-					for ( key in cache ) if ( Z.hasOwn.call( cache, key ) ) {
-						( key === path || key.indexOf( pathDot ) === 0 ) &&
-							deletions.push( key );
-					}
-					for ( i = 0, l = deletions.length; i < l; i++ ) {
-						delete cache[ deletions[i] ];
-					}
-				}
-			}
-			return this;
-		}
-	});
-	
-	this.empty();
-}
-
-
-/**
- * `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
- * 
- * @param Object potential : Hashmap whose entries represent the set of resolved substates for the deferral;
- * 		keys specify a name for the substate's callback queue, and values specify a name for the
- * 		resolution method used to transition to that substate and execute its associated callbacks.
- * @param Function fn : A function that will be executed immediately in the context of the deferral.
- * @param Array args : Array of arguments to be passed to `fn`.
- */
-Z.inherit( Deferral, Future );
-
-function Deferral ( potential, fn, args ) {
-	if ( !( this instanceof Deferral ) ) {
-		return new Deferral( potential, fn, args );
-	}
-	if ( potential === undefined || Z.isFunction( potential ) ) {
-		args = fn, fn = potential, potential = undefined;
-		return new Deferral.Binary( fn, args );
-	}
-	
-	if ( potential ) {
-		this.state = potential instanceof Potential ?
-			potential.root() :
-			State({
-				unresolved: { pending: null },
-				resolved: potential = Potential( potential )
-			});
-	} else {
-		potential = this.state.substate( 'resolved' );
-	}
-	
-	
-	var	self = this,
-		
-		// Root element of the state hierarchy
-		root = this.state,
-		
-		// Arrangement of callback queues in a tree structure analogous with the state hierarchy
-		callbacks = new CallbackQueueTree( root ),
-		
-		// Map that keys names of resolver methods to their associated resolution states
-		resolvers = {},
-		
-		// Container for terms of the deferral's resolution status
-		resolution = {
-			// The deferral's current state
-			state: root.substate( 'unresolved' ),
-			
-			// The context in which all queued callback functions will be called
-			context: undefined,
-			
-			// The arguments that will be supplied to all queued callbacks
-			arguments: undefined
-		},
-		
-		// Deprecated
-		futures,
-		
-		// Memoized promise instance
-		promise;
-	
-	
-	Z.extend( this, {
-		/**
-		 * Returns a copy of the deferral's formatted `potential` map.
-		 */
-		potential: function () {
-			return potential; //return Z.extend( 'deep own', Z.create( Z.getPrototypeOf( potential ) ), potential );
-		},
-		
-		resolvers: function () {
-			return Z.keys( resolvers );
-		},
-		
-		/**
-		 * If called with no parameter, returns a copy of the `resolution` object, containing the name
-		 * of the state to which the deferral has resolved, if any, and the bound context and arguments.
-		 *
-		 * If called with a `test` string, returns `true` if `test` matches the resolution state path,
-		 * `false` if the resolution state is different from `test`, and `undefined` if the deferral is
-		 * still unresolved.
-		 */
-		resolution: function ( test ) {
-			return test != null ?
-				test === resolution.state.path() || ( Z.lookup( potential, test ) ? false : undefined ) :
-				Z.extend( {}, resolution );
-		},
-		
-		/**
-		 * Returns whether or not the deferral has resolved, or whether it was resolved **to or beyond**
-		 * the state associated with the resolver method named `test`.
-		 */
-		did: function ( resolverName ) {
-			var	state = resolution.state,
-				test = resolvers[ resolverName ];
-			
-			return resolverName ?
-				( test ) === state || test.isSuperstateOf( state )
-				:
-				state instanceof ResolvedState &&
-					( state === potential || potential.isSuperstateOf( state ) );
-		},
-		
-		/**
-		 * Caches and returns a promise to this deferral.
-		 */
-		promise: function ( uncached ) {
-			return uncached ?
-				new Promise( this ) :
-				promise || ( promise = new Promise( this ) );
-		},
-		
-		/**
-		 * Returns an Array containing the paths of the resolution states defined in
-		 * this deferral's potential map.
-		 */
-		futures: function () {
-			function iterate ( substates ) {
-				var key, substate;
-				for ( key in substates ) {
-					substate = substates[ key ];
-					futures.push( substate.path() );
-					substate.substates && iterate( substate.substates );
-				}
-				return futures;
-			}
-			return futures || ( futures = [], iterate( this.substates ) );
-		},
-		
-		as: function ( context ) {
-			resolution.context = context;
-			return this;
-		},
-		
-		given: function ( args ) {
-			resolution.arguments = args;
-			return this;
-		},
-		
-		empty: function () {
-			callbacks.empty();
-			return this;
-		}
-	});
-	
-	Deferral.createMethods( this, { resolved: potential }, {
-		deferral: this,
-		resolvers: resolvers,
-		registerFn: Deferral.privileged.register( this, callbacks ),
-		resolveFn: Deferral.privileged.resolve( this, callbacks, resolution )
-	});
-	Z.extend( 'own', this, this.resolved );
-	
-	fn && Z.isFunction( fn ) && fn.apply( this, args );
-}
-Z.extend( true, Deferral, {
-	privileged: {
-		/**
-		 * Outer closure for the registrar method factory.
-		 */
-		register: function ( self, callbacks ) {
-			var potential = self.potential();
-			
-			/**
-			 * Registrar method factory: produces a function that will add callbacks to a queue
-			 * associated with the specified state.
-			 */
-			return function ( state ) {
-				Z.type( state ) === 'string' && ( state = potential.substate( state ) );
-				if ( !( state && ( potential.isOrIsSuperstateOf( state ) ) ) ) {
-					throw new ReferenceError( "Bad state reference" );
-				}
-				
-				return ( function ( queue ) {
-					function register ( fn ) {
-						Z.isFunction( fn ) ?
-							queue.push( fn ) :
-							Z.isArray( fn ) && Z.forEach( fn, register );
-						return self;
-					}
-					return register;
-				})( callbacks.get( state ) );
-			};
-		},
-		
-		/**
-		 * Outer closure for the resolver method factory.
-		 */
-		resolve: function ( self, callbacks, resolution ) {
-			var	invokeFn = this.invoke( self, callbacks ),
-				invokeAllFn = this.invokeAll( self, callbacks ),
-				potential = self.potential();
-			
-			/**
-			 * Resolver method factory: produces a function that will resolve the deferral to the
-			 * targeted state and alter the deferral's behavior accordingly.
-			 */
-			return function ( state ) {
-				state instanceof ResolvedState ||
-					( state = potential.substate( state ) || potential.root().substate( state ) );
-				
-				if ( !( state && potential.isSuperstateOf( state ) ) ) {
-					throw new ReferenceError( "Bad state path" );
-				}
-				
-				var derivation = state.derivation( self.potential().superstate() );
-				
-				/*
-				 * Since the deferral has transitioned to a 'resolved' substate (e.g. affirmed, negated,
-				 * etc.), the behavior of its registrar and resolver methods must be redefined.
-				 * 
-				 * Resolution state, `context` and `args` are preserved in the closure; henceforth,
-				 * callback registrations addressed to the selected state or its superstates cause
-				 * the callback to be invoked immediately with the saved `context` and `args`, while
-				 * subsequent callback registrations to any other states are rendered invalid, and will
-				 * be ignored.
-				 */
-				return function () {
-					var	context = resolution.context,
-						args = arguments.length ?
-								( resolution.arguments = Z.slice.call( arguments ) ) :
-								resolution.arguments;
-					
-					resolution.state = state;
-					
-					/*
-					 * All of the deferral's nested registrar methods must be redefined such that
-					 * only those related to the selected `state` will respond to further callback
-					 * registrations. Those methods are changed to a copy of the invoke function,
-					 * and all others are changed to a return-self function.
-					 */
-					Z.extend( self, self.resolved = ( function () {
-						function invokeFnFn () {
-							return invokeFn( context, args );
-						}
-						function map ( source, target ) {
-							for ( var key in source ) if ( Z.hasOwn.call( source, key ) ) {
-								// If something already exists here, it's an invoke function, so keep it ...
-								Z.hasOwn.call( target, key ) ||
-									( target[ key ] = Z.thunk( self ) );
-								map( source[ key ], target[ key ] );
-							}
-							return target;
-						}
-						
-						var	result, cursor = result = invokeFnFn(),
-							i = 1, l = derivation.length;
-						
-						/*
-						 * First create the functional branches of the function tree, i.e. those that
-						 * will be responsive to any subsequent callback registrations ...
-						 */
-						while ( i < l ) {
-							cursor = cursor[ derivation[ i++ ].name() ] = invokeFnFn();
-						}
-						
-						/**
-						 * ... then fill out the remaining functions with return-self (the functions
-						 * just created will be skipped over and not overwritten).
-						 */
-						return map( self.resolved, result );
-					})() );
-					
-					/*
-					 * Since the resolution state transition is by definition irreversible, there is no
-					 * longer any use for the resolver methods, so these are changed to a return-self
-					 * function.
-					 */
-					( function () {
-						var	resolvers = self.resolvers(),
-							i = 0, l = resolvers.length,
-							selfFn = Z.thunk( self );
-						while ( i < l ) { self[ resolvers[ i++ ] ] = selfFn; }
-					})();
-					
-					/*
-					 * With the deferral's behavior alterations complete, we can now invoke all of the
-					 * previously queued callbacks along the path of `state`, and finally dispense with
-					 * the callback queues.
-					 */
-					( function () {
-						var i, l, invokeAll = invokeAllFn( context, args );
-						for ( i = 0, l = derivation.length; i < l; i++ ) {
-							invokeAll( callbacks.get( derivation[i] ) );
-						}
-						callbacks = null;
-					})();
-					
-					return self;
-				};
-			};
-		},
-		
-		/**
-		 * Produces a function that invokes a queued callback. In addition, when the deferral is
-		 * resolved, the function returned here will become the callback registration method (e.g.,
-		 * 'yes' | 'no') that corresponds to the deferral's resolution, such that registering a
-		 * callback after the deferral is resolved will cause the callback to be invoked immediately.
-		 */
-		invoke: function ( self, callbacks ) {
-			var invokeAllFnFn = this.invokeAll;
-			return function ( context, args ) {
-				function invoke ( fn ) {
-					try {
-						Z.isFunction( fn ) ? fn.apply( context || self, args ) :
-						Z.isArray( fn ) && invokeAllFnFn( self, callbacks )( context, args )( fn );
-					} catch ( nothing ) {}
-					return self;
-				}
-				return invoke;
-			};
-		},
-		
-		/** Analogue of `invoke`, for an array of callbacks. */
-		invokeAll: function ( self, callbacks ) {
-			var invokeFnFn = this.invoke;
-			return function ( context, args ) {
-				var invoke = invokeFnFn( self, callbacks )( context, args );
-				function invokeAll ( fns ) {
-					for ( var i = 0, l = fns.length; i < l; i++ ) {
-						invoke( fns[i] );
-					}
-					return self;
-				}
-				return invokeAll;
-			};
-		}
-	},
-	
+Z.extend( 'deep', Future, {
 	prototype: {
 		/**
 		 * Unified interface for registering callbacks. Multiple arguments are registered to callback
@@ -704,7 +253,7 @@ Z.extend( true, Deferral, {
 				key, resolverName, fn,
 				i = 0, l = arguments.length,
 				next = new Deferral( potential );
-			
+		
 			for ( key in states ) {
 				if ( i < l ) {
 					( function ( resolverName, fn ) {
@@ -727,83 +276,672 @@ Z.extend( true, Deferral, {
 				} else { break; }
 			}
 			return next.promise();
+		}
+	},
+	
+	// Used to test whether an object is or might be able to act as a Future/Deferral/Promise.
+	resembles: function ( obj ) {
+		return obj && (
+			obj instanceof Future ||
+			Z.isFunction( obj.then ) && Z.isFunction( obj.promise )
+		);
+	}
+});
+
+/**
+ * Object used by a deferral instance to store callback queues that are associated with its
+ * resolved substates.
+ * 
+ * Queues are stored in either of two tree structures. Each tree is a sparse reflection of
+ * the owning deferral's state hierarchy, specified in `rootState`. The first tree is the
+ * "capture" tree, and the second is the "bubble" tree. When a deferral is resolved, it
+ * retrieves callbacks to be invoked by first walking the capture tree, from the root state
+ * down to the targeted state, and then walking the bubble tree, from the targeted state
+ * back up to the root state.
+ */
+function CallbackQueueTree ( rootState ) {
+	var root, cache;
+	
+	Z.extend( this, {
+		/**
+		 * Returns the callback queue Array associated with the specified `state`; creates it if necessary.
+		 */
+		get: function ( state, flags ) {
+			flags = flags ? Z.splitToHash( flags, ' ' ) : {};
+			
+			var	bubble = flags.bubble,
+				capture = flags.capture || !bubble,
+				readonly = flags.readonly,
+				
+				trunk = capture ? 'capture' : 'bubble',
+				path = state.path(),
+				cacheTrunk = cache[ trunk ],
+				obj = cacheTrunk && cacheTrunk[ path ],
+				derivation, name, next, i, l;
+			
+			if ( obj ) { return obj; }
+			
+			obj = root[ trunk ];
+			derivation = state.derivation( rootState );
+			i = 0, l = derivation.length;
+			while ( i < l && obj ) {
+				name = derivation[i].name();
+				next = obj[ name ] || ( readonly ? undefined : ( obj[ name ] = [] ) );
+				next && (
+					++i < l ?
+						Z.isArray( next ) &&
+							( next = readonly ? undefined : ( obj[ name ] = { '': next } ) )
+						:
+						Z.isArray( next ) || ( next = next[''] )
+				);
+				obj = next;
+			}
+			return obj && ( cacheTrunk[ path ] = obj );
 		},
 		
 		/**
-		 * Binds together the fate of all `promises` as evaluated against the specified `resolution`. Returns a
-		 * `Promise` to a master `Deferral` that either: (1) will resolve to `yes` once all `promises` have
-		 * individually been resolved to the specified `resolution`; or (2) will resolve to `no` once any one of the
-		 * `promises` has been resolved to a different resolution. If no `resolution` is specified, it will default
-		 * to that of the first defined callback queue (e.g. `yes` for a standard deferral).
+		 * Discards callback queues; optionally limited to those associated with the specified state
+		 * and its substates.
 		 */
-		when: function ( /* promises..., [ resolution ] */ ) {
-			var	promises = Z.flatten( Z.slice.call( arguments ) ),
-				length = promises.length || 1,
-				resolution,
-				master = ( this instanceof BinaryDeferral && !this.did() ) ? this : new Deferral,
-				list = [],
-				i, promise, futures, affirmativeState, negativePotential, state;
+		empty: function ( state ) {
+			var obj, path, pathDot, key, cacheTrunk, deletions, length;
 			
-			function affirmed ( promise_ ) {
-				return function () {
-					list.push( promise_ ) === length && master.affirm.apply( master, list );
-				};
+			if ( !state || state === baseState ) {
+				root = { capture: { '':[] }, bubble: { '':[] } };
+				cache = { capture: {}, bubble: {} };
 			}
-			function negated ( promise_ ) {
-				return function () {
-					list.push( promise_ );
-					master.negate.apply( master, list );
-				};
-			}
-			
-			if ( length > 1 && Z.type( promises[ length - 1 ] ) === 'string' ) {
-				resolution = promises.pop();
-				length--;
-			}
-			
-			for ( i = 0; i < length; i++ ) {
-				promise = promises[i];
-				if ( promise instanceof Future ) {
+			else if ( baseState.isSuperstateOf( state ) ) {
+				path = state.superstate().path();
+				Z.forEach( [ 'capture', 'bubble' ], function ( trunk ) {
+					obj = Z.lookup( root[ trunk ], path );
+					if ( obj ) {
+						// Prune the branch associated with this state
+						obj[ state.name() ] = null;
 					
-					// (n > 0)-ary deferral: affirm for the matching resolution state and negate for any others
-					if ( ( futures = promise.futures() ) && futures.length ) {
-						
-						// Determine which of this promise's resolution states is to be considered affirmative in this context
-						affirmativeState = resolution || futures[0];
-						
-						// `negativePotential` is a map of resolution states not considered affirmative in this context
-						if ( affirmativeState in ( negativePotential = promise.potential() ) ) {
-							delete negativePotential[ affirmativeState ];
-						} else {
-							// Because this promise will never be resolved to match `resolution`, the master deferral
-							// can be negated immediately
-							list.push( promise );
-							master.negate.apply( master, list );
-							break;
+						// Remove any related cached entries
+						cacheTrunk = cache[ trunk ], pathDot = path + '.';
+						for ( key in cacheTrunk ) if ( Z.hasOwn.call( cacheTrunk, key ) ) {
+							( key === path || key.indexOf( pathDot ) === 0 ) &&
+								deletions.push( key );
 						}
-						
-						promise[ affirmativeState ]( affirmed( promise ) );
-						for ( state in negativePotential ) {
-							promise[ state ]( negated( promise ) );
+						for ( length = deletions.length; --length; ) {
+							delete cacheTrunk[ deletions.pop() ];
 						}
 					}
+				});
+			}
+			return this;
+		}
+	});
+	
+	this.empty();
+}
+
+
+/**
+ * `Deferral` is a stateful callback device used to manage the eventualities of asynchronous operations.
+ * 
+ * @param Object potential : Hashmap whose entries represent the set of resolved substates for the deferral;
+ * 		keys specify a name for the substate's callback queue, and values specify a name for the
+ * 		resolution method used to transition to that substate and execute its associated callbacks.
+ * @param Function fn : A function that will be executed immediately in the context of the deferral.
+ * @param Array args : Array of arguments to be passed to `fn`.
+ */
+Z.inherit( Deferral, Future );
+
+function Deferral ( potential, fn, args ) {
+	if ( !( this instanceof Deferral ) ) {
+		return new Deferral( potential, fn, args );
+	}
+	if ( potential === undefined || Z.isFunction( potential ) ) {
+		args = fn, fn = potential, potential = undefined;
+	}
+	if ( potential ) {
+		this.state = potential instanceof Potential ?
+			potential.root() :
+			State({
+				unresolved: { pending: null },
+				resolved: potential = Potential( potential )
+			});
+	} else {
+		potential = this.state.substate( 'resolved' );
+	}
+	
+	
+	var	self = this,
+		
+		// Root element of the state hierarchy
+		root = this.state,
+		
+		// Arrangement of callback queues in a tree structure analogous with the state hierarchy
+		callbacks = new CallbackQueueTree( root ),
+		
+		// Container for terms of the deferral's resolution status
+		resolution = {
+			// The deferral's current state
+			state: root.substate( 'unresolved' ),
+			
+			// The context in which all queued callback functions will be called
+			context: undefined,
+			
+			// The arguments that will be supplied to all queued callbacks
+			arguments: undefined
+		},
+		
+		// Privileged method store
+		privileged = Deferral.privileged,
+		
+		// Memoized registrar method factory
+		registrarFactory,
+		
+		// Memoized resolver method factory
+		resolverFactory,
+		
+		// Memoized join method factory
+		joinFactory,
+		
+		// Maps names of resolver methods to their associated resolution states
+		resolvers = {},
+		
+		// Lazily-memoized promise instance
+		promise;
+	
+
+	Z.extend( this, {
+		/**
+		 * Returns the deferral's topmost 'resolved' state.
+		 */
+		potential: function () {
+			return potential;
+		},
+		
+		/**
+		 * Returns a list of the deferral's resolver method names.
+		 */
+		resolvers: function () {
+			return Z.keys( resolvers );
+		},
+		
+		/**
+		 * Registers a callback, or an array of callbacks, to be invoked should the deferral later
+		 * be resolved to the specified `state`, or a substate thereof.
+		 * 
+		 * @param Boolean useBubble (optional) : When a deferral is resolved, it does so by
+		 * transitioning into a particular resolution state; this state may be a substate of a
+		 * superstate, which itself may also be a substate of another superstate, and so on.
+		 * Callback invocation begins with a "capture" phase, where callbacks registered to the
+		 * superstates are invoked first, starting with the top-level `ResolvedState` (referenced
+		 * by `potential`), and ending at the specific targeted resolution state; following this
+		 * is the "bubble" phase, which retraces the derivation path in the opposite direction.
+		 * **Callbacks registered with `useBubble` set to `true` will be invoked during the latter
+		 * bubble phase; otherwise, they will be invoked during the initial capture phase.**
+		 */
+		registerTo: function ( state, fn, useBubble ) {
+			var potential = this.potential();
+			
+			Z.isString( state ) &&
+				( state = potential.substate( state ) || potential.superstate().substate( state ) );
+			
+			return state && potential.isOrIsSuperstateOf( state ) ?
+				registrarFactory( state ).call( this, fn, useBubble ) :
+				this;
+		},
+		
+		/**
+		 * 
+		 */
+		resolveTo: function ( state ) {
+			Z.isString( state ) &&
+				( state = potential.substate( state ) || potential.superstate().substate( state ) );
+			return state && potential.isOrIsSuperstateOf( state ) ?
+				resolverFactory( state ).apply( this, Z.slice.call( arguments, 1 ) ) :
+				this;
+		},
+		
+		/**
+		 * If called with no parameter, returns a copy of the `resolution` object, containing the name
+		 * of the state to which the deferral has resolved, if any, and the bound context and arguments.
+		 *
+		 * If called with a `test` string, returns `true` if `test` matches the resolution state path,
+		 * `false` if the resolution state is different from `test`, and `undefined` if the deferral is
+		 * still unresolved.
+		 */
+		resolution: function ( test ) {
+			return test != null ?
+				test === resolution.state.path() || ( Z.lookup( potential, test ) ? false : undefined ) :
+				Z.extend( {}, resolution );
+		},
+		
+		/**
+		 * Returns whether or not the deferral has resolved, or whether it was resolved **to or beyond**
+		 * the state associated with the resolver method named `test`.
+		 */
+		did: function ( name ) {
+			var state = resolution.state;
+				test = name ?
+					resolvers[ name ] ||
+						ResolvedState.lookup( potential, name ) ||
+						ResolvedState.lookup( potential.superstate(), name ) :
+					potential;
+			
+			return state instanceof ResolvedState &&
+				test ?
+					test.isOrIsSuperstateOf( state ) :
+					undefined;
+		},
+		
+		/**
+		 * Caches and returns a promise to this deferral.
+		 */
+		promise: function ( uncached ) {
+			return uncached ?
+				new Promise( this ) :
+				promise || ( promise = new Promise( this ) );
+		},
+		
+		as: function ( context ) {
+			resolution.context = context;
+			return this;
+		},
+		
+		given: function ( args ) {
+			resolution.arguments = args;
+			return this;
+		},
+		
+		empty: function () {
+			callbacks.empty();
+			return this;
+		}
+	});
+	
+	// Recursively generate registrar and resolver methods as needed
+	registrarFactory = privileged.register( this, callbacks );
+	resolverFactory = privileged.resolve( this, callbacks, resolution );
+	Deferral.createMethods( this, { resolved: potential }, {
+		deferral: this,
+		resolvers: resolvers,
+		registrarFactory: registrarFactory,
+		resolverFactory: resolverFactory
+	});
+	Z.extend( 'own', this, this.resolved );
+	
+	// Generate context-bound `join` methods
+	// TODO: move these per-instance join methods to BinaryDeferral constructor, since that's the only place that uses them
+	joinFactory = privileged.join( this );
+	Z.extend( this, {
+		when: Z.extend( joinFactory( 'when all' ), {
+			all: joinFactory( 'when all' ),
+			any: joinFactory( 'when any' ),
+			none: joinFactory( 'when none' )
+		}),
+		unless: Z.extend( joinFactory( 'unless all' ), {
+			all: joinFactory( 'unless all' ),
+			any: joinFactory( 'unless any' ),
+			none: joinFactory( 'unless none' )
+		})
+	});
+	
+	fn && Z.isFunction( fn ) && fn.apply( this, args );
+}
+Z.extend( true, Deferral, {
+	privileged: {
+		/**
+		 * Outer closure for the registrar method factory.
+		 */
+		register: function ( self, callbacks ) {
+			var potential = self.potential();
+			
+			/**
+			 * Registrar method factory: produces a function that will add callbacks to a queue
+			 * associated with the specified state.
+			 */
+			return function ( state ) {
+				Z.type( state ) === 'string' && ( state = potential.substate( state ) );
+				if ( !( state && ( potential.isOrIsSuperstateOf( state ) ) ) ) {
+					throw new ReferenceError( "Bad state reference" );
+				}
+				
+				// TODO: `useBubble` queue lookup/memo should be more efficient when `fn` is an array
+				function registrar ( fn, useBubble ) {
+					var queue = callbacks.get( state, useBubble ? 'bubble' : 'capture' );
+					Z.isFunction( fn ) ?
+						queue.push( fn ) :
+						Z.isArray( fn ) && Z.forEach( fn, function ( fn_ ) {
+							return registrar( fn_, useBubble );
+						});
+					return self;
+				}
+				
+				return registrar;
+			};
+		},
+		
+		/**
+		 * Outer closure for the resolver method factory.
+		 */
+		resolve: function ( self, callbacks, resolution ) {
+			var	invokeFn = this.invoke( self, callbacks ),
+				invokeAllFn = this.invokeAll( self, callbacks ),
+				potential = self.potential();
+			
+			/**
+			 * Resolver method factory: produces a function that will resolve the deferral to the
+			 * targeted state and alter the deferral's behavior accordingly.
+			 */
+			return function ( state ) {
+				state instanceof ResolvedState ||
+					( state = potential.substate( state ) || potential.root().substate( state ) );
+				
+				if ( !( state && potential.isSuperstateOf( state ) ) ) {
+					throw new ReferenceError( "Bad state path" );
+				}
+				
+				var derivation = state.derivation( potential.superstate() );
+				
+				/*
+				 * Since the deferral has transitioned to a 'resolved' substate (e.g. affirmed, negated,
+				 * etc.), the behavior of its registrar and resolver methods must be redefined.
+				 * 
+				 * Resolution state, `context` and `args` are preserved in the closure; henceforth,
+				 * callback registrations addressed to the selected state or its superstates cause
+				 * the callback to be invoked immediately with the saved `context` and `args`, while
+				 * subsequent callback registrations to any other states are rendered invalid, and will
+				 * be ignored.
+				 */
+				function resolver () {
+					var	selfFn = Z.thunk( self ),
+						context = resolution.context,
+						args = arguments.length ?
+								( resolution.arguments = Z.slice.call( arguments ) ) :
+								resolution.arguments;
 					
-					// Nullary deferral: affirm immediately
-					else {
-						promise.then( affirmed( promise ) );
+					resolution.state = state;
+					
+					/*
+					 * First modify the behavior of the explicit registrar and resolver methods.
+					 * `registerTo` will now invoke callbacks immediately if they are registered
+					 * to the resolution state or one of its superstates, or silently return the
+					 * deferral if registered to any other state; `resolveTo` will now simply
+					 * return the deferral, since the resolution state transition is by definition
+					 * irreversible.
+					 */
+					Z.extend( self, {
+						registerTo: function ( state_ ) {
+							Z.isString( state_ ) && ( state_ = potential.substate( state_ ) );
+							return state_ instanceof State &&
+								state_.isOrIsSuperstateOf( resolution.state ) ?
+									invokeFn( context, args )
+										.apply( self, Z.slice.call( arguments, 1 ) )
+									:
+									self;
+						},
+						resolveTo: selfFn
+					});
+					
+					/*
+					 * Next, the deferral's nested registrar methods must be redefined such that
+					 * only those related to the selected `state` will respond to further callback
+					 * registrations by immediately invoking the specified callback(s). Those
+					 * methods are changed to a copy of the invoke function, and all others are
+					 * changed to a return-self function.
+					 */
+					Z.extend( self, self.resolved = ( function () {
+						function invokeFnFn () {
+							return invokeFn( context, args );
+						}
+						function map ( source, target ) {
+							for ( var key in source ) if ( Z.hasOwn.call( source, key ) ) {
+								// If something already exists here, it's an invoke function, so keep it ...
+								Z.hasOwn.call( target, key ) ||
+									( target[ key ] = Z.thunk( self ) );
+								map( source[ key ], target[ key ] );
+							}
+							return target;
+						}
+						
+						var	result, cursor = result = invokeFnFn(),
+							i = 1, l = derivation.length;
+						
+						/*
+						 * First create the functional branches of the function tree, i.e. those that
+						 * will be responsive to any subsequent callback registrations ...
+						 */
+						while ( i < l ) {
+							cursor = cursor[ derivation[ i++ ].name() ] = invokeFnFn();
+						}
+						
+						/**
+						 * ... then fill out the remaining functions with return-self (the functions
+						 * just created will be skipped over and not overwritten).
+						 */
+						return map( self.resolved, result );
+					})() );
+					
+					/*
+					 * Just as with `resolveTo`, there is no longer any use for the named resolver
+					 * methods, so these are also changed to the return-self function.
+					 */
+					( function () {
+						var	resolvers = self.resolvers(),
+							i = 0, l = resolvers.length;
+						while ( i < l ) { self[ resolvers[ i++ ] ] = selfFn; }
+					})();
+					
+					/*
+					 * With the deferral's behavior alterations complete, we can now invoke all of the
+					 * previously queued callbacks along the path of `state`, first in a "capture"
+					 * phase from root to target, then in a "bubble" phase from target to root ...
+					 */
+					( function () {
+						var	i = 0, l = derivation.length,
+							queue,
+							invokeAll = invokeAllFn( context, args );
+						while ( i < l ) {
+							( queue = callbacks.get( derivation[ i++ ], 'readonly capture' ) ) &&
+								invokeAll( queue );
+						}
+						while ( i ) {
+							( queue = callbacks.get( derivation[ --i ], 'readonly bubble' ) ) &&
+								invokeAll( queue );
+						}
+					})();
+					
+					/* ... and then finally dispense with the callback queues. */
+					callbacks = null;
+					
+					return self;
+				}
+				
+				return resolver;
+			};
+		},
+		
+		/**
+		 * Produces a function that invokes a queued callback. In addition, when the deferral is
+		 * resolved, the function returned here will become the registrar method (e.g., 'yes' | 'no')
+		 * for the state (and its superstates) to which the deferral has resolved, such that any
+		 * subsequent registration of a callback will result in that callback being invoked immediately.
+		 */
+		invoke: function ( self, callbacks ) {
+			var invokeAllFnFn = this.invokeAll;
+			return function ( context, args ) {
+				function invoke ( fn ) {
+					try {
+						Z.isFunction( fn ) ? fn.apply( context || self, args ) :
+						Z.isArray( fn ) && invokeAllFnFn( self, callbacks )( context, args )( fn );
+					} catch ( nothing ) {}
+					return self;
+				}
+				return invoke;
+			};
+		},
+		
+		/** Analogue of `invoke`, for an array of callbacks. */
+		invokeAll: function ( self, callbacks ) {
+			var invokeFnFn = this.invoke;
+			return function ( context, args ) {
+				var invoke = invokeFnFn( self, callbacks )( context, args );
+				function invokeAll ( fns ) {
+					for ( var i = 0, l = fns ? fns.length : 0; i < l; i++ ) {
+						invoke( fns[i] );
 					}
+					return self;
+				}
+				return invokeAll;
+			};
+		},
+		
+		join: function ( deferral ) {
+			return function ( flags ) {
+				return function () {
+					var args = Z.slice.call( arguments );
+					args.unshift( flags );
+					return ( deferral || Deferral.prototype ).join.apply( deferral, args );
+				};
+			};
+		}
+	},
+	
+	prototype: {
+		state: State({
+			unresolved: {
+				pending: {}
+			},
+			resolved: Potential({
+				yes: 'affirm',
+				no: 'negate'
+			})
+		}),
+		
+		/**
+		 * Binds together the fate of multiple Futures by testing the eventual resolution of each
+		 * against certain conditions.
+		 * 
+		 * Returns a `Promise` to a master `BinaryDeferral` that will resolve to either `yes` or
+		 * `no` as soon as it can be determined that the specified set of Futures collectively will
+		 * or will not satisfy the join conditions.
+		 * 
+		 * deferral.join( [ String flags, ] Future future1, ... [ State|String resolutionState1, ... ] [ Function|Array callback1, ... ] )
+		 * 
+		 * `flags` is an optional attribute list provided as a space-delimited string. Values include:
+		 *   - { 'when' | 'unless' } : Specifies whether to resolve the master deferral affirmatively
+		 *         (`when`) or negatively (`unless`) if the set of futures eventually match any of
+		 *         the specified resolution states. If omitted, defaults to `when`.
+		 *   - { 'all' | 'any' | 'none' } : Specifies whether to resolve the master deferral once it
+		 *         can be determined that `all`, `any` one, or `none` of the joined futures will
+		 *         match the specified resolution states. If omitted, defaults to `all`.
+		 * 
+		 * `resolutionState` arguments specify one or more State objects to which the provided
+		 * futures may resolve in order to cause the master deferral to resolve affirmatively
+		 * (or negatively, if so specified with the `unless` flag). If provided as a String, a
+		 * `resolutionState` argument is interpreted as a state path evaluated against each
+		 * future's root state. If no `resolutionState` arguments are provided, the targeted
+		 * state is assumed to be the first resolved substate for each future.
+		 * 
+		 * `callback` arguments specify functions to be called once the master deferral resolves
+		 * affirmatively, equivalent to a chained call of `.join( ... ).yes( callbacks )`.
+		 */
+		join: function () {
+			var	master = this instanceof BinaryDeferral && !this.did() ?
+					this :
+					new BinaryDeferral,
+				args = Z.slice.call( arguments ),
+				arg = args.shift(),
+				futures = [],
+				states = [],
+				callbacks = [],
+				resolvedFutures = [],
+				flags, future, direction, potential, state, registrar,
+				i, il, j, jl;
+			
+			/*
+			 * Based on the type of join operation this is, as specified by `flags`, this function
+			 * dictates how the resolution of a constituent `future_` will relate to the resolution
+			 * of the master BinaryDeferral.
+			 */
+			function direct ( future_ ) {
+				var resolved = false,
+					unless = flags.unless,
+					when = flags.when || !unless,
+					none = flags.none,
+					any = flags.any,
+					all = flags.all || !( none || any ),
+					direction;
+				
+				function affirmImmediately () {
+					resolved || ( resolved = true, master.affirm( future_ ) );
+				}
+				function affirmLater () {
+					resolved ||
+						( resolved = true ) &&
+						resolvedFutures.push( future_ ) === futures.length &&
+						master.given( resolvedFutures ).affirm();
+				}
+				function negateImmediately () {
+					resolved || ( resolved = true, master.negate( future_ ) );
+				}
+				function negateLater () {
+					resolved ||
+						( resolved = true ) &&
+						resolvedFutures.push( future_ ) === futures.length &&
+						master.given( resolvedFutures ).negate();
 				}
 				
-				// For foreign promise objects, we utilize the standard `then` interface
-				else if ( Promise.resembles( promise ) ) {
-					promise.then( affirmed( promise ), negated( promise ) );
+				direction =
+					when && (
+						all && [ affirmLater, negateImmediately ] ||
+						any && [ affirmImmediately, negateLater ] ||
+						none && [ negateImmediately, affirmLater ]
+					) ||
+					unless && (
+						all && [ negateLater, affirmImmediately ] ||
+						any && [ negateImmediately, affirmLater ] ||
+						none && [ affirmImmediately, negateLater ]
+					);
+				
+				return { affirmative: direction[0], negative: direction[1] };
+			}
+			
+			// Parse out the flags and relevant collections from the argument list
+			if ( Z.isString( arg ) ) {
+				flags = Z.splitToHash( arg );
+				arg = args.shift();
+			} else {
+				flags = {};
+			}
+			for ( ; arg && Future.resembles( arg ); arg = args.shift() ) {
+				futures.push( arg );
+			}
+			for ( ; arg && ( arg instanceof ResolvedState || Z.isBoolean( arg ) ||
+					Z.isString( arg ) ); arg = args.shift() ) {
+				states.push( arg );
+			}
+			for ( ; arg && ( Z.isFunction( arg ) || Z.isArray( arg ) ); arg = args.shift() ) {
+				callbacks.push( arg );
+			}
+			
+			// Create and register callbacks that bind each future's outcome to the master deferral
+			for ( i = 0, il = futures.length; i < il; i++ ) {
+				future = futures[i];
+				potential = future.potential();
+				direction = direct( future );
+				
+				/*
+				 * If this future resolves to any of the specified states, this will accordingly
+				 * affect the master deferral as directed for an affirmative result ...
+				 */
+				for ( j = 0, jl = states.length || states.push( true ); j < jl; j++ ) {
+					state = states[j];
+					Z.isBoolean( state ) && ( state = potential.substateList()[0] );
+					future.registerTo( state, direction.affirmative );
 				}
 				
-				// Coerce anything else into a nullary deferral.
-				else {
-					promises[i] = NullaryDeferral( master, promise );
-					Z.isFunction( promise ) && promises[i].then( promise );
-				}
+				/*
+				 * ... or, if this future resolves to a state that was *not* specified, this will
+				 * conversely affect the master deferral as directed for a negative result.
+				 */
+				future.registerTo( potential, direction.negative, true );
 			}
 			
 			return master.promise();
@@ -811,8 +949,8 @@ Z.extend( true, Deferral, {
 	},
 	
 	/**
-	 * Deeply constructs all registrar methods and any associated resolver methods, by walking
-	 * the resolution potential tree.
+	 * Walks the resolution potential tree, deeply constructing all registrar methods and any
+	 * associated resolver methods.
 	 */
 	createMethods: function ( subject, states, delegate ) {
 		var key,
@@ -823,10 +961,10 @@ Z.extend( true, Deferral, {
 			state = states[ key ];
 			stateName = state.name(), statePath = state.path();
 			
-			subject[ stateName ] = delegate.registerFn( state );
+			subject[ stateName ] = delegate.registrarFactory( state );
 			( resolverName = state.resolverName() ) && (
 				delegate.resolvers[ resolverName ] = state,
-				delegate.deferral[ resolverName ] = delegate.resolveFn( statePath )
+				delegate.deferral[ resolverName ] = delegate.resolverFactory( statePath )
 			);
 			
 			state.substates &&
@@ -835,17 +973,31 @@ Z.extend( true, Deferral, {
 	}
 });
 
-Deferral.prototype.state = State({
-	unresolved: {
-		pending: {}
-	},
-	resolved: Potential({
-		yes: 'affirm',
-		no: 'negate'
-	})
-});
+// Deferral.prototype.state = State({
+// 	unresolved: {
+// 		pending: {}
+// 	},
+// 	resolved: Potential({
+// 		yes: 'affirm',
+// 		no: 'negate'
+// 	})
+// });
 
-Deferral.when = Deferral.prototype.when;
+( function () {
+	var J = Deferral.privileged.join( null );
+	Z.extend( Deferral, {
+		when: Z.extend( J( 'when all' ), {
+			all: J( 'when all' ),
+			any: J( 'when any' ),
+			none: J( 'when none' )
+		}),
+		unless: Z.extend( J( 'unless all' ), {
+			all: J( 'unless all' ),
+			any: J( 'unless any' ),
+			none: J( 'unless none' )
+		})
+	});
+})();
 
 //////////////
 
@@ -876,7 +1028,7 @@ function NullaryDeferral ( as, given ) {
 		did: function () { return true; },
 		promise: function () { return promise || ( promise = new Promise( this ) ); },
 		potential: function () { return resolution.state; },
-		futures: Z.noop,
+		primaries: Z.noop,
 		as: Z.getThis,
 		given: Z.getThis,
 		empty: Z.getThis,
@@ -892,11 +1044,11 @@ Z.extend( NullaryDeferral.prototype, {
 //////////////
 
 Deferral.Unary = Z.inherit( UnaryDeferral, Deferral, {
-	defaultState: State({
+	state: State({
 		unresolved: {
 			pending: {}
 		},
-		resolved: Potential()
+		resolved: [ 'resolve', Potential() ]
 	})
 });
 function UnaryDeferral ( fn, args ) {
@@ -907,7 +1059,7 @@ function UnaryDeferral ( fn, args ) {
 //////////////
 
 Deferral.Binary = Z.inherit( BinaryDeferral, Deferral, {
-	defaultState: State({
+	state: State({
 		unresolved: {
 			pending: {}
 		},
@@ -931,7 +1083,7 @@ function BinaryDeferral ( fn, args ) {
 Z.inherit( Promise, Future,
 	null,
 	{
-		methods: 'then always pipe promise did resolution potential futures resolvers'.split(' ')
+		methods: 'registerTo then always pipe promise did resolution potential resolvers'.split(' ')
 	}
 );
 
