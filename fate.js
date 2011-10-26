@@ -969,6 +969,7 @@ Z.extend( true, Deferral, {
 			for ( i = 0, l = futures.length; i < l; i++ ) {
 				future = futures[i];
 				potential = future.potential();
+				substateList = potential.substateList;
 				direction = direct( future );
 				
 				/*
@@ -977,7 +978,11 @@ Z.extend( true, Deferral, {
 				 */
 				for ( j = 0, lj = states.length || states.push( true ); j < lj; j++ ) {
 					state = states[j];
-					Z.isBoolean( state ) && ( state = potential.substateList()[0] );
+					Z.isBoolean( state ) && (
+						state = substateList.length ?
+							substateList[ state ? 0 : substateList.length - 1 ] :
+							potential
+					);
 					future.registerTo( state, direction.affirmative );
 				}
 				
@@ -1065,18 +1070,20 @@ function NullaryDeferral ( as, given ) {
 			context: as,
 			arguments: given
 		},
-		promise;
+		promise,
+		invoke = Deferral.privileged.invoke( this, null )( as, given );
 	
 	Z.extend( this, {
+		potential: function () { return resolution.state; },
+		registerTo: function ( state, fn ) { return invoke( fn ); },
+		resolveTo: Z.getThis,
 		resolution: function () { return Z.extend( {}, resolution ); },
 		did: function () { return true; },
 		promise: function () { return promise || ( promise = new Promise( this ) ); },
-		potential: function () { return resolution.state; },
-		primaries: Z.noop,
 		as: Z.getThis,
 		given: Z.getThis,
 		empty: Z.getThis,
-		then: Deferral.privileged.invoke( this, null )( as, given )
+		then: invoke
 	});
 }
 Z.extend( NullaryDeferral.prototype, {
