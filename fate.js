@@ -443,7 +443,7 @@ function Deferral ( potential, fn, args ) {
 		// Maps names of resolver methods to their associated resolution states
 		resolvers = {},
 		
-		// Lazily-memoized promise instance
+		// Memoized promise instance
 		promise;
 	
 
@@ -567,7 +567,7 @@ function Deferral ( potential, fn, args ) {
 	Z.extend( 'own', this, this.resolved );
 	
 	// Generate context-bound `join` methods
-	// TODO: move these per-instance join methods to BinaryDeferral constructor, since that's the only place that uses them
+	// TODO (?): move these per-instance join methods to BinaryDeferral constructor, since that's the only place that uses them
 	joinFactory = privileged.join( this );
 	Z.extend( this, {
 		when: Z.extend( joinFactory( 'when all' ), {
@@ -764,12 +764,12 @@ Z.extend( true, Deferral, {
 		 * subsequent registration of a callback will result in that callback being invoked immediately.
 		 */
 		invoke: function ( self, callbacks ) {
-			var invokeAllFnFn = this.invokeAll;
+			var privileged = this;
 			return function ( context, args ) {
 				function invoke ( fn ) {
 					try {
 						Z.isFunction( fn ) ? fn.apply( context || self, args ) :
-						Z.isArray( fn ) && invokeAllFnFn( self, callbacks )( context, args )( fn );
+						Z.isArray( fn ) && privileged.invokeAll( self, callbacks )( context, args )( fn );
 					} catch ( nothing ) {}
 					return self;
 				}
@@ -779,9 +779,9 @@ Z.extend( true, Deferral, {
 		
 		/** Analogue of `invoke`, for an array of callbacks. */
 		invokeAll: function ( self, callbacks ) {
-			var invokeFnFn = this.invoke;
+			var privileged = this;
 			return function ( context, args ) {
-				var invoke = invokeFnFn( self, callbacks )( context, args );
+				var invoke = privileged.invoke( self, callbacks )( context, args );
 				function invokeAll ( fns ) {
 					for ( var i = 0, l = fns ? fns.length : 0; i < l; i++ ) {
 						invoke( fns[i] );
@@ -853,9 +853,10 @@ Z.extend( true, Deferral, {
 				callbacks = [],
 				resolvedFutures = [],
 				flags, future, direction, potential, state, registrar,
-				i, il, j, jl;
+				element,
+				i, l, j, lj;
 			
-			/*
+			/**
 			 * Based on the type of join operation this is, as specified by `flags`, this function
 			 * dictates how the resolution of a constituent `future_` will relate to the resolution
 			 * of the master BinaryDeferral.
@@ -903,26 +904,69 @@ Z.extend( true, Deferral, {
 				return { affirmative: direction[0], negative: direction[1] };
 			}
 			
-			// Parse out the flags and relevant collections from the argument list
+			// FIXME(?): The section below is bloated, perhaps overly generous as to argument flexibility
+			
+			/*
+			 * Parse out the flags and relevant collections from the argument list
+			 */
 			if ( Z.isString( arg ) ) {
 				flags = Z.splitToHash( arg );
 				arg = args.shift();
 			} else {
 				flags = {};
 			}
-			for ( ; arg && Future.resembles( arg ); arg = args.shift() ) {
-				futures.push( arg );
-			}
-			for ( ; arg && ( arg instanceof ResolvedState || Z.isBoolean( arg ) ||
-					Z.isString( arg ) ); arg = args.shift() ) {
-				states.push( arg );
-			}
-			for ( ; arg && ( Z.isFunction( arg ) || Z.isArray( arg ) ); arg = args.shift() ) {
-				callbacks.push( arg );
+			
+			// For `futures`, accept an array of Futures, or a contiguous series of Future
+			// arguments
+			if ( arg && Z.isArray( arg ) ) {
+				arg = Z.flatten( arg );
+				for ( i = 0, l = arg.length; i < l; i++ ) {
+					Future.resembles( element = arg[i] ) && futures.push( element );
+				}
+				arg = args.shift();
+			} else {
+				while ( arg && Future.resembles( arg ) ) {
+					futures.push( arg ), arg = args.shift();
+				}
 			}
 			
-			// Create and register callbacks that bind each future's outcome to the master deferral
-			for ( i = 0, il = futures.length; i < il; i++ ) {
+			// For `states`, accept an array containing any combination of ResolvedStates,
+			// Booleans, or Strings, or a contiguous series of arguments of those types
+			if ( arg && Z.isArray( arg ) ) {
+				arg = Z.flatten( arg );
+				for ( i = 0, l = arg.length; i < l; i++ ) {
+					( ( element = arg[i] ) instanceof ResolvedState ||
+						Z.isBoolean( element ) ||
+						Z.isString( element )
+					) && states.push( element );
+				}
+				arg = args.shift();
+			} else {
+				while ( arg &&
+					( arg instanceof ResolvedState || Z.isBoolean( arg ) || Z.isString( arg ) )
+				){
+					states.push( arg ), arg = args.shift();
+				}
+			}
+			
+			// For `callbacks`, accept an array of Functions, or a contiguous series of
+			// Function arguments
+			if ( arg && Z.isArray( arg ) ) {
+				arg = Z.flatten( arg );
+				for ( i = 0, l = arg.length; i < l; i++ ) {
+					Z.isFunction( element = arg[i] ) && callbacks.push( element );
+				}
+				arg = args.shift();
+			} else {
+				while ( arg && Z.isFunction( arg ) ) {
+					callbacks.push( arg ), arg = args.shift();
+				}
+			}
+			
+			/*
+			 * Create and register callbacks that bind each future's outcome to the master deferral
+			 */
+			for ( i = 0, l = futures.length; i < l; i++ ) {
 				future = futures[i];
 				potential = future.potential();
 				direction = direct( future );
@@ -931,7 +975,7 @@ Z.extend( true, Deferral, {
 				 * If this future resolves to any of the specified states, this will accordingly
 				 * affect the master deferral as directed for an affirmative result ...
 				 */
-				for ( j = 0, jl = states.length || states.push( true ); j < jl; j++ ) {
+				for ( j = 0, lj = states.length || states.push( true ); j < lj; j++ ) {
 					state = states[j];
 					Z.isBoolean( state ) && ( state = potential.substateList()[0] );
 					future.registerTo( state, direction.affirmative );
@@ -1428,8 +1472,7 @@ function Procedure ( input, scope ) {
 		procedure = parse.call( scope, input );
 	
 	function downscope ( from ) {
-		// TODO: shim for Object.create
-		return Object.create( from || scope || null, { __procedure__: self } );
+		return Z.create( from || scope || null, { __procedure__: self } );
 	}
 	
 	function parse ( obj, index, container ) {

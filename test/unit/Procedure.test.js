@@ -1,4 +1,4 @@
-0&&( function ( assert, undefined ) {
+1&&( function ( assert, undefined ) {
 
 module( "Procedure" );
 
