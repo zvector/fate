@@ -322,4 +322,16 @@ asyncTest( "Joins using a complex state deferral", 5, function () {
 	}, 20 );
 });
 
+1&&
+asyncTest( "Casting a foreign promise to a Deferral", 1, function () {
+	Deferral.cast( jQuery.ajax( '/', {} ) )
+		.yes( function ( responseText, statusText, jqXHR ) {
+			ok( true, statusText );
+		})
+		.no( function () {
+			ok( false );
+		})
+		.always( start );
+});
+
 })();

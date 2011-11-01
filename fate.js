@@ -202,6 +202,10 @@ function Future () {
 
 Z.extend( 'deep', Future, {
 	prototype: {
+		potential: function () {
+			throw new TypeError; // virtual
+		},
+		
 		/**
 		 * Unified interface for registering callbacks. Multiple arguments are registered to callback
 		 * queues in respective order; e.g. `Deferral().then( fn1, fn2 )` registers `fn1` to the
@@ -260,7 +264,7 @@ Z.extend( 'deep', Future, {
 						function pipe () {
 							var key_,
 								result = fn.apply( this, arguments ),
-								promise_ = result && Promise.resembles( result ) ?
+								promise_ = result && Future.resembles( result ) ?
 									result.promise() :
 									undefined;
 							if ( promise_ ) {
@@ -282,7 +286,7 @@ Z.extend( 'deep', Future, {
 	// Used to test whether an object is or might be able to act as a Future/Deferral/Promise.
 	resembles: function ( obj ) {
 		return obj && (
-			obj instanceof Future ||
+			obj instanceof this ||
 			Z.isFunction( obj.then ) && Z.isFunction( obj.promise )
 		);
 	}
@@ -509,7 +513,7 @@ function Deferral ( potential, fn, args ) {
 		resolution: function ( test ) {
 			return test != null ?
 				test === resolution.state.path() || ( Z.lookup( potential, test ) ? false : undefined ) :
-				Z.extend( {}, resolution );
+				Z.extend( 'deep', {}, resolution );
 		},
 		
 		/**
@@ -854,7 +858,8 @@ Z.extend( true, Deferral, {
 				resolvedFutures = [],
 				flags, future, direction, potential, state, registrar,
 				element,
-				i, l, j, lj;
+				affirmative, negative,
+				i, l, j, sl;
 			
 			/**
 			 * Based on the type of join operation this is, as specified by `flags`, this function
@@ -868,7 +873,7 @@ Z.extend( true, Deferral, {
 					none = flags.none,
 					any = flags.any,
 					all = flags.all || !( none || any ),
-					direction;
+					result;
 				
 				function affirmImmediately () {
 					resolved || ( resolved = true, master.affirm( future_ ) );
@@ -889,7 +894,7 @@ Z.extend( true, Deferral, {
 						master.given( resolvedFutures ).negate();
 				}
 				
-				direction =
+				result =
 					when && (
 						all && [ affirmLater, negateImmediately ] ||
 						any && [ affirmImmediately, negateLater ] ||
@@ -901,7 +906,7 @@ Z.extend( true, Deferral, {
 						none && [ affirmImmediately, negateLater ]
 					);
 				
-				return { affirmative: direction[0], negative: direction[1] };
+				return { affirmative: result[0], negative: result[1] };
 			}
 			
 			// FIXME(?): The section below is bloated, perhaps overly generous as to argument flexibility
@@ -969,28 +974,42 @@ Z.extend( true, Deferral, {
 			for ( i = 0, l = futures.length; i < l; i++ ) {
 				future = futures[i];
 				potential = future.potential();
-				substateList = potential.substateList;
+				substateList = potential.substateList();
 				direction = direct( future );
+				affirmative = direction.affirmative, negative = direction.negative;
 				
-				/*
-				 * If this future resolves to any of the specified states, this will accordingly
-				 * affect the master deferral as directed for an affirmative result ...
-				 */
-				for ( j = 0, lj = states.length || states.push( true ); j < lj; j++ ) {
-					state = states[j];
-					Z.isBoolean( state ) && (
-						state = substateList.length ?
-							substateList[ state ? 0 : substateList.length - 1 ] :
-							potential
-					);
-					future.registerTo( state, direction.affirmative );
+				if ( future instanceof Future ) {
+					/*
+					 * If this future resolves to any of the specified states, this will accordingly
+					 * affect the master deferral in the manner ascribed to an affirmative result ...
+					 */
+					for ( j = 0, sl = states.length || states.push( true ); j < sl; j++ ) {
+						state = states[j];
+						Z.isBoolean( state ) && (
+							state = substateList.length ?
+								substateList[ state ? 0 : substateList.length - 1 ] :
+								potential
+						);
+						future.registerTo( state, affirmative );
+					}
+				
+					/*
+					 * ... or, if this future resolves to a state that was *not* specified, this will
+					 * conversely affect the master deferral as directed for a negative result.
+					 */
+					future.registerTo( potential, negative, true );
 				}
 				
 				/*
-				 * ... or, if this future resolves to a state that was *not* specified, this will
-				 * conversely affect the master deferral as directed for a negative result.
+				 * For foreign promise-like objects, there is no explict concept of variadic state,
+				 * so just coerce the first listed state to a boolean, and use that to determine
+				 * how this `future` will affect the master deferral.
 				 */
-				future.registerTo( potential, direction.negative, true );
+				else {
+					states.length && states[0] in Z.splitToHash([ 'no resolved.no negate false' ]) ?
+						future.then( negative, affirmative ) :
+						future.then( affirmative, negative );
+				}
 			}
 			
 			return master.promise();
@@ -1019,34 +1038,65 @@ Z.extend( true, Deferral, {
 			state.substates &&
 				this.createMethods( subject[ stateName ], state.substates, delegate );
 		}
+	},
+	
+	/**
+	 * Returns an outer deferral that wraps an inner `future` object. Useful for coercing foreign
+	 * promise implementations to a `Deferral` type.
+	 */
+	cast: function ( future ) {
+		if ( !Future.resembles( future ) ) {
+			throw new TypeError;
+		}
+		
+		var	deferral = new ( this === Deferral || this.prototype instanceof Deferral ?
+				this : Deferral ),
+			potential = deferral.potential(),
+			substates = potential.substates,
+			substateNames = Z.keys( substates ),
+			length = substateNames.length,
+			affirmativeState = substates && length && substates[ substateNames[0] ] ||
+				potential,
+			negativeState = substates && length && substates[ substateNames[ length - 1 ] ] ||
+				affirmativeState;
+		
+		function affirm () {
+			deferral.as( this ).given( arguments ).resolveTo( affirmativeState );
+		}
+		function negate () {
+			deferral.as( this ).given( arguments ).resolveTo( negativeState );
+		}
+		
+		future.then( affirm, negate );
+		
+		return deferral;
 	}
 });
 
-// Deferral.prototype.state = State({
-// 	unresolved: {
-// 		pending: {}
-// 	},
-// 	resolved: Potential({
-// 		yes: 'affirm',
-// 		no: 'negate'
-// 	})
-// });
-
+/*
+ * Add `join`, `when` and `unless` as static members
+ */
 ( function () {
-	var J = Deferral.privileged.join( null );
+	var join;
+	
+	Deferral.join = Deferral.prototype.join;
+	
+	join = Deferral.privileged.join( null );
 	Z.extend( Deferral, {
-		when: Z.extend( J( 'when all' ), {
-			all: J( 'when all' ),
-			any: J( 'when any' ),
-			none: J( 'when none' )
+		when: Z.extend( join( 'when all' ), {
+			all: join( 'when all' ),
+			any: join( 'when any' ),
+			none: join( 'when none' )
 		}),
-		unless: Z.extend( J( 'unless all' ), {
-			all: J( 'unless all' ),
-			any: J( 'unless any' ),
-			none: J( 'unless none' )
+		unless: Z.extend( join( 'unless all' ), {
+			all: join( 'unless all' ),
+			any: join( 'unless any' ),
+			none: join( 'unless none' )
 		})
 	});
 })();
+
+
 
 //////////////
 
@@ -1092,6 +1142,8 @@ Z.extend( NullaryDeferral.prototype, {
 	}
 });
 
+
+
 //////////////
 
 Deferral.Unary = Z.inherit( UnaryDeferral, Deferral, {
@@ -1106,6 +1158,8 @@ function UnaryDeferral ( fn, args ) {
 	if ( !( this instanceof UnaryDeferral ) ) { return new UnaryDeferral( fn, args ); }
 	Deferral.call( this, { done: 'resolve' }, fn, args );
 }
+
+
 
 //////////////
 
@@ -1224,7 +1278,7 @@ function Pipeline ( operations ) {
 		var result;
 		if ( Z.isFunction( this ) ) {
 			result = this.apply( self, arguments );
-			if ( Promise.resembles( result ) ) {
+			if ( Future.resembles( result ) ) {
 				result.then(
 					function () {
 						args = Z.slice.call( arguments );
@@ -1463,45 +1517,67 @@ Z.extend( Multiplex, {
  * Input is accepted in the form of nested function arrays, of arbitrary depth, where an array
  * literal `[ ]` represents a group of functions to be executed in a serial queue using a `Pipeline`;
  * a **double array literal** `[[ ]]` represents a group of functions to be executed as a parallel
- * set using a `when` invocation; a **numerically-keyed object–bound array literal** `{n:[ ]}`
+ * set using a `join` operation; a **numerically-keyed object–bound array literal** `{n:[ ]}`
  * represents a group of functions to be executed in parallel, up to `n` items concurrently, using a
  * `Multiplex` of width `n`; and a **block literal** `['type', ... ]` represents a control structure,
  * where `type` may be a statement such as `if`, `while`, `for`, etc., any of which direct the flow
  * of asynchronous execution in a manner analogous to their respective language-level counterparts.
  */
-function Procedure ( input, scope ) {
+
+// Z.oo( Procedure ).inherit( Future ).implement( Foo, Bar );
+	
+function Procedure ( input, name, scope ) {
 	if ( !( this instanceof Procedure ) ) {
-		return new Procedure( input, scope );
+		return new Procedure( input, name, scope );
 	}
 	
 	var	self = this,
-		deferral = ( new Deferral ).as( scope || ( scope = {} ) ),
-		procedure = parse.call( scope, input );
+		deferral = ( new Deferral ).as( scope || ( scope = {} ) );
 	
-	function downscope ( from ) {
-		return Z.create( from || scope || null, { __procedure__: self } );
+	function subscope ( superscope ) {
+		return Z.create( superscope || scope || null, { __procedure__: self } );
 	}
 	
-	function parse ( obj, index, container ) {
-		var statement, label, fn, array, keys, i, l, width;
+	function interpret ( obj, index, container ) {
+		var	type = Z.type( obj ),
+			identifier, label, fn, array, keys, i, l, width;
 		
-		if ( Z.isFunction( obj ) ) {
+		if ( type === 'function' ) {
 			return obj;
 		}
 		
-		else if ( Z.type( obj ) === 'string' ) {
-			// Control statement: `return` | `break` | `continue`
-			// `return` issues `stop()` on `this.__procedure__` and resolves the procedure deferral
-			// `break` issues `stop()` on `this.__block__` and resolves the block deferral
-			// `continue` issues `stop()` on `this.__block__` without resolving the block deferral
+		else if ( type === 'string' ) {
+			
+			// Reserved word; interpret as a control statement: `return` | `yield` | `break` | `continue`
+				// `return` issues `stop()` on `this.__procedure__` and resolves the procedure deferral
+				// `yield` issues `pause()` on `this.__procedure__` without resolving the procedure deferral
+				// `break` issues `stop()` on `this.__block__` and resolves the block deferral
+				// `continue` issues `stop()` on `this.__block__` without resolving the block deferral
+			if ( obj in Procedure.statements ) {
+				return Procedure.statements[ obj ].call( this, obj );
+			}
+			
+			// Not a reserved word; interpret as a dangling string expression
+			else {
+				// Could add directives e.g. "use strict" here
+			}
 		}
 		
-		else if ( Z.isArray( obj ) ) {
+		else if ( type === 'array' ) {
+			identifier = obj[0];
 			
-			// Control block
-			if ( Z.type( statement = obj[0] ) === 'string' ) {
-				// TODO: labels ??
-				return Procedure.statements[ statement ].apply( this, obj.slice(1) );
+			if ( Z.isString( identifier ) ) {
+				
+				// Reserved word; interpret as an identifier for a control block
+				if ( identifier in Procedure.statements ) {
+					return Procedure.statements[ identifier ].apply( this, obj.slice(1) );
+				}
+				
+				// Not a reserved word; interpret as a named identifier for a procedure defined by the subsequent elements
+				else {
+					// TODO
+					return this[ identifier ] = Procedure( obj.slice(1), identifier, subscope( this ) );
+				}
 			}
 			
 			// Simple series or parallel literal: `[ ... ]` | `[[ ... ]]`
@@ -1511,7 +1587,7 @@ function Procedure ( input, scope ) {
 					Procedure.structures.series;
 				
 				for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
-					array.push( parse.call( downscope( this ), obj[i], i, obj ) );
+					array.push( interpret.call( subscope( this ), obj[i], i, obj ) );
 				}
 				
 				return fn.apply( this, array );
@@ -1526,7 +1602,7 @@ function Procedure ( input, scope ) {
 			&& Z.isArray( obj = obj[ width ] )
 		) {
 			for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
-				array.push( parse.call( downscope( this ), obj[i], i, obj ) );
+				array.push( interpret.call( subscope( this ), obj[i], i, obj ) );
 			}
 			return Procedure.structures.multiplex.call( this, width, array );
 		}
@@ -1537,12 +1613,14 @@ function Procedure ( input, scope ) {
 			deferral.as( context );
 			return self;
 		},
+		
 		given: function ( args ) {
 			deferral.given( args );
 			return self;
 		},
+		
 		start: function () {
-			var result = procedure.apply( self, arguments );
+			var result = interpret.call( scope, input ).apply( self, arguments );
 			
 			function affirm () {
 				return deferral.as( result ).given( arguments ).affirm();
@@ -1551,23 +1629,18 @@ function Procedure ( input, scope ) {
 				return deferral.as( result ).given( arguments ).negate();
 			}
 			
-			Promise.resembles( result ) ?
+			Future.resembles( result ) ?
 				result.then( affirm, negate ) :
 				( result ? affirm : negate ).apply( self, result );
 			
 			return self.promise();
 		},
+		
 		promise: function () {
 			return deferral.promise();
 		}
 	});
 }
-
-function ExecutionDeferral () {
-	if ( !( this instanceof ExecutionDeferral ) ) { return new ExecutionDeferral; }
-	Deferral.call( this, { ok: 'proceed', error: 'throw' } );
-}
-ExecutionDeferral.prototype = Deferral.prototype;
 
 Z.extend( true, Procedure, {
 	structures: {
@@ -1580,16 +1653,16 @@ Z.extend( true, Procedure, {
 	
 		parallel: function () {
 			var	scope = this,
-				promises = Z.slice.call( arguments );
+				futures = Z.slice.call( arguments );
 			return function () {
-				for ( var obj, i = 0, l = promises.length; i < l; i++ ) {
-					obj = promises[i].apply( scope, arguments );
-					if ( !( Z.isFunction( obj ) || Promise.resembles( obj ) ) ) {
-						obj = Deferral.Nullary( scope, obj );
+				for ( var obj, i = 0, l = futures.length; i < l; i++ ) {
+					obj = futures[i].apply( scope, arguments );
+					if ( !( Z.isFunction( obj ) || Future.resembles( obj ) ) ) {
+						obj = NullaryDeferral( scope, obj );
 					}
-					promises[i] = obj;
+					futures[i] = obj;
 				}
-				return Deferral.when( promises );
+				return Deferral.join( futures );
 			};
 		},
 	
@@ -1607,42 +1680,65 @@ Z.extend( true, Procedure, {
 			return function () {
 				
 				// If `condition` is a function, treat it like a closure over the actual object of interest
-				Z.isFunction( condition ) && ( condition = condition.apply( scope, arguments ) );
+				if ( Z.isFunction( condition ) ) {
+					condition = condition.apply( scope, arguments );
+				}
 				
-				return condition = (
-					Promise.resembles( condition ) ? condition :
-					Z.isArray( condition ) ? Procedure( condition, scope ).given( arguments ).start() :
-					( new Deferral ).as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]()
-				)
-					.promise()
+				if ( !Future.resembles( condition ) ) {
+					condition = Z.isArray( condition ) ?
+						Procedure( condition, null, scope ).given( arguments ).start() :
+						( new Deferral ).as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]();
+				}
+				
+				// After the condition is resolved, match its resolution with the corresponding value in
+				// `potential`, evaluate that as a new Procedure, and use its result to resolve `execution`.
+				condition.always( function () {
+					var	resolution = condition.resolution().split('.'),
+						i = 0, l = resolution.length, block;
 					
-					// After the condition is resolved, match its resolution with the corresponding value in
-					// `potential`, evaluate that as a new Procedure, and use its result to resolve `execution`.
-					.always( function () {
-						var	resolution = condition.resolution().split('.'),
-							i = 0, l = resolution.length, block;
-						
-						// Identify the entry within `potential` that corresponds to the resolution of
-						// `condition`, and use that to create a procedural block.
-						while ( i < l ) {
-							block = potential[ resolution[ i++ ] ];
-						}
-						Z.isPlainObject( block ) && ( block = block[''] );
-						block = Procedure( block, scope );
-						
-						// Arrange for the block to be executed once `condition` is resolved.
-						condition.register( resolution, function () {
-							return block
-								.given( arguments )
-								.start()
-								.promise()
-								.then( execution.proceed, execution.throw )
-							;
-						});
+					// Identify the entry within `potential` that corresponds to the resolution of
+					// `condition`, and use that to create a procedural block.
+					while ( i < l ) {
+						block = potential[ resolution[ i++ ] ];
+					}
+					Z.isPlainObject( block ) && ( block = block[''] );
+					block = Procedure( block, null, scope );
+					
+					// Arrange for the block to be executed once `condition` is resolved.
+					condition.registerTo( resolution, function () {
+						return block
+							.given( arguments )
+							.start()
+							.promise()
+							.then( execution.proceed, execution.throw )
+						;
 					});
+				});
 			};
 		},
-	
+		
+		selection: function ( condition, potential ) {
+			var scope = this,
+				execution = ( new ExecutionDeferral ).as( scope );
+			
+			return function () {
+				
+				// If `condition` is a function, treat it like a closure over the actual object of interest
+				if ( Z.isFunction( condition ) ) {
+					condition = condition.apply( scope, arguments );
+				}
+				
+				if ( !Future.resembles( condition ) ) {
+					condition = Z.isArray( condition ) ?
+						Procedure( condition, null, scope ).given( arguments ).start() :
+						( new Deferral ).as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]();
+				}
+				
+				// Apply contents of `potential` to the `condition` promise
+				// By default do this late, on root state in bubble phase, to avoid overhead of creating tons of functions that won't get used
+			}
+		},
+		
 		loop: function ( initialization, precondition, procedure, postcondition ) {
 		
 		},
@@ -1653,22 +1749,41 @@ Z.extend( true, Procedure, {
 	},
 	
 	statements: {
-		'if': function ( condition, potential ) {
-			return Procedure.structures.branch.call( this, condition, potential );
+		'if': function ( condition, predicate, elseKeyword, elseBlock ) {
+			if ( Z.isPlainObject( predicate ) ) {
+				return Procedure.structures.selection.call( this, condition, predicate );
+			}
+			
+			else {
+				if ( Z.isString( elseKeyword ) && elseKeyword.indexOf( 'else' ) === 0 ) {
+					if ( elseKeyword === 'else if' ) {
+						elseBlock = Procedure.statements['if'].apply( this, Z.slice.call( arguments, 3 ) );
+					}
+				} else {
+					elseBlock = elseKeyword;
+				}
+				return Procedure.structures.branch.call( this, condition, predicate, elseBlock );
+			}
+			
+			throw new Error( "Parse error: if" );
 		},
+		
 		'do': function () {
 			var	argsIn = Z.slice.call( arguments ),
 				argsOut = [ null, null, argsIn[0] ];
 			argsIn[1] === 'while' && argsOut.push( argsIn[2] );
 			return Procedure.structures.loop.apply( this, argsOut );
 		},
+		
 		'while': function ( condition, procedure ) {
 			return Procedure.structures.loop.call( this, null, condition, procedure );
 		},
+		
 		'for': function ( expr, procedure ) {
 			var	initialization = expr[0], condition = expr[1], iteration = expr[2];
 			return Procedure.structures.loop.call( this, initialization, condition, [ procedure, iteration ] );
 		},
+		
 		'try': function () {
 			var	argsIn = Z.slice.call( arguments ),
 				argsOut = [ argsIn[0] ];
@@ -1677,6 +1792,17 @@ Z.extend( true, Procedure, {
 		}
 	}
 });
+
+// An explicit `Scope` type. No other use at present than to differentiate from a plain Object.
+// TODO: args `superscope`, `procedure`, `block`
+function Scope () {
+}
+
+function ExecutionDeferral () {
+	if ( !( this instanceof ExecutionDeferral ) ) { return new ExecutionDeferral; }
+	Deferral.call( this, { ok: 'proceed', error: 'throw' } );
+}
+ExecutionDeferral.prototype = Deferral.prototype;
 
 
 })();
