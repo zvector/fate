@@ -1,4 +1,4 @@
-( function ( undefined ) {
+1&&( function ( undefined ) {
 
 module( "Multiplex" );
 

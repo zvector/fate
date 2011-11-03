@@ -1,4 +1,4 @@
-( function ( assert, undefined ) {
+1&&( function ( assert, undefined ) {
 
 module( "Procedure" );
 
@@ -340,23 +340,64 @@ asyncTest( "Control structures", function () {
 				function () {
 					return Deferral().promise();
 				}, {
-					yes: [
-						fn(1),
-						[[ fn(2), fn(3) ]]
-					],
-					no: p2
+					ok: p1,
+					error: {
+						'': [
+							fn(1),
+							[[ fn(2), fn(3) ]]
+						],
+						client: {
+							'': [],
+							notFound: []
+						},
+						server: []
+					}
+				}
+			],
+			[ 'if',
+				[], // Array | Function : a possibly asynchronous condition
+				
+				// If the third argument is an object, use it as a resolution map to apply to the
+				// condition's resolution; disregard any subsequent arguments
+				
+				// Otherwise ...
+				[
+					// Array | Function : block to execute asynchronously if the condition resolves affirmatively
+				],
+				
+				// if 'else if' is encountered, slice the statement array here, and process that as
+				// a new statement array to be executed if the upper condition resolves negatively
+				'else if',
+				[], // Array | Function : a possibly asynchronous condition
+				[], // Array | Function ( | Object ) : block to execute asynchronously if the
+					// condition resolves affirmatively
+				
+				// additional 'else if's, etc.
+				
+				'else',
+				[]  // Array | Function ( | Object ) : block to execute asynchronously if the most
+					// recent condition resolves negatively. This is necessarily the last argument
+					// in the statement array to be considered
+			],
+			[ 'namedProcedure', [
+				p1
+			] ],
+			[
+				function () {
+					this.namedProcedure()
+						.start();
 				}
 			],
 			[ 'while', function () { return jQuery.ajax('/'); }, [
 				p1,
 				[ 'if', function () { return this.whatever }, 'return' ],
 				p2
-			]],
+			] ],
 			[ 'for', [ function () {/*initialization*/}, function () {/*condition*/}, function () {/*iteration*/} ], [
 				p1,
 				[ 'if', function () { return this.whatever }, 'break' ],
 				p2
-			]],
+			] ],
 			[ 'try', [ p1, p2 ], 'catch', p1 ],
 			function () {}
 		];
