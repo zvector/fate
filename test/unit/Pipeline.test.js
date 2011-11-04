@@ -16,17 +16,15 @@ var	Deferral = Fate.Deferral,
  * to be passed; or they may be asynchronous, returning a `Promise` to a `Deferral` that is
  * `affirm`ed once it's ready.
  * 
- * Synchronous operations can be faster since they continue immediately, however they also incur an
- * ever increasing memory overhead as they are strung together, since immediate continuations will
- * accumulate on the stack, and JavaScript does not do any tail-call optimization. Also, because
+ * Synchronous operations can be faster since they continue immediately, however, because
  * contiguous synchronous operations are processed within a single turn of the event loop, too long
- * a sequence may result in noticeable interruptions in the UI and elsewhere.
+ * a sequence may result in noticeable interruptions to the host thread (e.g., UI).
  * 
- * Asynchronous operations advance the queue no faster than the runtime's event loop, but this has
- * the advantage of not polluting the stack or retarding the event loop.
+ * Asynchronous operations advance the queue no faster than once per event loop frame, but this has
+ * the advantage of not prolonging any single frame.
  * 
- * Synchronous and asynchronous operations can be mixed together arbitrarily to provide built-in
- * granular control over this balance of immediacy versus stack space.
+ * Synchronous and asynchronous operations can be mixed together arbitrarily, allowing granular
+ * control over this balance of imposition versus immediacy.
  */
 asyncTest( "Pipeline", 15, function () {
 	
@@ -44,7 +42,7 @@ asyncTest( "Pipeline", 15, function () {
 		};
 	}
 	
-	function sync( fn, test ) {
+	function sync ( fn, test ) {
 		return function () {
 			var args = fn.apply( this, arguments );
 			equal( args.join(), test );
@@ -63,10 +61,7 @@ asyncTest( "Pipeline", 15, function () {
 		sync( function ( x, y, z ) { return [ x+1, y+3, z+10 ]; }, '1,9,4' ),
 		sync( function ( x, y, z ) { return [ Math.sqrt(x), Math.sqrt(y), Math.sqrt(z) ] }, '1,3,2' ),
 		
-		// Since JS isn't tail-call optimized, synchronous operations accumulate on the stack. (Set a
-		// breakpoint inside each of the last few operations and notice the growing number of references to
-		// `continuation`.) To relieve that pressure, let's go back to using async operations, which
-		// allows the event loop to turn over and the call stack to unwind.
+		// Back to async
 		async( function ( x, y, z ) { return [ x-1, y-1, z-1 ] }, 0, '0,2,1' ),
 		async( function ( x, y, z ) { return [ x*2, y*2, z*2 ] }, 100, '0,4,2' )
 	]);

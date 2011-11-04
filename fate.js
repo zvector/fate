@@ -1264,39 +1264,62 @@ function Pipeline ( operations ) {
 		return operation = operations.shift();
 	}
 	
-	function emit ( eventType ) {
+	function emit ( eventType, obj ) {
 		var	callbacks = events[ eventType ],
-			i, l;
+			i, l,
+			data = Z.extend( { target: self, operation: operation, args: args }, obj );
 		if ( callbacks ) {
 			for ( i = 0, l = callbacks.length; i < l; i++ ) {
-				callbacks[i].call( self, { target: self, operation: operation, args: args } );
+				callbacks[i].call( self, data );
 			}
 		}
 	}
 	
 	function continuation () {
-		var result;
-		if ( Z.isFunction( this ) ) {
-			result = this.apply( self, arguments );
+		var	result;
+		
+		while ( operation != null || ( operation = operations.shift() ) != null ) {
+			result = Z.isFunction( operation ) ? operation.apply( self, args ) : operation;
+			
+			// Asynchronous: schedule a deferred recursion and return immediately
 			if ( Future.resembles( result ) ) {
 				result.then(
 					function () {
 						args = Z.slice.call( arguments );
 						emit( 'didOperation' );
 						pausePending && ( running = pausePending = false );
-						running && ( operation = operations[0] ) && emit( 'willContinue' );
-						running && continuation.apply( shift(), args );
+						if ( running ) {
+							if ( ( operation = operations.shift() ) != null ) {
+								emit( 'willContinue' );
+								continuation.apply( operation, args );
+							} else {
+								self.stop();
+							}
+						}
 					},
 					self.abort
 				);
-			} else {
-				args = Z.slice.call( arguments );
-				running && continuation.apply( shift(), Z.isArray( result ) ? result : [ result ] );
+				return;
 			}
-		} else {
-			args = Z.slice.call( arguments );
-			self.stop();
+			
+			// Synchronous: loop until an asynchronous operation or the end of the pipeline is encountered
+			else {
+				args = Z.isArray( result ) ? result : [ result ];
+				emit( 'didOperation' );
+				pausePending && ( running = pausePending = false );
+				if ( running ) {
+					if ( ( operation = operations.shift() ) != null ) {
+						emit( 'willContinue' );
+						continue;
+					}
+					else {
+						break;
+					}
+				}
+			}
 		}
+		
+		self.stop();
 	}
 	
 	function as ( context_ ) {
@@ -1312,7 +1335,10 @@ function Pipeline ( operations ) {
 	function start () {
 		( !deferral || deferral.did() ) && reset();
 		running = true;
-		self.as = self.given = self.start = returnSelf, self.pause = pause, self.resume = resume, self.stop = stop, self.abort = abort;
+		
+		self.as = self.given = self.start = returnSelf;
+		self.pause = pause, self.resume = resume, self.stop = stop, self.abort = abort;
+		
 		continuation.apply( shift(), arguments.length ? ( args = Z.slice.call( arguments ) ) : args );
 		return self;
 	}
@@ -1332,14 +1358,20 @@ function Pipeline ( operations ) {
 	
 	function stop () {
 		running = pausePending = false;
-		self.as = as, self.given = given, self.start = start, self.pause = self.resume = self.stop = self.abort = returnSelf;
+		
+		self.as = as, self.given = given, self.start = start;
+		self.pause = self.resume = self.stop = self.abort = returnSelf;
+		
 		deferral.given( args ).affirm();
 		return self;
 	}
 	
 	function abort () {
 		running = pausePending = false;
-		self.as = as, self.given = given, self.start = start, self.pause = self.resume = self.stop = self.abort = returnSelf;
+		
+		self.as = as, self.given = given, self.start = start;
+		self.pause = self.resume = self.stop = self.abort = returnSelf;
+		
 		deferral.given( args ).negate();
 		return self;
 	}
@@ -1397,6 +1429,10 @@ function Multiplex ( width, operations ) {
 		pipeCount = 0,
 		first, last;
 	
+	function returnSelf () {
+		return self;
+	}
+	
 	function fill () {
 		while ( pipeCount < width && operations.length ) {
 			addPipe();
@@ -1452,21 +1488,21 @@ function Multiplex ( width, operations ) {
 	function start () {
 		arguments.length && ( args = Z.slice.call( arguments ) );
 		running = true;
-		self.as = self.given = self.start = Z.getThis, self.stop = stop, self.abort = abort;
+		self.as = self.given = self.start = returnSelf, self.stop = stop, self.abort = abort;
 		fill();
 		return self;
 	}
 	
 	function stop () {
 		running = false;
-		self.start = start, self.as = as, self.given = given, self.stop = self.abort = Z.getThis;
+		self.start = start, self.as = as, self.given = given, self.stop = self.abort = returnSelf;
 		deferral.given( args ).affirm();
 		return self;
 	}
 	
 	function abort () {
 		running = false;
-		self.start = start, self.as = as, self.given = given, self.stop = self.abort = Z.getThis;
+		self.start = start, self.as = as, self.given = given, self.stop = self.abort = returnSelf;
 		deferral.given( args ).negate();
 		return self;
 	}
@@ -1491,7 +1527,7 @@ function Multiplex ( width, operations ) {
 		as: as,
 		given: given,
 		start: start,
-		stop: Z.getThis
+		stop: returnSelf
 	});
 }
 Z.extend( Multiplex, {
@@ -1511,7 +1547,7 @@ Z.extend( Multiplex, {
  * of asynchronous execution in a manner analogous to their respective language-level counterparts.
  */
 
-// Z.oo( Procedure ).inherit( Future ).implement( Foo, Bar );
+// Z.oo( Procedure ).inherit( Future ).implement( Promise );
 	
 function Procedure ( input, name, scope ) {
 	if ( !( this instanceof Procedure ) ) {
@@ -1527,7 +1563,7 @@ function Procedure ( input, name, scope ) {
 	
 	function interpret ( obj, index, container ) {
 		var	type = Z.type( obj ),
-			identifier, label, fn, array, keys, i, l, width;
+			identifier, label, structure, instructions, keys, i, l, width;
 		
 		if ( type === 'function' ) {
 			return obj;
@@ -1569,15 +1605,15 @@ function Procedure ( input, name, scope ) {
 			
 			// Simple series or parallel literal: `[ ... ]` | `[[ ... ]]`
 			else {
-				fn = obj.length === 1 && Z.isArray( obj[0] ) ?
-					( obj = obj[0], Procedure.structures.parallel ) :
-					Procedure.structures.series;
+				structure = obj.length === 1 && Z.isArray( obj[0] ) ?
+					( obj = obj[0], 'parallel' ) :
+					'series';
 				
-				for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
-					array.push( interpret.call( subscope( this ), obj[i], i, obj ) );
+				for ( instructions = [], i = 0, l = obj.length; i < l; i++ ) {
+					instructions.push( interpret.call( subscope( this ), obj[i], i, obj ) );
 				}
 				
-				return fn.apply( this, array );
+				return Procedure.structures[ structure ].apply( this, instructions );
 			}
 		}
 		
@@ -1598,12 +1634,12 @@ function Procedure ( input, name, scope ) {
 	Z.extend( this, {
 		as: function ( context ) {
 			deferral.as( context );
-			return this;
+			return self;
 		},
 		
 		given: function ( args ) {
 			deferral.given( args );
-			return this;
+			return self;
 		},
 		
 		start: function () {
@@ -1632,17 +1668,9 @@ function Procedure ( input, name, scope ) {
 Z.extend( true, Procedure, {
 	structures: {
 		series: function () {
-			var	scope = this,
-				operations = Z.slice.call( arguments );
+			var	pipeline = Pipeline( Z.slice.call( arguments ) ).as( this );
 			return function () {
-				// var pipeline = Pipeline( args );
-				// return pipeline.start.apply( pipeline, arguments ).promise();
-				return Pipeline( operations )
-					.as( scope )
-					.given( arguments )
-					.start()
-					.promise()
-				;
+				return pipeline.given( arguments ).start().promise();
 			};
 		},
 	
@@ -1662,49 +1690,18 @@ Z.extend( true, Procedure, {
 		},
 	
 		multiplex: function ( width, operations ) {
-			var scope = this;
+			var multiplex = Multiplex( width, operations ).as( this );
 			return function () {
-				return Multiplex( width, operations )
-					.as( scope )
-					.given( arguments )
-					.start()
-					.promise()
-				;
+				return multiplex.given( arguments ).start().promise();
 			};
 		},
 	
 		branch: function ( condition, potential ) {
-			var scope = this;
+			var	scope = this,
+				execution = ( new ExecutionDeferral ).as( scope );
+			
 			return function () {
-				var promise;
 				
-<<<<<<< HEAD
-				// Create the enclosing deferral
-				var deferral = Deferral().as( scope ).given( arguments );
-				
-				// Evaluate `condition` as a new Procedure
-				( condition = Procedure( condition, scope ) )
-					.start.apply( condition, arguments )
-					.then(
-						
-					)
-				;
-				
-				Z.isFunction( condition ) && ( condition = condition.apply( arguments ) );
-				
-				promise = Promise.resembles( condition ) ?
-					condition :
-					Deferral().as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]().promise();
-				
-				promise.always( function () {
-					var resolution = promise.resolution();
-					condition[ resolution ]( function () {
-						return Procedure( potential[ resolution ], scope ).start.apply( this, arguments ).promise();
-					});
-				});
-				
-				return promise;
-=======
 				// If `condition` is a function, treat it like a closure over the actual object of interest
 				if ( Z.isFunction( condition ) ) {
 					condition = condition.apply( scope, arguments );
@@ -1740,7 +1737,6 @@ Z.extend( true, Procedure, {
 						;
 					});
 				});
->>>>>>> 2011-10-04-variadics
 			};
 		},
 		
@@ -1769,7 +1765,11 @@ Z.extend( true, Procedure, {
 		loop: function ( initialization, precondition, procedure, postcondition ) {
 		
 		},
-	
+		
+		iteration: function ( keyVar, valueVar, collection, procedure ) {
+			
+		},
+		
 		exception: function ( attempt, errorPotential ) {
 		
 		}
@@ -1809,6 +1809,17 @@ Z.extend( true, Procedure, {
 		'for': function ( expr, procedure ) {
 			var	initialization = expr[0], condition = expr[1], iteration = expr[2];
 			return Procedure.structures.loop.call( this, initialization, condition, [ procedure, iteration ] );
+		},
+		
+		// [ 'each', 'key value in foo', [
+		// 	function () {
+		// 		return this.foo[ this.key ] === this.value;
+		// 	}
+		// ] ]
+		'each': function ( expr, procedure ) {
+			// "key value in collection" | "key in collection" | "value of collection"
+			Z.isString( expr ) && ( expr = expr.split( /\s+/ ) );
+			
 		},
 		
 		'try': function () {
