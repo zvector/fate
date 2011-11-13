@@ -350,11 +350,11 @@ function CallbackQueueTree ( rootState ) {
 		empty: function ( state ) {
 			var obj, path, pathDot, key, cacheTrunk, deletions, length;
 			
-			if ( !state || state === baseState ) {
+			if ( !state || state === rootState ) {
 				root = { capture: { '':[] }, bubble: { '':[] } };
 				cache = { capture: {}, bubble: {} };
 			}
-			else if ( baseState.isSuperstateOf( state ) ) {
+			else if ( rootState.isSuperstateOf( state ) ) {
 				path = state.superstate().path();
 				Z.forEach( [ 'capture', 'bubble' ], function ( trunk ) {
 					obj = Z.lookup( root[ trunk ], path );
@@ -1276,7 +1276,7 @@ function Pipeline ( operations ) {
 	}
 	
 	function continuation () {
-		var	result;
+		var result;
 		
 		while ( operation != null || ( operation = operations.shift() ) != null ) {
 			result = Z.isFunction( operation ) ? operation.apply( self, args ) : operation;
@@ -1533,6 +1533,16 @@ function Multiplex ( width, operations ) {
 Z.extend( Multiplex, {
 	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
 });
+Z.extend( Multiplex.prototype, {
+	dilate: function ( amount ) {
+		Z.isNumber( amount = +amount ) || ( amount = 1 );
+		return this.width( this.width() + amount );
+	},
+	constrict: function ( amount ) {
+		Z.isNumber( amount = +amount ) || ( amount = 1 );
+		return this.width( this.width() - amount );
+	}
+})
 
 /**
  * A **procedure** defines an execution flow by nesting multiple parallel and serial function arrays.
@@ -1548,7 +1558,7 @@ Z.extend( Multiplex, {
  */
 
 // Z.oo( Procedure ).inherit( Future ).implement( Promise );
-	
+
 function Procedure ( input, name, scope ) {
 	if ( !( this instanceof Procedure ) ) {
 		return new Procedure( input, name, scope );
@@ -1583,13 +1593,14 @@ function Procedure ( input, name, scope ) {
 			// Not a reserved word; interpret as a dangling string expression
 			else {
 				// Could add directives e.g. "use strict" here
+				return Z.noop;
 			}
 		}
 		
 		else if ( type === 'array' ) {
 			identifier = obj[0];
 			
-			if ( Z.isString( identifier ) ) {
+			if ( obj.length > 1 && typeof identifier === 'string' ) {
 				
 				// Reserved word; interpret as an identifier for a control block
 				if ( identifier in Procedure.statements ) {
@@ -1617,17 +1628,30 @@ function Procedure ( input, name, scope ) {
 			}
 		}
 		
-		// Multiplex literal: `{n:[ ... ]}`
-		else if (
-			Z.isPlainObject( obj )
-			&& ( keys = Z.keys( obj ) ).length === 1
-			&& Z.isNumber( width = Math.round( +keys[0] ) )
-			&& Z.isArray( obj = obj[ width ] )
-		) {
-			for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
-				array.push( interpret.call( subscope( this ), obj[i], i, obj ) );
+		else if ( Z.isPlainObject( obj ) ) {
+			
+			// Multiplex literal: `{n:[ ... ]}`
+			if (
+				( keys = Z.keys( obj ) ).length === 1 &&
+				Z.isNumber( width = Math.round( +keys[0] ) ) &&
+				Z.isArray( obj[ width ] )
+			) {
+				obj = obj[ width ];
+				for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
+					array.push( interpret.call( subscope( this ), obj[i], i, obj ) );
+				}
+				return Procedure.structures.multiplex.call( this, width, array );
 			}
-			return Procedure.structures.multiplex.call( this, width, array );
+			
+			// Scope-level "var"-like assignments: `{ varname: value, ... }`
+			else {
+				return Procedure.structures.assignment.call( this, obj );
+			}
+		}
+		
+		// Otherwise interpret the object itself
+		else {
+			return Z.thunk( obj );
 		}
 	}
 	
@@ -1673,7 +1697,7 @@ Z.extend( true, Procedure, {
 				return pipeline.given( arguments ).start().promise();
 			};
 		},
-	
+		
 		parallel: function () {
 			var	scope = this,
 				futures = Z.slice.call( arguments );
@@ -1688,39 +1712,56 @@ Z.extend( true, Procedure, {
 				return Deferral.join( futures );
 			};
 		},
-	
+		
 		multiplex: function ( width, operations ) {
 			var multiplex = Multiplex( width, operations ).as( this );
 			return function () {
 				return multiplex.given( arguments ).start().promise();
 			};
 		},
-	
+		
+		assignment: function ( map ) {
+			var scope = this;
+			return function () {
+				Z.extend( scope, map );
+			};
+		},
+		
 		branch: function ( condition, potential ) {
 			var	scope = this,
 				execution = ( new ExecutionDeferral ).as( scope );
 			
 			return function () {
 				
-				// If `condition` is a function, treat it like a closure over the actual object of interest
+				// If `condition` is a function, treat it like a closure over the actual object of
+				// interest
 				if ( Z.isFunction( condition ) ) {
 					condition = condition.apply( scope, arguments );
 				}
 				
+				// If `condition` is not a future, it's evaluated either as a procedure or as a
+				// deferral that is immediately resolved according to the truthiness of `condition`
 				if ( !Future.resembles( condition ) ) {
 					condition = Z.isArray( condition ) ?
-						Procedure( condition, null, scope ).given( arguments ).start() :
-						( new Deferral ).as( scope ).given( arguments )[ condition ? 'affirm' : 'negate' ]();
+						Procedure( condition, null, scope )
+							.given( arguments )
+							.start()
+						:
+						( new Deferral )
+							.as( scope )
+							.given( arguments )
+							[ condition ? 'affirm' : 'negate' ]();
 				}
 				
-				// After the condition is resolved, match its resolution with the corresponding value in
-				// `potential`, evaluate that as a new Procedure, and use its result to resolve `execution`.
+				// After the condition is resolved, its resolution is matched with the corresponding
+				// value in `potential`, then evaluated as a new Procedure, and its result is used to
+				// resolve `execution`.
 				condition.always( function () {
 					var	resolution = condition.resolution().split('.'),
 						i = 0, l = resolution.length, block;
 					
-					// Identify the entry within `potential` that corresponds to the resolution of
-					// `condition`, and use that to create a procedural block.
+					// Identify the entry within `potential` that corresponds to the resolution
+					// of `condition`, and use that to create a procedural block.
 					while ( i < l ) {
 						block = potential[ resolution[ i++ ] ];
 					}
@@ -1746,7 +1787,8 @@ Z.extend( true, Procedure, {
 			
 			return function () {
 				
-				// If `condition` is a function, treat it like a closure over the actual object of interest
+				// If `condition` is a function, treat it like a closure over the actual object
+				// of interest
 				if ( Z.isFunction( condition ) ) {
 					condition = condition.apply( scope, arguments );
 				}
