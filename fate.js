@@ -207,9 +207,11 @@ Z.extend( 'deep', Future, {
 		},
 		
 		/**
-		 * Unified interface for registering callbacks. Multiple arguments are registered to callback
-		 * queues in respective order; e.g. `Deferral().then( fn1, fn2 )` registers `fn1` to the
-		 * first queue (`yes`) and `fn2` to the second queue (`no`).
+		 * Unified interface for registering callbacks. Multiple arguments are registered to the
+		 * primary resolved substates in respective order, with a trailing argument added as a
+		 * progress event listener; e.g. `Deferral().then( fn1, fn2, fn3 )` registers `fn1` to the
+		 * first state (`yes`), `fn2` to the second state (`no`), and because there are only two
+		 * primary states, `fn3` is registered to the progress event.
 		 */
 		then: function () {
 			var	stateNames = Z.keys( this.potential().substates ),
