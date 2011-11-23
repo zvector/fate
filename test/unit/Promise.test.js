@@ -16,7 +16,7 @@ asyncTest( "promise()", function () {
 	ok( Promise.resembles( { then: function () {}, promise: function () {} } ), "Promise.resembles generic promise-like object" );
 	ok( Promise.resembles( jQuery.Deferred() ), "Promise.resembles jQuery.Deferred()" );
 	ok( Promise.resembles( jQuery.Deferred().promise() ), "Promise.resembles jQuery.Deferred().promise()" );
-	ok( p1.resolution().state.name() === 'unresolved' && p2.resolution().state.name() === 'unresolved', "initially unresolved" );
+	ok( p1.state().name() === 'unresolved' && p2.state().name() === 'unresolved', "initially unresolved" );
 	d.affirm();
 	r1 = p1.resolution(), r2 = p2.resolution();
 	ok(

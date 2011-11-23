@@ -23,10 +23,10 @@ asyncTest( "Nullary Deferral", function () {
 		d = Deferral.Nullary( context, [ 1, 2, 3 ] ),
 		p;
 	strictEqual( d.did(), true, "No resolver methods; parameterless `did` returns `true`" );
-	strictEqual( d.resolution().state.name(), 'resolved', "Null state is 'resolved'" );
+	strictEqual( d.state().name(), 'resolved', "Null state is 'resolved'" );
 	strictEqual( p = d.promise(), d.promise(), "Memoized promise" );
 	strictEqual( d.did(), p.did() );
-	strictEqual( d.resolution().state, p.resolution().state, "State reference consistent between deferral and promise" );
+	strictEqual( d.state(), p.state(), "State reference consistent between deferral and promise" );
 	strictEqual( d.as(), d, "`as` returns self" );
 	p.then( function ( a, b, c ) {
 		ok( this === context && a === 1 && b === 2 && c === 3 );
@@ -49,13 +49,13 @@ asyncTest( "then()", function () {
 		.then( setResult( true ), setResult( false ), setResult( null ), setResult( undefined ) )
 		.always( function () {
 			ok( result === null, "punted, result === null" );
-			equal( d1.resolution().state.name(), 'maybe', "Resolved to 'maybe'" );
+			equal( d1.state().name(), 'maybe', "Resolved to 'maybe'" );
 		});
 	d2
 		.then( setResult( true ), setResult( false ), setResult( null ), setResult( undefined ) )
 		.always( function () {
 			ok( result === undefined, "rejected, result === undefined" );
-			equal( d2.resolution().state.name(), 'unanswerable', "Resolved to 'unanswerable'" );
+			equal( d2.state().name(), 'unanswerable', "Resolved to 'unanswerable'" );
 		});
 	
 	setTimeout( function () { d1.punt(); }, 50 );
@@ -115,6 +115,30 @@ asyncTest( "pipe()", function () {
 		.then( start )
 	;
 	deferral.affirm( 3 );
+});
+
+1&&
+asyncTest( "progress()", 10, function () {
+	var	deferral = new Deferral,
+		intervalID,
+		progress = 0;
+	
+	deferral
+		.then( null, null, function ( amount ) {
+			ok( true, 'Progress = ' + progress );
+		})
+		.resolved( start );
+	
+	var intervalID = setInterval( function () {
+		deferral.notify( progress += 10 );
+		if ( progress >= 100 ) {
+			deferral.affirm();
+			clearInterval( intervalID );
+			
+			// Should not create a progress event
+			deferral.notify( 42 );
+		}
+	}, 10 );
 });
 
 1&&
