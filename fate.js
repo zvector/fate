@@ -1870,7 +1870,7 @@ Z.extend( true, Procedure, {
 				} else {
 					falseBlock = elseKeyword;
 				}
-				return Procedure.structures.branch.call( this, condition, trueBlock, elseBlock );
+				return Procedure.structures.branch.call( this, condition, trueBlock, falseBlock );
 			}
 			
 			throw new Error( "Parse error: if" );
@@ -1905,8 +1905,10 @@ Z.extend( true, Procedure, {
 		
 		'try': function () {
 			var	argsIn = Z.slice.call( arguments ),
-				argsOut = [ argsIn[0] ];
-			argsIn[1] === 'catch' && argsOut.push( argsIn[2] );
+				argsOut = [ argsIn[0] ],
+				i = 1;
+			argsIn[i] === 'fix' && ( argsOut[1] = argsIn[ ++i ], i++ );
+			argsIn[i] === 'catch' && ( argsOut[2] = argsIn[ ++i ], i++ );
 			return Procedure.structures.exception.apply( this, argsOut );
 		}
 	}
