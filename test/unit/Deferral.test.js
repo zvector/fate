@@ -117,7 +117,7 @@ asyncTest( "pipe()", function () {
 	deferral.affirm( 3 );
 });
 
-1&&
+0&&
 asyncTest( "progress()", 10, function () {
 	var	deferral = new Deferral,
 		intervalID,
@@ -141,7 +141,7 @@ asyncTest( "progress()", 10, function () {
 	}, 10 );
 });
 
-1&&
+0&&
 asyncTest( "when()", function () {
 	var	d1 = new Deferral,
 		d2 = new Deferral,
@@ -175,7 +175,7 @@ asyncTest( "when()", function () {
 	}, 40 );
 });
 
-1&&
+0&&
 asyncTest( "when(), all affirmed", function () {
 	var	a, b,
 		likeDojo = { addCallback: 'callback', addErrback: 'errback' },
@@ -217,7 +217,7 @@ asyncTest( "when(), all affirmed", function () {
 	}, 75 );
 });
 
-1&&
+0&&
 asyncTest( "when(), early negation", function () {
 	var	a, b,
 		d1 = new Deferral,
@@ -251,7 +251,7 @@ asyncTest( "when(), early negation", function () {
 	}, 50 );
 });
 
-1&&
+0&&
 asyncTest( "when variants: when.any, when.none, unless.~", 13, function () {
 	var	d1 = new Deferral,
 		d2 = new Deferral;

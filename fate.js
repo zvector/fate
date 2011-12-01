@@ -1836,7 +1836,7 @@ Z.extend( true, Procedure, {
 							.given( arguments )
 							.start()
 							.promise()
-							.then( execution.proceed, execution.throw )
+							.then( execution.proceed, execution['throw'] )
 						;
 					});
 				});

@@ -18,6 +18,7 @@ require '../build/combine.php';
 		
 		<!-- tests -->
 		<script src="qunit.js"></script>
+		<script src="unit/State.test.js"></script>
 		<script src="unit/Deferral.test.js"></script>
 		<script src="unit/Promise.test.js"></script>
 		<script src="unit/Pipeline.test.js"></script>

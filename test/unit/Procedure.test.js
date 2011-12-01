@@ -230,6 +230,7 @@ asyncTest( "Using multiplex literals", 22, function () {
 	// 22
 });
 
+0&&
 asyncTest( "Mixing in jQuery promises", 4, function () {
 	Procedure( [[
 		function () {
@@ -277,6 +278,7 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 		.then( start );
 });
 
+0&&
 asyncTest( "If a deferral element negates", 1, function () {
 	Procedure( [
 		// this will run and assert ...
