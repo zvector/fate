@@ -117,7 +117,7 @@ asyncTest( "pipe()", function () {
 	deferral.affirm( 3 );
 });
 
-0&&
+1&&
 asyncTest( "progress()", 10, function () {
 	var	deferral = new Deferral,
 		intervalID,

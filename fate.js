@@ -800,7 +800,7 @@ Z.extend( true, Deferral, {
 			return function ( context, args ) {
 				function invoke ( fn ) {
 					try {
-						Z.isFunction( fn ) ? fn.apply( context || self, args ) :
+						Z.isFunction( fn ) ? fn.apply( context || self, args || [] ) :
 						Z.isArray( fn ) && privileged.invokeAll( self, callbacks )( context, args )( fn );
 					} catch ( nothing ) {}
 					return self;

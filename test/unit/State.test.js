@@ -7,11 +7,11 @@ var	Deferral = Fate.Deferral,
 
 1&&
 asyncTest( "addSubstate", function () {
-	var	root = new State;
-	var a = root.addSubstate( 'a' );
-	var b = root.addSubstate( 'b' );
-	var c = b.addSubstate( 'c' );
-	var d = b.addSubstate( 'd' );
+	var	root = new State,
+		a = root.addSubstate( 'a' ),
+		b = root.addSubstate( 'b' ),
+		c = b.addSubstate( 'c' ),
+		d = b.addSubstate( 'd' );
 	
 	ok( a instanceof State && Z.isFunction( a.name ) );
 	ok( b instanceof State && Z.isFunction( b.name ) );
