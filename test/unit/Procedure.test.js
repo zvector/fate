@@ -6,56 +6,6 @@ var	Deferral = Fate.Deferral,
 	Pipeline = Fate.Pipeline,
 	Procedure = Fate.Procedure;
 
-asyncTest( "Nesting Pipeline/when", 8, function () {
-	var	number = 0,
-		time = ( new Date ).getTime();
-	
-	function fn ( n ) {
-		return function () {
-			var deferral = Deferral();
-			setTimeout( function () {
-				deferral[ n === ++number ? 'affirm' : 'negate' ]
-					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) );
-			}, 10 );
-			return deferral.then(
-				function ( message ) {
-					assert.ok( true, message );
-				},
-				function ( message ) {
-					assert.ok( false, message );
-				}
-			);
-		};
-	}
-	
-	function parallel () {
-		var args = Array.prototype.slice.call( arguments );
-		return function () {
-			for ( var i = 0, l = args.length; i < l; i++ ) {
-				args[i] = args[i]();
-			}
-			return Deferral.when( args );
-		};
-	}
-	function series () {
-		var args = Array.prototype.slice.call( arguments );
-		return function () {
-			return Pipeline( args ).start( arguments ).promise();
-		};
-	}
-	
-	series(
-		fn(1),
-		parallel(
-			fn(2),
-			series( fn(3), fn(6) ),
-			parallel( fn(4), fn(5) )
-		),
-		series( fn(7), fn(8) )
-	)()
-		.then( start );
-});
-
 asyncTest( "Using a plain function", 2, function () {
 	Procedure( function ( a, b, c ) {
 		assert.ok( a === 1 && b === 2 && c === 3 );
@@ -230,7 +180,7 @@ asyncTest( "Using multiplex literals", 22, function () {
 	// 22
 });
 
-0&&
+1&&
 asyncTest( "Mixing in jQuery promises", 4, function () {
 	Procedure( [[
 		function () {
@@ -278,7 +228,7 @@ asyncTest( "Mixing in jQuery promises", 4, function () {
 		.then( start );
 });
 
-0&&
+1&&
 asyncTest( "If a deferral element negates", 1, function () {
 	Procedure( [
 		// this will run and assert ...

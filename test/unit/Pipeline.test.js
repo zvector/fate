@@ -1,4 +1,4 @@
-1&&( function ( undefined ) {
+1&&( function ( assert, undefined ) {
 
 module( "Pipeline" );
 
@@ -30,22 +30,22 @@ asyncTest( "Pipeline", 15, function () {
 	
 	var pipeline;
 	
-	function async ( fn, delay, test ) {
+	function async ( fn, delay, comparand ) {
 		return function () {
 			var args = fn.apply( this, arguments ),
 				deferral = Deferral().as( pipeline ).given( args );
 			setTimeout( function () {
-				equal( args.join(), test );
+				assert.equal( args.join(), comparand );
 				deferral.affirm();
 			}, delay );
 			return deferral.promise();
 		};
 	}
 	
-	function sync ( fn, test ) {
+	function sync ( fn, comparand ) {
 		return function () {
 			var args = fn.apply( this, arguments );
-			equal( args.join(), test );
+			assert.equal( args.join(), comparand );
 			return args;
 		};
 	}
@@ -72,7 +72,7 @@ asyncTest( "Pipeline", 15, function () {
 	 */
 	pipeline.start( 1, 7, -5 ).promise()
 		.then( function () {
-			equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
+			assert.equal( Array.prototype.slice.call( arguments ).join(), '0,4,2', "Complete" );
 		})
 		
 		/**
@@ -91,21 +91,21 @@ asyncTest( "Pipeline", 15, function () {
 				function () {
 					var args = Array.prototype.slice.call( arguments );
 					$.each( args, function ( i, value ) { args[i] += 1; } );
-					equal( args.join(), '1,5,3', "first op of second run: + [1,1,1]" );
+					assert.equal( args.join(), '1,5,3', "first op of second run: + [1,1,1]" );
 					return args;
 				},
 				function ( x, y, z ) {
 					var result = [ x*x, y*y, z*z ];
-					equal( result.join(), '1,25,9', "second op: Math.square" );
+					assert.equal( result.join(), '1,25,9', "second op: Math.square" );
 					return result;
 				}
 			);
-			ok( pipeline.length == 2, "Second run prepared" );
+			assert.ok( pipeline.length == 2, "Second run prepared" );
 			pipeline
 				.start( x, y, z ) // [0, 4, 2], as returned from the initial run
 				.promise()
 					.then( function ( x, y, z ) {
-						equal( Array.prototype.slice.call( arguments ).join(), '1,25,9', "Second run complete" );
+						assert.equal( Array.prototype.slice.call( arguments ).join(), '1,25,9', "Second run complete" );
 					})
 			;
 		}, 0 );
@@ -118,12 +118,62 @@ asyncTest( "Pipeline", 15, function () {
 	 */
 	setTimeout( function () {
 		pipeline.pause();
-		equal( pipeline.args().join(), '2,8,-4', "Intermediate value when pause command is issued" );
+		assert.equal( pipeline.args().join(), '2,8,-4', "Intermediate value when pause command is issued" );
 	}, 100 );
 	setTimeout( function () {
-		equal( pipeline.args().join(), '1,4,-2', "Intermediate value after pipeline is actually suspended" );
+		assert.equal( pipeline.args().join(), '1,4,-2', "Intermediate value after pipeline is actually suspended" );
 		pipeline.resume();
 	}, 300 );
 });
 
-})();
+asyncTest( "Abstract async procedure by nesting Pipeline/join", 8, function () {
+	var	number = 0,
+		time = ( new Date ).getTime(),
+		pass = assertion( true ), fail = assertion( false );
+	
+	function assertion ( b ) {
+		return function ( message ) {
+			assert.ok( b, message );
+		};
+	}
+	
+	function fn ( n ) {
+		return function () {
+			var deferral = Deferral();
+			setTimeout( function () {
+				deferral[ n === ++number ? 'affirm' : 'negate' ]
+					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) );
+			}, 10 );
+			return deferral.then( pass, fail );
+		};
+	}
+	
+	function parallel () {
+		var args = Array.prototype.slice.call( arguments );
+		return function () {
+			for ( var i = 0, l = args.length; i < l; i++ ) {
+				args[i] = args[i]();
+			}
+			return Deferral.join( args );
+		};
+	}
+	function series () {
+		var args = Array.prototype.slice.call( arguments );
+		return function () {
+			return Pipeline( args ).start( arguments ).promise();
+		};
+	}
+	
+	series(
+		fn(1),
+		parallel(
+			fn(2),
+			series( fn(3), fn(6) ),
+			parallel( fn(4), fn(5) )
+		),
+		series( fn(7), fn(8) )
+	)()
+		.then( start );
+});
+
+})( QUnit );
