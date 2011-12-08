@@ -6,6 +6,33 @@ var	Deferral = Fate.Deferral,
 	Pipeline = Fate.Pipeline,
 	Procedure = Fate.Procedure;
 
+function delayed ( result, ms ) {
+	return function () {
+		var d = ( new Deferral ).given( arguments );
+		setTimeout( d[ result ? 'affirm' : 'negate' ], ms );
+		return d.promise();
+	};
+}
+
+function opFn () {
+	var	number = 0,
+		time = ( new Date ).getTime();
+	return function ( n ) {
+		return function () {
+			var	args = Z.slice.call( arguments ),
+				deferral = Deferral();
+			setTimeout( function () {
+				deferral[ n === ++number ? 'affirm' : 'negate' ]
+					( 'op(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) + ' args: ' + args );
+			}, 10 );
+			return deferral.then(
+				function ( message ) { assert.ok( true, message ); },
+				function ( message ) { assert.ok( false, message ); }
+			);
+		};
+	};
+}
+
 asyncTest( "Using a plain function", 2, function () {
 	Procedure( function ( a, b, c ) {
 		assert.ok( a === 1 && b === 2 && c === 3 );
@@ -41,58 +68,39 @@ asyncTest( "Using a series of plain functions", 4, function () {
 });
 
 asyncTest( "Using serial/parallel literals", 22, function () {
-	var number = 0,
-		time = ( new Date ).getTime();
-	
-	function fn ( n ) {
-		return function () {
-			var deferral = Deferral();
-			setTimeout( function () {
-				deferral[ n === ++number ? 'affirm' : 'negate' ]
-					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) );
-			}, 10 );
-			return deferral.then(
-				function ( message ) {
-					assert.ok( true, message );
-				},
-				function ( message ) {
-					assert.ok( false, message );
-				}
-			);
-		};
-	}
+	var op = opFn();
 	
 	Procedure([
-		fn(1),
+		op(1),
 		[[
-			fn(2),
+			op(2),
 			[[
-				fn(3),
-				fn(4),
+				op(3),
+				op(4),
 				[
-					fn(5),
+					op(5),
 					[[
-						fn(11),
-						fn(12),
-						[[ fn(13), fn(14) ]]
+						op(11),
+						op(12),
+						[[ op(13), op(14) ]]
 					]],
-					fn(17),
+					op(17),
 					[
-						fn(18),
-						fn(19)
+						op(18),
+						op(19)
 					]
 				],
-				fn(6),
+				op(6),
 				[[
-					fn(7),
-					[ fn(8), fn(15) ]
+					op(7),
+					[ op(8), op(15) ]
 				]],
-				fn(9)
+				op(9)
 			]],
-			[ fn(10), fn(16) ]
+			[ op(10), op(16) ]
 		]],
-		[ fn(20), fn(21) ],
-		fn(22)
+		[ op(20), op(21) ],
+		op(22)
 	])
 		.start()
 		.always( start );
@@ -110,58 +118,39 @@ asyncTest( "Using serial/parallel literals", 22, function () {
 });
 
 asyncTest( "Using multiplex literals", 22, function () {
-	var number = 0,
-		time = ( new Date ).getTime();
-	
-	function fn ( n ) {
-		return function () {
-			var deferral = Deferral();
-			setTimeout( function () {
-				deferral[ n === ++number ? 'affirm' : 'negate' ]
-					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) );
-			}, 10 );
-			return deferral.then(
-				function ( message ) {
-					assert.ok( true, message );
-				},
-				function ( message ) {
-					assert.ok( false, message );
-				}
-			);
-		};
-	}
+	var op = opFn();
 	
 	Procedure([
-		fn(1),
+		op(1),
 		[[
-			fn(2),
+			op(2),
 			{ 2:[
-				fn(3),
-				fn(4),
+				op(3),
+				op(4),
 				[
-					fn(6),
+					op(6),
 					[[
-						fn(9),
-						fn(10),
-						[[ fn(11), fn(12) ]]
+						op(9),
+						op(10),
+						[[ op(11), op(12) ]]
 					]],
-					fn(15),
+					op(15),
 					[
-						fn(17),
-						fn(19)
+						op(17),
+						op(19)
 					]
 				],
-				fn(7),
+				op(7),
 				[[
-					fn(13),
-					[ fn(14), fn(16) ]
+					op(13),
+					[ op(14), op(16) ]
 				]],
-				fn(18)
+				op(18)
 			]},
-			[ fn(5), fn(8) ]
+			[ op(5), op(8) ]
 		]],
-		[ fn(20), fn(21) ],
-		fn(22)
+		[ op(20), op(21) ],
+		op(22)
 	])
 		.start()
 		.always( start );
@@ -260,75 +249,58 @@ asyncTest( "If a deferral element negates", 1, function () {
 		.always( start );
 });
 
-/* Coughyscript
-p3 = [
-	-> 0
-	[ 'if'
-		-> ( d = Deferral( -> setTimeout( -> d.affirm, 100 ) ) ).promise()
-		{
-			yes: []
-			no: []
-		}
-	]
-	[ 'while', -> ( d = Deferral( -> setTimeout( -> d.affirm, 100 ) ) ).promise()
+1&&
+asyncTest( "Assignment and scoping", function () {
+	var op = opFn();
+	Procedure([
+		{ answer: 42 },
+		function () { return this.answer; },
+		function ( answer ) { return answer === this.answer; },
+		function ( confirmed ) { return confirmed === true && this.answer; },
 		[
-			-> 'something'
-			'break'
-		]
-	]
-	-> 0
-]
-// */
+			function () { assert.equal( this.answer, 42, "Variable inherited from parent scope" ); },
+			{ question: "unknown", answer: "forty-two" },
+			function () { assert.equal( this.question, "unknown", "New variable assigned in inner scope" ); },
+			function () { assert.equal( this.answer, "forty-two", "Local assignment shadows parent scope" ); },
+			function () { return this.answer; }
+		],
+		function () { assert.equal( arguments[0], "forty-two" ); },
+		function () { assert.equal( this.answer, 42, "Original scope retains original value" ); },
+		function () { assert.strictEqual( this.question, undefined, "Variable from inner scope has gone out of scope" ); }
+	])
+		.start()
+		.always( start );
+	
+	expect(6);
+});
 
 1&&
-asyncTest( "Conditional structure: IF", function () {
-	var	number = 0,
-		time = ( new Date ).getTime();
-	
-	function fn ( n ) {
-		return function () {
-			var	args = Z.slice.call( arguments ),
-				deferral = Deferral();
-			setTimeout( function () {
-				deferral[ n === ++number ? 'affirm' : 'negate' ]
-					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) + ' args: ' + args );
-			}, 10 );
-			return deferral.then(
-				function ( message ) {
-					assert.ok( true, message );
-				},
-				function ( message ) {
-					assert.ok( false, message );
-				}
-			);
-		};
-	}
-	
-	function delayed ( result, ms ) {
-		return function () {
-			var d = ( new Deferral ).given( arguments );
-			setTimeout( d[ result ], ms );
-			return d.promise();
-		};
-	}
-	
+asyncTest( "Control structure: if-else", function () {
+	var	op = opFn();
+		
 	Procedure([
 		function () { return Z.slice.call( arguments ); },
-		[ 'if', delayed( 'affirm', 10 ), [
-			fn(1),
-			[[ fn(2), fn(3) ]],
-			{2:[ fn(4), fn(5), fn(6) ]}
-		], 'else if', delayed( 'affirm', 10 ), [
-			fn(1),
-			fn(2)
+		[ 'if', delayed( true, 10 ), [
+			[ 'if', delayed( false, 10 ), [ op(1) ], 'else', [[
+				[ op(1), op(3) ],
+				op(2)
+			]] ],
+			[[
+				[ op(4), op(7) ],
+				{2:[ op(5), op(6), op(8) ]}
+			]],
+			function () { expect(8); }
+		], 'else if', delayed( true, 10 ), [
+			op(1),
+			op(2),
+			function () { expect(2); }
 		], 'else', [
-			fn(1)
+			op(1),
+			function () { expect(1); }
 		] ]
 	])
 		.start( 1, 2, 3 )
 		.always( start );
-	
-	expect( 6 );
 });
 
 0&&
