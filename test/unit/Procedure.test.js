@@ -142,7 +142,6 @@ asyncTest( "Using multiplex literals", 22, function () {
 					fn(6),
 					[[
 						fn(9),
-						// { yes: fn(10), no: fn(0) },
 						fn(10),
 						[[ fn(11), fn(12) ]]
 					]],
@@ -281,6 +280,57 @@ p3 = [
 ]
 // */
 
+1&&
+asyncTest( "Conditional structure: IF", function () {
+	var	number = 0,
+		time = ( new Date ).getTime();
+	
+	function fn ( n ) {
+		return function () {
+			var	args = Z.slice.call( arguments ),
+				deferral = Deferral();
+			setTimeout( function () {
+				deferral[ n === ++number ? 'affirm' : 'negate' ]
+					( 'fn(' + n + ') @ t=' + ( ( new Date ).getTime() - time ) + ' args: ' + args );
+			}, 10 );
+			return deferral.then(
+				function ( message ) {
+					assert.ok( true, message );
+				},
+				function ( message ) {
+					assert.ok( false, message );
+				}
+			);
+		};
+	}
+	
+	function delayed ( result, ms ) {
+		return function () {
+			var d = ( new Deferral ).given( arguments );
+			setTimeout( d[ result ], ms );
+			return d.promise();
+		};
+	}
+	
+	Procedure([
+		function () { return Z.slice.call( arguments ); },
+		[ 'if', delayed( 'affirm', 10 ), [
+			fn(1),
+			[[ fn(2), fn(3) ]],
+			{2:[ fn(4), fn(5), fn(6) ]}
+		], 'else if', delayed( 'affirm', 10 ), [
+			fn(1),
+			fn(2)
+		], 'else', [
+			fn(1)
+		] ]
+	])
+		.start( 1, 2, 3 )
+		.always( start );
+	
+	expect( 6 );
+});
+
 0&&
 asyncTest( "Control structures", function () {
 	function fn ( i ) { return function () {}; }
@@ -288,24 +338,6 @@ asyncTest( "Control structures", function () {
 		p2 = [[ [ fn(7), fn(9) ], fn(8) ]],
 		p3 = [
 			function () {},
-			[ 'if',
-				function () {
-					return Deferral().promise();
-				}, {
-					ok: p1,
-					error: {
-						'': [
-							fn(1),
-							[[ fn(2), fn(3) ]]
-						],
-						client: {
-							'': [],
-							notFound: []
-						},
-						server: []
-					}
-				}
-			],
 			[ 'if',
 				[], // Array | Function : a possibly asynchronous condition
 				
@@ -330,6 +362,24 @@ asyncTest( "Control structures", function () {
 				[]  // Array | Function ( | Object ) : block to execute asynchronously if the most
 					// recent condition resolves negatively. This is necessarily the last argument
 					// in the statement array to be considered
+			],
+			[ 'if',
+				function () {
+					return Deferral().promise();
+				}, {
+					ok: p1,
+					error: {
+						'': [
+							fn(1),
+							[[ fn(2), fn(3) ]]
+						],
+						client: {
+							'': [],
+							notFound: []
+						},
+						server: []
+					}
+				}
 			],
 			[ 'namedProcedure', [
 				p1
