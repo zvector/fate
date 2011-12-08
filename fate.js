@@ -217,9 +217,9 @@ Z.extend( 'deep', Future, {
 		 */
 		then: function () {
 			var	stateNames = Z.keys( this.potential().substates ),
-				i = 0, sl = stateNames.length, al = arguments.length, l = Math.min( sl, al );
+				i = 0, sl = stateNames.length, al = arguments.length, l = Math.min( sl, al ), arg;
 			for ( ; i < l; i++ ) {
-				this.resolved[ stateNames[i] ]( arguments[i] );
+				( arg = arguments[i] ) && this.resolved[ stateNames[i] ]( arg );
 			}
 			al > sl && this.progress( arguments[i] );
 			return this;
