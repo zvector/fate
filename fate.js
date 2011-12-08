@@ -1783,7 +1783,10 @@ Z.extend( true, Procedure, {
 							[ condition ? 'affirm' : 'negate' ]();
 				}
 				
-				condition.then( predicate( trueBlock ), predicate( falseBlock ) );
+				condition.then(
+					trueBlock ? predicate( trueBlock ) : unit.proceed,
+					falseBlock ? predicate( falseBlock ) : unit.proceed
+				);
 				
 				return unit.promise();
 			};
