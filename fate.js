@@ -1609,7 +1609,6 @@ function Procedure ( input, name, scope ) {
 		}
 		
 		else if ( type === 'string' ) {
-			
 			// Reserved word; interpret as a control statement: `return` | `yield` | `break` | `continue`
 				// `return` issues `stop()` on `this.__procedure__` and resolves the procedure deferral
 				// `yield` issues `pause()` on `this.__procedure__` without resolving the procedure deferral
@@ -1658,7 +1657,6 @@ function Procedure ( input, name, scope ) {
 		}
 		
 		else if ( Z.isPlainObject( obj ) ) {
-			
 			// Multiplex literal: `{n:[ ... ]}`
 			if (
 				( keys = Z.keys( obj ) ).length === 1 &&
@@ -1763,9 +1761,8 @@ Z.extend( true, Procedure, {
 			return function () {
 				function predicate ( block ) {
 					return function () {
-						return Procedure( block, null, scope ).given( arguments )
-							.start()
-							.promise().then( unit.proceed, unit['throw'] );
+						return Procedure( block, null, scope ).given( arguments ).start()
+							.then( unit.proceed, unit['throw'] );
 					};
 				}
 				
@@ -1779,14 +1776,10 @@ Z.extend( true, Procedure, {
 				// deferral that is immediately resolved according to the truthiness of `condition`
 				if ( !Future.resembles( condition ) ) {
 					condition = Z.isArray( condition ) ?
-						Procedure( condition, null, scope )
-							.given( arguments )
-							.start()
+						Procedure( condition, null, scope ).given( arguments ).start()
 							.promise()
 						:
-						( new Deferral )
-							.as( scope )
-							.given( arguments )
+						( new Deferral ).as( scope ).given( arguments )
 							[ condition ? 'affirm' : 'negate' ]();
 				}
 				
@@ -1801,7 +1794,6 @@ Z.extend( true, Procedure, {
 				unit = ( new ExecutionUnit ).as( scope );
 			
 			return function () {
-				
 				// If `condition` is a function, treat it like a closure over the actual object
 				// of interest
 				if ( Z.isFunction( condition ) ) {
