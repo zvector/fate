@@ -1758,7 +1758,7 @@ Z.extend( true, Procedure, {
 		
 		branch: function ( condition, trueBlock, falseBlock ) {
 			var	scope = this,
-				unit = ( new ExecutionDeferral ).as( scope );
+				unit = ( new ExecutionUnit ).as( scope );
 			
 			return function () {
 				function predicate ( block ) {
@@ -1798,7 +1798,7 @@ Z.extend( true, Procedure, {
 		
 		selection: function ( condition, potential ) {
 			var scope = this,
-				execution = ( new ExecutionDeferral ).as( scope );
+				unit = ( new ExecutionUnit ).as( scope );
 			
 			return function () {
 				
@@ -1838,7 +1838,7 @@ Z.extend( true, Procedure, {
 							.given( arguments )
 							.start()
 							.promise()
-							.then( execution.proceed, execution['throw'] )
+							.then( unit.proceed, unit['throw'] )
 						;
 					});
 				});
@@ -1921,7 +1921,7 @@ Z.extend( true, Procedure, {
 function Scope () {
 }
 
-Deferral.extend( ExecutionUnit, { ok: 'go', error: 'throw' });
+Deferral.extend( ExecutionUnit, { ok: 'proceed', error: 'throw' });
 function ExecutionUnit () {
 	if ( !( this instanceof ExecutionUnit ) ) { return new ExecutionUnit; }
 	Deferral.call( this );
