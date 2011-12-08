@@ -1308,7 +1308,7 @@ function Pipeline ( operations ) {
 		var result;
 		
 		while ( operation != null || ( operation = operations.shift() ) != null ) {
-			result = Z.isFunction( operation ) ? operation.apply( self, args ) : operation;
+			result = Z.isFunction( operation ) ? operation.apply( context, args ) : operation;
 			
 			// Asynchronous: schedule a deferred recursion and return immediately
 			if ( Future.resembles( result ) ) {
@@ -1602,7 +1602,7 @@ function Procedure ( input, name, scope ) {
 	
 	function interpret ( obj, index, container ) {
 		var	type = Z.type( obj ),
-			identifier, label, structure, instructions, keys, i, l, width;
+			identifier, label, structure, context, instructions, keys, i, l, width;
 		
 		if ( type === 'function' ) {
 			return obj;
@@ -1647,12 +1647,14 @@ function Procedure ( input, name, scope ) {
 				structure = obj.length === 1 && Z.isArray( obj[0] ) ?
 					( obj = obj[0], 'parallel' ) :
 					'series';
+				instructions = [];
+				context = subscope( this );
 				
-				for ( instructions = [], i = 0, l = obj.length; i < l; i++ ) {
-					instructions.push( interpret.call( subscope( this ), obj[i], i, obj ) );
+				for ( i = 0, l = obj.length; i < l; i++ ) {
+					instructions.push( interpret.call( context, obj[i], i, obj ) );
 				}
 				
-				return Procedure.structures[ structure ].apply( this, instructions );
+				return Procedure.structures[ structure ].apply( context, instructions );
 			}
 		}
 		
@@ -1664,10 +1666,14 @@ function Procedure ( input, name, scope ) {
 				Z.isArray( obj[ width ] )
 			) {
 				obj = obj[ width ];
-				for ( array = [], i = 0, l = obj.length; i < l; i++ ) {
-					array.push( interpret.call( subscope( this ), obj[i], i, obj ) );
+				instructions = [];
+				context = subscope( this );
+				
+				for ( i = 0, l = obj.length; i < l; i++ ) {
+					instructions.push( interpret.call( context, obj[i], i, obj ) );
 				}
-				return Procedure.structures.multiplex.call( this, width, array );
+				
+				return Procedure.structures.multiplex.call( context, width, instructions );
 			}
 			
 			// Scope-level "var"-like assignments: `{ varname: value, ... }`
