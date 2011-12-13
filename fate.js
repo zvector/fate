@@ -1778,7 +1778,7 @@ Z.extend( true, Procedure, {
 				};
 		},
 		
-		branch: function ( condition, trueBlock, falseBlock ) {
+		branch: function ( condition, affirmative, negative ) {
 			var	scope = this,
 				unit = ( new ExecutionUnit ).as( scope );
 			
@@ -1808,8 +1808,8 @@ Z.extend( true, Procedure, {
 				}
 				
 				condition.then(
-					trueBlock ? predicate( trueBlock ) : unit.proceed,
-					falseBlock ? predicate( falseBlock ) : unit.proceed
+					affirmative ? predicate( affirmative ) : unit.proceed,
+					negative ? predicate( negative ) : unit.proceed
 				);
 				
 				return unit.promise();
