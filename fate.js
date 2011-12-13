@@ -1865,7 +1865,15 @@ Z.extend( true, Procedure, {
 		},
 		
 		loop: function ( initialization, precondition, procedure, postcondition ) {
-		
+			var	scope = this,
+				unit = ( new ExecutionUnit ).as( scope );
+			
+			return function () {
+				if ( Z.isFunction( initialization ) ) {
+					initialization = initialization.apply( scope, arguments );
+				}
+				return unit.promise();
+			}
 		},
 		
 		iteration: function ( keyVar, valueVar, collection, procedure ) {
