@@ -6,7 +6,7 @@ var	Deferral = Fate.Deferral,
 	Pipeline = Fate.Pipeline,
 	Procedure = Fate.Procedure;
 
-function delayed ( result, ms ) {
+function defer ( result, ms ) {
 	return function () {
 		var d = ( new Deferral ).given( arguments );
 		setTimeout( d[ result ? 'affirm' : 'negate' ], ms );
@@ -253,25 +253,35 @@ asyncTest( "If a deferral element negates", 1, function () {
 asyncTest( "Assignment and scoping", function () {
 	var op = opFn();
 	Procedure([
-		{ answer: 42 },
+		{ question: null, answer: 42 },
 		function () { return this.answer; },
 		function ( answer ) { return answer === this.answer; },
 		function ( confirmed ) { return confirmed === true && this.answer; },
 		[
-			function () { assert.equal( this.answer, 42, "Variable inherited from parent scope" ); },
-			{ question: "unknown", answer: "forty-two" },
-			function () { assert.equal( this.question, "unknown", "New variable assigned in inner scope" ); },
-			function () { assert.equal( this.answer, "forty-two", "Local assignment shadows parent scope" ); },
+			function () { assert.strictEqual( this.answer, 42, "Variable inherited from outer scope" ); },
+			function () { assert.strictEqual( this.question, null, "Variable inherited from outer scope" ); },
+			
+			{ question: 'unknown' },
+			function () { assert.strictEqual( this.question, 'unknown', "Outer scope variable overwritten" ); },
+			
+			// With no upvalues, `subject` remains bound to the local scope, despite lack of `[{}]`
+			{ subject: 'Universe' },
+			function () { assert.strictEqual( this.subject, 'Universe', "New variable declared in inner scope" ); },
+			
+			[{ answer: 'forty-two' }],
+			function () { assert.strictEqual( this.answer, 'forty-two', "Locally scoped assignment shadows outer scope" ); },
+			
 			function () { return this.answer; }
 		],
-		function () { assert.equal( arguments[0], "forty-two" ); },
-		function () { assert.equal( this.answer, 42, "Original scope retains original value" ); },
-		function () { assert.strictEqual( this.question, undefined, "Variable from inner scope has gone out of scope" ); }
+		function () { assert.strictEqual( arguments[0], 'forty-two' ); },
+		function () { assert.strictEqual( this.question, 'unknown', "Variable has been altered by the inner scope" ); },
+		function () { assert.strictEqual( this.subject, undefined, "Variable from inner scope has gone out of scope" ); },
+		function () { assert.strictEqual( this.answer, 42, "Original scope retains original value" ); }
 	])
 		.start()
 		.always( start );
 	
-	expect(6);
+	expect(9);
 });
 
 1&&
@@ -280,8 +290,8 @@ asyncTest( "Control structure: if-else", function () {
 		
 	Procedure([
 		function () { return Z.slice.call( arguments ); },
-		[ 'if', delayed( true, 10 ), [
-			[ 'if', delayed( false, 10 ), [ op(1) ], 'else', [[
+		[ 'if', defer( true, 10 ), [
+			[ 'if', defer( false, 10 ), [ op(1) ], 'else', [[
 				[ op(1), op(3) ],
 				op(2)
 			]] ],
@@ -290,7 +300,7 @@ asyncTest( "Control structure: if-else", function () {
 				{2:[ op(5), op(6), op(8) ]}
 			]],
 			function () { expect(8); }
-		], 'else if', delayed( true, 10 ), [
+		], 'else if', defer( true, 10 ), [
 			op(1),
 			op(2),
 			function () { expect(2); }
