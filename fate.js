@@ -1597,7 +1597,8 @@ function Procedure ( input, name, scope ) {
 		deferral = ( new Deferral ).as( scope || ( scope = {} ) );
 	
 	function subscope ( superscope ) {
-		return Z.extend( Z.create( superscope || scope || null ), { __procedure__: self } );
+		superscope || ( superscope = scope || null );
+		return Z.extend( Z.create( superscope ), { __procedure__: self, __super__: superscope } );
 	}
 	
 	function interpret ( obj, index, container ) {
@@ -1642,6 +1643,11 @@ function Procedure ( input, name, scope ) {
 				}
 			}
 			
+			// Scope-level assignment (shadowing, non-destructive): `[{ varname: value, ... }]`
+			else if ( obj.length === 1 && Z.isPlainObject( obj[0] ) ) {
+				return Procedure.structures.assignment.call( this, obj[0], true );
+			}
+			
 			// Simple series or parallel literal: `[ ... ]` | `[[ ... ]]`
 			else {
 				structure = obj.length === 1 && Z.isArray( obj[0] ) ?
@@ -1676,9 +1682,9 @@ function Procedure ( input, name, scope ) {
 				return Procedure.structures.multiplex.call( context, width, instructions );
 			}
 			
-			// Scope-level "var"-like assignments: `{ varname: value, ... }`
+			// Free assignments (may overwrite upscope value/reference): `{ varname: value, ... }`
 			else {
-				return Procedure.structures.assignment.call( this, obj );
+				return Procedure.structures.assignment.call( this, obj, false );
 			}
 		}
 		
@@ -1753,11 +1759,23 @@ Z.extend( true, Procedure, {
 			};
 		},
 		
-		assignment: function ( map ) {
+		assignment: function ( map, shadow ) {
 			var scope = this;
-			return function () {
-				Z.extend( scope, map );
-			};
+			return shadow ?
+				function () { Z.extend( scope, map ); }
+				:
+				function () {
+					var key, proto, s;
+					iterator: for ( key in map ) {
+						for ( s = scope; proto = Z.getPrototypeOf( s ); s = proto ) {
+							if ( Z.hasOwn.call( s, key ) ) {
+								s[ key ] = map[ key ];
+								continue iterator;
+							}
+						}
+						scope[ key ] = map[ key ];
+					}
+				};
 		},
 		
 		branch: function ( condition, trueBlock, falseBlock ) {
