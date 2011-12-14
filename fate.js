@@ -1585,6 +1585,9 @@ Z.extend( Multiplex.prototype, {
  * where `type` may be a statement such as `if`, `while`, `for`, etc., any of which direct the flow
  * of asynchronous execution in a manner analogous to their respective language-level counterparts.
  */
+
+// Z.oo( Procedure ).inherit( Future ).implement( Promise );
+
 function Procedure ( input, name, scope ) {
 	if ( !( this instanceof Procedure ) ) {
 		return new Procedure( input, name, scope );
