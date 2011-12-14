@@ -1775,7 +1775,7 @@ Z.extend( true, Procedure, {
 				};
 		},
 		
-		branch: function ( condition, affirmative, negative ) {
+		branch: function ( condition, consequent, alternative ) {
 			var	scope = this,
 				unit = ( new ExecutionUnit ).as( scope );
 			
@@ -1805,8 +1805,8 @@ Z.extend( true, Procedure, {
 				}
 				
 				condition.then(
-					affirmative ? predicate( affirmative ) : unit.proceed,
-					negative ? predicate( negative ) : unit.proceed
+					consequent ? predicate( consequent ) : unit.proceed,
+					alternative ? predicate( alternative ) : unit.proceed
 				);
 				
 				return unit.promise();
