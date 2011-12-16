@@ -1311,7 +1311,7 @@ function Pipeline ( operations ) {
 			result = Z.isFunction( continuation ) ?
 				continuation.apply( context, args ) : continuation;
 			
-			// Asynchronous: schedule a deferred recursion and return immediately
+			// Asynchronous: defer continuation and return immediately
 			if ( Future.resembles( result ) ) {
 				result.then(
 					function () {
@@ -1332,7 +1332,8 @@ function Pipeline ( operations ) {
 				return;
 			}
 			
-			// Synchronous: loop until an asynchronous operation or the end of the pipeline is encountered
+			// Synchronous: loop until encountering an asynchronous operation, the end of the
+			// pipeline, or `null`/`undefined`
 			else {
 				args = Z.isArray( result ) ? result : [ result ];
 				emit( 'didContinue' );
