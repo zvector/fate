@@ -1274,12 +1274,12 @@ function Pipeline ( operations ) {
 	
 	var	self = this,
 		context = self,
-		operation,
+		continuation,
 		args,
 		deferral,
 		running = false,
 		pausePending = false,
-		events = Z.nullHash([ 'didOperation', 'willContinue' ]);
+		events = Z.nullHash([ 'didContinue', 'willContinue' ]);
 	
 	function returnSelf () {
 		return self;
@@ -1289,14 +1289,14 @@ function Pipeline ( operations ) {
 		return deferral = ( new Deferral ).as( context );
 	}
 	
-	function shift () {
-		return operation = operations.shift();
+	function next () {
+		return continuation = operations.shift();
 	}
 	
 	function emit ( eventType, obj ) {
 		var	callbacks = events[ eventType ],
 			i, l,
-			data = Z.extend( { target: self, operation: operation, args: args }, obj );
+			data = Z.extend( { target: self, continuation: continuation, args: args }, obj );
 		if ( callbacks ) {
 			for ( i = 0, l = callbacks.length; i < l; i++ ) {
 				callbacks[i].call( self, data );
@@ -1304,23 +1304,24 @@ function Pipeline ( operations ) {
 		}
 	}
 	
-	function continuation () {
+	function callcc () {
 		var result;
 		
-		while ( operation != null || ( operation = operations.shift() ) != null ) {
-			result = Z.isFunction( operation ) ? operation.apply( context, args ) : operation;
+		while ( continuation != null || next() != null ) {
+			result = Z.isFunction( continuation ) ?
+				continuation.apply( context, args ) : continuation;
 			
 			// Asynchronous: schedule a deferred recursion and return immediately
 			if ( Future.resembles( result ) ) {
 				result.then(
 					function () {
 						args = Z.slice.call( arguments );
-						emit( 'didOperation' );
+						emit( 'didContinue' );
 						pausePending && ( running = pausePending = false );
 						if ( running ) {
-							if ( ( operation = operations.shift() ) != null ) {
+							if ( next() != null ) {
 								emit( 'willContinue' );
-								continuation.apply( operation, args );
+								callcc.apply( continuation, args );
 							} else {
 								self.stop();
 							}
@@ -1334,10 +1335,10 @@ function Pipeline ( operations ) {
 			// Synchronous: loop until an asynchronous operation or the end of the pipeline is encountered
 			else {
 				args = Z.isArray( result ) ? result : [ result ];
-				emit( 'didOperation' );
+				emit( 'didContinue' );
 				pausePending && ( running = pausePending = false );
 				if ( running ) {
-					if ( ( operation = operations.shift() ) != null ) {
+					if ( next() != null ) {
 						emit( 'willContinue' );
 						continue;
 					}
@@ -1362,13 +1363,15 @@ function Pipeline ( operations ) {
 	}
 	
 	function start () {
+		arguments.length && ( args = Z.slice.call( arguments ) );
+
 		( !deferral || deferral.did() ) && reset();
 		running = true;
 		
 		self.as = self.given = self.start = returnSelf;
 		self.pause = pause, self.resume = resume, self.stop = stop, self.abort = abort;
 		
-		continuation.apply( shift(), arguments.length ? ( args = Z.slice.call( arguments ) ) : args );
+		callcc.apply( next(), args );
 		return self;
 	}
 	
@@ -1381,7 +1384,7 @@ function Pipeline ( operations ) {
 	function resume () {
 		running = true, pausePending = false;
 		self.pause = pause, self.resume = returnSelf;
-		continuation.apply( shift(), args );
+		callcc.apply( next(), args );
 		return self;
 	}
 	
@@ -1470,7 +1473,7 @@ function Multiplex ( width, operations ) {
 	
 	function addPipe () {
 		var pipe = Pipeline( operations )
-			.on( 'didOperation', didOperation )
+			.on( 'didContinue', didContinue )
 			.on( 'willContinue', willContinue )
 		;
 		last = last ? ( ( pipe.previous = last ).next = pipe ) : ( first = pipe );
@@ -1489,7 +1492,7 @@ function Multiplex ( width, operations ) {
 		return pipe;
 	}
 	
-	function didOperation ( event ) {
+	function didContinue ( event ) {
 		args = event.args;
 	}
 	
