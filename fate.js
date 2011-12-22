@@ -1615,7 +1615,10 @@ function Procedure ( input, name, scope ) {
 	
 	function subscope ( superscope ) {
 		superscope || ( superscope = scope || null );
-		return Z.extend( Z.create( superscope ), { __procedure__: self, __super__: superscope } );
+		return Z.extend( Z.create( superscope ), {
+			__procedure__: self,
+			__super__: superscope
+		});
 	}
 	
 	function interpret ( obj, index, container ) {
