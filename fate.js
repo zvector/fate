@@ -1212,7 +1212,7 @@ function UnaryDeferral ( fn, args ) {
 Deferral.Binary = Deferral.extend( BinaryDeferral, { yes: 'affirm', no: 'negate' } );
 function BinaryDeferral ( fn, args ) {
 	if ( !( this instanceof BinaryDeferral ) ) { return new BinaryDeferral( fn, args ); }
-	Deferral.call( this, { yes: 'affirm', no: 'negate' }, fn, args );
+	Deferral.call( this, null, fn, args );
 }
 
 
