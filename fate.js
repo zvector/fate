@@ -1274,6 +1274,8 @@ Promise.createMethods = function ( subject, states, deferral, promise ) {
  * A **pipeline** executes a sequence of synchronous or asynchronous functions in order, passing a set of
  * arguments from one to the next as each operation completes.
  */
+ Z.inherit( Pipeline, Future );
+
 function Pipeline ( operations ) {
 	if ( !( this instanceof Pipeline ) ) {
 		return new Pipeline( operations );
