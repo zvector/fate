@@ -595,7 +595,6 @@ function Deferral ( potential, fn, args ) {
 	Z.extend( 'own', this, this.resolved );
 	
 	// Generate context-bound `join` methods
-	// TODO (?): move these per-instance join methods to BinaryDeferral constructor, since that's the only place that uses them
 	joinFactory = privileged.join( this );
 	Z.extend( this, {
 		when: Z.extend( joinFactory( 'when all' ), {
