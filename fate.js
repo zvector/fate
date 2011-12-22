@@ -1505,7 +1505,7 @@ function Multiplex ( width, operations ) {
 	}
 	
 	function willContinue ( event ) {
-		var pipe = event.target;
+		var pipe = event.pipeline;
 		if ( pipeCount > width ) {
 			pipeCount--;
 			pipe.stop();
