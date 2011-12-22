@@ -1283,15 +1283,32 @@ function Pipeline ( operations ) {
 	
 	var	self = this,
 		context = self,
-		continuation,
 		args,
 		deferral,
+		continuation,
 		running = false,
 		pausePending = false,
 		events = Z.nullHash([ 'didContinue', 'willContinue' ]);
 	
 	function returnSelf () {
 		return self;
+	}
+	
+	function emit ( eventType, obj ) {
+		var callbacks = events[ eventType ], i, l;
+		
+		obj = Z.extend({
+			pipeline: self,
+			continuation: continuation,
+			context: context,
+			args: args
+		}, obj );
+
+		if ( callbacks ) {
+			for ( i = 0, l = callbacks.length; i < l; i++ ) {
+				callbacks[i].call( self, obj );
+			}
+		}
 	}
 	
 	function reset () {
@@ -1302,17 +1319,20 @@ function Pipeline ( operations ) {
 		return continuation = operations.shift();
 	}
 	
-	function emit ( eventType, obj ) {
-		var	callbacks = events[ eventType ],
-			i, l,
-			data = Z.extend( { target: self, continuation: continuation, args: args }, obj );
-		if ( callbacks ) {
-			for ( i = 0, l = callbacks.length; i < l; i++ ) {
-				callbacks[i].call( self, data );
+	function continueAsynchronously () {
+		args = Z.slice.call( arguments );
+		emit( 'didContinue' );
+		pausePending && ( running = pausePending = false );
+		if ( running ) {
+			if ( next() != null ) {
+				emit( 'willContinue' );
+				callcc.apply( continuation, args );
+			} else {
+				self.stop();
 			}
 		}
 	}
-	
+
 	function callcc () {
 		var result;
 		
@@ -1322,27 +1342,12 @@ function Pipeline ( operations ) {
 			
 			// Asynchronous: defer continuation and return immediately
 			if ( Future.resembles( result ) ) {
-				result.then(
-					function () {
-						args = Z.slice.call( arguments );
-						emit( 'didContinue' );
-						pausePending && ( running = pausePending = false );
-						if ( running ) {
-							if ( next() != null ) {
-								emit( 'willContinue' );
-								callcc.apply( continuation, args );
-							} else {
-								self.stop();
-							}
-						}
-					},
-					self.abort
-				);
+				result.then( continueAsynchronously, self.abort );
 				return;
 			}
 			
-			// Synchronous: loop until encountering an asynchronous operation, the end of the
-			// pipeline, or `null`/`undefined`
+			// Synchronous: continue within loop until met with an asynchronous operation, the
+			// end of the pipeline, or `null`|`undefined`
 			else {
 				args = result === undefined ? [] : Z.isArray( result ) ? result : [ result ];
 				emit( 'didContinue' );
@@ -1351,8 +1356,7 @@ function Pipeline ( operations ) {
 					if ( next() != null ) {
 						emit( 'willContinue' );
 						continue;
-					}
-					else {
+					} else {
 						break;
 					}
 				}
@@ -1418,6 +1422,8 @@ function Pipeline ( operations ) {
 		return self;
 	}
 	
+	Z.isArray( operations ) || ( operations = [] );
+
 	Z.forEach( Pipeline.arrayMethods, function ( method ) {
 		self[ method ] = function () {
 			return Array.prototype[ method ].apply( operations, arguments );
@@ -1427,7 +1433,7 @@ function Pipeline ( operations ) {
 	Z.extend( this, {
 		length: Z.valueFunction( function () { return operations.length; } ),
 		promise: function () { return deferral.promise(); },
-		operation: function () { return operation; },
+		continuation: function () { return continuation; },
 		args: function () { return Z.slice.call( args ); },
 		isRunning: Z.valueFunction( function () { return running; } ),
 		as: as,
