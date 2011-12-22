@@ -1570,19 +1570,20 @@ function Multiplex ( width, operations ) {
 		stop: returnSelf
 	});
 }
-Z.extend( Multiplex, {
-	arrayMethods: 'push pop shift unshift reverse splice'.split(' ')
-});
-Z.extend( Multiplex.prototype, {
-	dilate: function ( amount ) {
-		Z.isNumber( amount = +amount ) || ( amount = 1 );
-		return this.width( this.width() + amount );
-	},
-	constrict: function ( amount ) {
-		Z.isNumber( amount = +amount ) || ( amount = 1 );
-		return this.width( this.width() - amount );
+Z.extend( 'deep', Multiplex, {
+	arrayMethods: 'push pop shift unshift reverse splice'.split(' '),
+
+	prototype: {
+		dilate: function ( amount ) {
+			Z.isNumber( amount = +amount ) || ( amount = 1 );
+			return this.width( this.width() + amount );
+		},
+		constrict: function ( amount ) {
+			Z.isNumber( amount = +amount ) || ( amount = 1 );
+			return this.width( this.width() - amount );
+		}
 	}
-})
+});
 
 /**
  * A **procedure** defines an execution flow by nesting multiple parallel and serial function arrays.
