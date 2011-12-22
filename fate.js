@@ -204,10 +204,6 @@ function Future () {
 
 Z.extend( 'deep', Future, {
 	prototype: {
-		potential: function () {
-			throw new TypeError; // virtual
-		},
-		
 		/**
 		 * Unified interface for registering callbacks. Multiple arguments are registered to the
 		 * primary resolved substates in respective order, with a trailing argument added as a
