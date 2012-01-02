@@ -1108,6 +1108,23 @@ Z.extend( true, Deferral, {
 	},
 	
 	extend: function ( constructor, potential ) {
+		var self = this;
+
+		if ( !Z.isFunction( constructor ) ) {
+			potential = constructor;
+			constructor = ( function () {
+				function Subdeferral () {
+					if ( !( this instanceof Subdeferral ) ) {
+						var subdeferral = Z.create( Subdeferral.prototype );
+						Subdeferral.apply( subdeferral, arguments );
+						return subdeferral;
+					}
+					self.apply( this, arguments );
+				}
+				return Subdeferral;
+			})();
+		}
+
 		return Z.inherit( constructor, this, {
 			state: State({
 				unresolved: {
