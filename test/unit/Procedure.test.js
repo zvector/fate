@@ -285,6 +285,27 @@ asyncTest( "Assignment and scoping", function () {
 });
 
 1&&
+asyncTest( "Control structure: if-else: arguments of conditional", function () {
+	var op = opFn();
+	var pass = function () {
+		return Z.slice.call( arguments );
+	};
+
+	Procedure([
+		pass,
+		[ 'if', function ( a, b ) {
+				return ( a === 1 && b === 2 );
+			},
+			function ( c, d ) {
+				assert.ok( c === 1 && d === 2 );
+			}
+		]
+	])
+		.start( 1, 2 )
+		.always( start );
+});
+
+1&&
 asyncTest( "Control structure: if-else", function () {
 	var	op = opFn();
 		

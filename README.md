@@ -1,5 +1,4 @@
-<a name="!" title="hahahashbang!" />
-<img src="/zvector/fate/blob/master/docs/images/fatejs-title-art.png?raw=true" />
+<a name="!" />
 
 **Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. 
 
@@ -10,7 +9,7 @@ Dig into the goodies below for a guided tour through the fundamentals of deferra
 
 ### Contents
 
-* [**Deferral**](#deferral) — Stateful callback management for groups of synchronous and asynchronous operations
+* [**Deferral**](#deferral) — Multivalent deferred object
 	* [Background](#deferral--background)
 	* [Overview](#deferral--overview)
 		* [Responding to a deferral’s resolution](#deferral--overview--responding-to-a-deferrals-resolution)
@@ -96,24 +95,26 @@ Dig into the goodies below for a guided tour through the fundamentals of deferra
 <a name="deferral" />
 # Deferral
 
-A **deferral** is a miniature state machine built to organize callbacks. Its stateful design makes it a powerful tool for managing the eventualities of synchronous and asynchronous operations alike. With its associated [**promise**](#promise) interface, it is the fundamental unit of the composite devices [**pipeline**](#pipeline), which processes an array of operations sequentially, [**multiplex**](#multiplex), which processes an array of operations concurrently by bundling multiple pipelines together, and [**procedure**](#procedure), which processes operations, pipelines, and multiplexes in arbitrarily complex arrangements.
+A **deferral** is a miniature state machine that encapsulates a response to the outcome of some future event. It is a fundamental unit of many types of asynchronous constructs, including flow-control devices [**pipeline**](#pipeline), which processes deferred operations as a sequence of continuations, [**multiplex**](#multiplex), which processes an array of operations in parallel by bundling multiple concurrent pipelines together, and interpreted [**procedures**](#procedure), which employ an array- and object-literal based syntax, as well as some familiar control structures, to process arbitrarily complex arrangements of asynchronous operations.
 
 
 <a name="deferral--background" />
 ## Background
 
-`Deferral` is an extension of the promise pattern, implementations of which have gained wide usage and refinement in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object, which it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
+`Deferral` is an extension of the promise pattern, implementations of which have gained widespread attention in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object, which it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
+
+In each case, a Deferred Object describes a future in terms of a binary proposition of success-versus-failure; `Deferral` can be readily understood as being essentially a multivalent version of this, with the ability to define one's own resolution states, to any number and depth.
 
 
 <a name="deferral--overview" />
 ## Overview
 
-A deferral can be thought of as a liaison between the “present” and a definite set of possible **futures**. Together, these comprise the domain of the deferral’s **resolution state**, where, starting in the present, the deferral is considered to be in its **unresolved state**, and sometime later, the deferral will _resolve_ by irreversibly transitioning into one of its **resolved substates**, and invoking any callbacks that have been registered to that particular resolution.
+A deferral describes the interval between the “present” and one of several possible “futures”, which are presented as **states** of the deferral, arranged in a tree structure. Starting in the present, the deferral is considered to be in its **unresolved state**, and sometime later, the deferral will be transitioned into its **resolved state**, and specifically, one of its substates, which becomes that deferral's final **resolution state**. The deferral will then invoke all callbacks that have been registered to any state from the top-level resolved state down to the specific substate that is its resolution state.
 
 <a name="deferral--overview--responding-to-a-deferrals-resolution" />
 ### Responding to a deferral’s resolution
 
-Each resolved substate is directly associated with an eponymous **callback queue** and identically named **registrar method**. Consumers of the deferral may at any time use a registrar method to add callbacks to the registrar’s associated callback queue; however, the deferral will react to a callback addition differently based on its resolution state. While in the unresolved state, callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution. Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to the resolver’s associated resolved substate, the callbacks in its queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
+Each resolved substate is directly associated with an eponymous **registrar method** and **callback queue**. Consumers of the deferral may at any time use a registrar method to add callbacks to the associated queue. While in the unresolved state, these callbacks are simply saved to the queue, potentially to be executed later pending the deferral’s resolution; Once the corresponding **resolver method** of a particular queue is called, the deferral transitions to the resolver’s associated resolved substate, the callbacks in its queue are executed, and all other queues are emptied. Thereafter, if new callbacks are added to the queue of the selected substate, they will be executed immediately, while callbacks subsequently added to any of the other queues will be ignored.
 
 <a name="deferral--overview--constructor-syntax" />
 ### Constructor syntax
@@ -122,7 +123,7 @@ Instantiating a deferral takes the form
 
 	var Deferral = Fate.Deferral;
 	
-	[new] Deferral( [ { <state/queue/registrar>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
+	[new] Deferral( [ { <state>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
 
 The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolved substate to the name of its associated resolver method (examples follow, under the section [“Arity”](#deferral--features--arity)). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
 

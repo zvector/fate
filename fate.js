@@ -1806,7 +1806,8 @@ Z.extend( true, Procedure, {
 			return function () {
 				function predicate ( block ) {
 					return function () {
-						return Procedure( block, null, scope ).given( arguments ).start()
+						var procedure = new Procedure( block, null, scope );
+						return procedure.start.apply( procedure, arguments )
 							.then( unit.proceed, unit['throw'] );
 					};
 				}
