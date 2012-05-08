@@ -1,13 +1,6 @@
-<a name="!" />
+# Fate.js
 
-**Fate.js** makes reasoning about the future easy, and callback hell a thing of the past. 
-
-Building on concepts from the familiar promise pattern, **Fate** helps you seriously simplify asynchronous execution flow with powerful tools and a straightforward, expressive API, presented with an elegantly concise literal syntax.
-
-Dig into the goodies below for a guided tour through the fundamentals of deferrals and promises, and the awesome machinery that’s built from them, like pipelines and multiplexes, or [jump straight to the fun stuff](#procedure--examples) to see just how neatly **Fate** can help you knock out even the most dauntingly complicated asynchronous tasks.
-
-
-### Contents
+**Fate** is a framework that provides promise-based asynchronous tools including multivalent deferrals, pipelines, multiplexes, and procedures.
 
 * [**Deferral**](#deferral) — Multivalent deferred object
 	* [Background](#deferral--background)
@@ -17,7 +10,7 @@ Dig into the goodies below for a guided tour through the fundamentals of deferra
 	* [Features](#deferral--features)
 		* [Early binding](#deferral--features--early-binding)
 		* [Arity](#deferral--features--arity)
-		* [Formal variadic subtypes](#deferral--features--formal-variadic-subtypes):
+		* [Formal subtypes](#deferral--features--formal-subtypes):
 			[Binary](#deferral--features--formal-subtypes--binary),
 			[Unary](#deferral--features--formal-subtypes--unary),
 			[Nullary](#deferral--features--formal-subtypes--nullary)
@@ -95,21 +88,19 @@ Dig into the goodies below for a guided tour through the fundamentals of deferra
 <a name="deferral" />
 # Deferral
 
-A **deferral** is a miniature state machine that encapsulates a response to the outcome of some future event. It is a fundamental unit of many types of asynchronous constructs, including flow-control devices [**pipeline**](#pipeline), which processes deferred operations as a sequence of continuations, [**multiplex**](#multiplex), which processes an array of operations in parallel by bundling multiple concurrent pipelines together, and interpreted [**procedures**](#procedure), which employ an array- and object-literal based syntax, as well as some familiar control structures, to process arbitrarily complex arrangements of asynchronous operations.
+A **deferral** is a small state machine that encapsulates a response to the outcome of some future event. It is a fundamental unit of many types of asynchronous constructs, including flow-control devices [**pipeline**](#pipeline), which processes deferred operations as a sequence of continuations, [**multiplex**](#multiplex), which processes an array of operations in parallel by bundling multiple concurrent pipelines together, and interpreted [**procedures**](#procedure), which employ an array- and object-literal based syntax, as well as some familiar control structures, to process arbitrarily complex arrangements of asynchronous operations.
 
 
 <a name="deferral--background" />
 ## Background
 
-`Deferral` is an extension of the promise pattern, implementations of which have gained widespread attention in JavaScript recently: in early 2011 **jQuery** with version 1.5 added its own [Deferred](http://api.jquery.com/category/deferred-object/) object, which it both exposes and uses internally to power features such as `$.ajax`; this in turn was based largely on a similar [Deferred](http://dojotoolkit.org/api/1.6/dojo/Deferred) implementation in **Dojo** whose earliest form dates back to before the original 1.0 release, and itself inherits from earlier implementations in **MochiKit** and the **Twisted** framework in Python.
-
-In each case, a Deferred Object describes a future in terms of a binary proposition of success-versus-failure; `Deferral` can be readily understood as being essentially a multivalent version of this, with the ability to define one's own resolution states, to any number and depth.
+`Deferral` is an extension of the *promise pattern*, which commonly describes a **future** in terms of a binary proposition that will finally resolve to either a `success` state or a `failure` state. `Deferral` is essentially a multivalent version of this, providing the ability to define arbitrary resolution states, to any number and depth.
 
 
 <a name="deferral--overview" />
 ## Overview
 
-A deferral describes the interval between the “present” and one of several possible “futures”, which are presented as **states** of the deferral, arranged in a tree structure. Starting in the present, the deferral is considered to be in its **unresolved state**, and sometime later, the deferral will be transitioned into its **resolved state**, and specifically, one of its substates, which becomes that deferral's final **resolution state**. The deferral will then invoke all callbacks that have been registered to any state from the top-level resolved state down to the specific substate that is its resolution state.
+A deferral describes the interval between the “present” and one of several possible “futures”, which are presented as **states** of the deferral, arranged in a tree structure. Starting in the present, the deferral is considered to be in its **unresolved state**, and sometime later, the deferral will be transitioned into its general **resolved state**, and specifically, one of that state’s substates, which becomes that deferral’s final **resolution state**. The deferral will then invoke all callbacks that have been registered to any state from the top-level resolved state down to the specific substate that is its resolution state.
 
 <a name="deferral--overview--responding-to-a-deferrals-resolution" />
 ### Responding to a deferral’s resolution
@@ -121,9 +112,11 @@ Each resolved substate is directly associated with an eponymous **registrar meth
 
 Instantiating a deferral takes the form
 
-	var Deferral = Fate.Deferral;
+```javascript
+var Deferral = Fate.Deferral;
 	
-	[new] Deferral( [ { <state>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
+[new] Deferral( [ { <state>: <resolver>, ... } ], [ /*Function*/ function, [ /*Array*/ arguments ] ] )
+```
 
 The first argument is an optional hashmap that describes the deferral’s **resolution potential** by relating the names of each resolved substate to the name of its associated resolver method (examples follow, under the section [“Arity”](#deferral--features--arity)). The second and third arguments specify an optional function and arguments that will be called immediately in the context of the new deferral once it has been constructed.
 
@@ -138,50 +131,68 @@ When a deferral is resolved it is commonly desirable to specify a context and se
 
 For example:
 
-	Deferral().as( context ).affirm( arg1, arg2, ... );
+```javascript
+Deferral().as( context ).affirm( arg1, arg2, ... );
+```
 
 which is equivalent to
 
-	Deferral().as( context ).given([ arg1, arg2, ... ]).affirm();
+```javascript
+Deferral().as( context ).given([ arg1, arg2, ... ]).affirm();
+```
 
 both of which might compare with
 
-	jQuery.Deferred().resolveWith( context, arg1, arg2, ... );
+```javascript
+jQuery.Deferred().resolveWith( context, arg1, arg2, ... );
+```
 
 <a name="deferral--features--arity" />
 ### Arity
 
 `Deferral` is variadic, in that any number of possible futures may be defined as resolution states. An instantiation of `Deferral` may include a specification of its resolution potential, a one-to-one mapping of callback queues to resolver methods. A typical pattern is a _binary_ deferral that names two queues, such as `yes` and `no`, which map to resolver methods that could be named `affirm` and `negate`; this could be constructed like so:
 
-	Deferral({ yes: 'affirm', no: 'negate' });
+```javascript
+Deferral({ yes: 'affirm', no: 'negate' });
+```
 
 This can be extended further if more outcomes are to be accounted for:
 
-	Deferral({ yes: 'affirm', no: 'negate', maybe: 'punt', confused: 'waffle', distracted: 'squirrel' });
+```javascript
+Deferral({ yes: 'affirm', no: 'negate', maybe: 'punt', confused: 'waffle', distracted: 'squirrel' });
+```
 
 Alternatively, supposing we wish to mimic the syntax of the jQuery Deferred object, we’re also free to create:
 
-	Deferral({ done: 'resolve', fail: 'reject' });
+```javascript
+Deferral({ done: 'resolve', fail: 'reject' });
+```
 
-<a name="deferral--features--formal-variadic-subtypes" />
-### Formal variadic subtypes
+<a name="deferral--features--formal-subtypes" />
+### Formal subtypes
 
 Most applicable use cases for `Deferral` are served by its built-in subtypes. As introduced above, the most common usage is the `BinaryDeferral` at `Deferral.Binary` that names two callback queues, `yes` and `no`, invoked by calling `affirm()` or `negate()`, respectively. The default implementation of `Deferral` returns this binary subtype.
 
-	var deferral = Deferral(); // BinaryDeferral
-	deferral.yes( fn1 ).no( fn2 ); // === d.then( fn1, fn2 )
-	deferral.as( context ).given( args ).affirm(); // === fn1.apply( context, args )
+```javascript
+var deferral = Deferral(); // BinaryDeferral
+deferral.yes( fn1 ).no( fn2 ); // === d.then( fn1, fn2 )
+deferral.as( context ).given( args ).affirm(); // === fn1.apply( context, args )
+```
 
 For applications in which there exists only one possible outcome, there is the `UnaryDeferral` at `Deferral.Unary`, which contains a single callback queue, `done`, invoked by calling `resolve()`.
 
-	var deferral = Deferral.Unary(); // UnaryDeferral
-	deferral.done( fn1, fn2 ); // === d.always( fn1, fn2 )
-	deferral.as( context ).resolve( arg ); // === ( fn1.call( context, arg ), fn2.call( context, arg ), d )
+```javascript
+var deferral = Deferral.Unary(); // UnaryDeferral
+deferral.done( fn1, fn2 ); // === d.always( fn1, fn2 )
+deferral.as( context ).resolve( arg ); // === ( fn1.call( context, arg ), fn2.call( context, arg ), d )
+```
 
 Sometimes it may also be desirable to incorporate synchronous logic into an asynchronous environment — a situation that involves, in a sense, _zero_ possible futures. For this special case there is the `NullaryDeferral` at `Deferral.Nullary`, essentially a “pre-resolved” deferral, wherein all callbacks added are simply executed immediately. A nullary deferral has no resolution potential, and thus no callback queues and no registrar or resolver methods, but it does provide conformance to the fundamental promise interface via `then()` and `promise()`. In addition, `empty()` is obviated, and methods `as()` and `given()` are defunct, with context and arguments for callbacks instead provided as arguments of the `NullaryDeferral` constructor:
 
-	var deferral = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
-	deferral.then( fn ); // === ( fn1.apply( asContext, givenArguments ), deferral.promise() )
+```javascript
+var deferral = Deferral.Nullary( asContext, givenArguments ); // NullaryDeferral
+deferral.then( fn ); // === ( fn1.apply( asContext, givenArguments ), deferral.promise() )
+```
 
 
 <a name="deferral--remarks" />
@@ -226,40 +237,50 @@ Returns a `Promise`, a limited interface into the deferral that allows callback 
 
 Returns a hashmap relating the names of the deferral’s resolution states (and likewise its callback queues and registrar methods) to the names of their corresponding resolver methods.
 
-	JSON.stringify( Deferral().potential() ); // {"yes":"affirm","no":"negate"}
+```javascript
+JSON.stringify( Deferral().potential() ); // {"yes":"affirm","no":"negate"}
+```
 
 <a name="deferral--methods--querying--futures" />
 #### futures()
 
 Returns an Array that is an ordered list of the names of the deferral’s resolution states (and likewise its callback queues and registrar methods).
 
-	Deferral().futures(); // ["yes", "no"]
+```javascript
+Deferral().futures(); // ["yes", "no"]
+```
 
 <a name="deferral--methods--querying--did" />
 #### did( [`String` resolver] )
 
 If no argument is provided, `did()` indicates simply whether the deferral has been resolved; or, given a specified `resolver` method name, `did( resolver )` returns `true` if the deferral was resolved using `resolver`, and `false` otherwise. 
 
-	Deferral().did(); // false
-	Deferral().affirm().did('affirm'); // true
-	Deferral().negate().did('affirm'); // false
-	Deferral().negate().did(); // true
-	Deferral.Nullary().did(); // true
-	
+```javascript
+Deferral().did(); // false
+Deferral().affirm().did('affirm'); // true
+Deferral().negate().did('affirm'); // false
+Deferral().negate().did(); // true
+Deferral.Nullary().did(); // true
+```
+
 <a name="deferral--methods--querying--resolution" />
 #### resolution( [`String` test] )
 
 If no arguments are provided, `resolution()` returns the name of the state to which the deferral has resolved, or returns `undefined` if the deferral is still unresolved. For a nullary deferral, `resolution()` always returns `true`.
 
-	Deferral().resolution(); // undefined
-	Deferral().affirm().resolution(); // "yes"
-	Deferral.Unary().resolve().resolution(); // "done"
-	Deferral.Nullary().resolution(); // true
-	
+```javascript
+Deferral().resolution(); // undefined
+Deferral().affirm().resolution(); // "yes"
+Deferral.Unary().resolve().resolution(); // "done"
+Deferral.Nullary().resolution(); // true
+```
+
 If a `String` is provided as an argument, `resolution( test )` returns `true` if the deferral’s `resolution()` matches `test`, returns `false` if the deferral was otherwise resolved, or returns `undefined` if it is still unresolved.
 
-	Deferral().resolution('no'); // undefined
-	Deferral().negate().resolution('yes'); // false
+```javascript
+Deferral().resolution('no'); // undefined
+Deferral().negate().resolution('yes'); // false
+```
 
 <a name="deferral--methods--registration" />
 ### Registration
@@ -285,15 +306,17 @@ Values for built-in `Deferral` subtypes:
 
 Examples:
 
-	Deferral()
-		.yes( function () { console.log("hooray!"); } )
-		.no( function () { console.log("boooo!"); } )
-		.affirm() // console << "hooray!"
-		.yes( function () { console.log("Sorry I'm late!"); } ) // console << "Sorry I'm late!"
-		.no( function () { console.log("I said BOOOO!"); } ); // (no output)
-	
-	setTimeout( Deferral.Unary().done( function () { console.log("At last!"); }).resolve, 1000 );
-	// (one second later) console << "At last!"
+```javascript
+Deferral()
+    .yes( function () { console.log("hooray!"); } )
+    .no( function () { console.log("boooo!"); } )
+    .affirm()                                                // log <<< "hooray!"
+    .yes( function () { console.log("Sorry I'm late!"); } )  // log <<< "Sorry I'm late!"
+    .no( function () { console.log("I said BOOOO!"); } );    // (no output)
+
+setTimeout( Deferral.Unary().done( function () { console.log("At last!"); }).resolve, 1000 );
+// (one second later)                                           log <<< "At last!"
+```
 
 <a name="deferral--methods--registration--then" />
 #### then( `Function` callback | `Array` callbacks, ... )
@@ -363,7 +386,9 @@ If `when` is called as a method of an unresolved binary deferral, then that defe
 
 By default, `when` monitors the promises for their implicitly affirmative resolution state, i.e., the state targeted by the first argument of `then()`. A specific resolution state can be supplied as a `String` at the last argument position in the `when()` call. For example, the promise returned by:
 
-	var bizzaro = Deferral.when( promiseA, promiseB, 'no' );
+```javascript
+var bizzaro = Deferral.when( promiseA, promiseB, 'no' );
+```
 
 will `affirm` to the `yes` resolution if `promiseA` and `promiseB` are both eventually `negate`d to their respective `no` resolution states.
 
@@ -418,34 +443,40 @@ Returns a boolean indicating whether `this` promise belongs to `deferral`.
 <a name="pipeline" />
 # Pipeline
 
-	var Pipeline = Fate.Pipeline;
-	
-	[new] Pipeline( /*Array*/ operations )
+```javascript
+var Pipeline = Fate.Pipeline;
+
+[new] Pipeline( /*Array*/ operations )
+```
 
 Deferrals facilitate the use of **continuations** to create a special type of operation `Pipeline`, which executes a sequence of synchronous or asynchronous functions in order, passing a set of arguments from one to the next as each operation completes.
 
 Synchronous functions must return the array of arguments to be relayed on to the next operation. Asynchronous functions must return a `Promise` to a `Deferral` that will be resolved at some point in the future, whereupon its resolution arguments are relayed on to the next operation.
 
-	function fn1 ( a, b ) { return [ a + 1, b + 1 ]; }
-	function fn2 ( a, b ) {
-		var d = Deferral();
-		setTimeout( function () { d.affirm( a + 2, b + 2 ); }, 1000 );
-		return d.promise();
-	}
-	function fn3 ( a, b ) { return [ a + 3, b + 3 ]; }
-	
-	var pipeline = new Pipeline( [ fn1, fn2, fn3 ] );
-	
-	pipeline.start( 0, 1 )
-		.promise()
-		.then( function ( a, b ) {
-			assert.ok( a === 6 && b === 7 ); // true
-		});
+```javascript
+function fn1 ( a, b ) { return [ a + 1, b + 1 ]; }
+function fn2 ( a, b ) {
+	var d = Deferral();
+	setTimeout( function () { d.affirm( a + 2, b + 2 ); }, 1000 );
+	return d.promise();
+}
+function fn3 ( a, b ) { return [ a + 3, b + 3 ]; }
+
+var pipeline = new Pipeline( [ fn1, fn2, fn3 ] );
+
+pipeline.start( 0, 1 )
+	.promise()
+	.then( function ( a, b ) {
+		assert.ok( a === 6 && b === 7 ); // true
+	});
+```
 
 The array passed as an argument will be treated as mutable; each element is `shift`ed out of the array as it is executed. If the array’s integrity must be preserved, it should be copied before the constructor is called:
 
-	var array = [ fn1, fn2, fn3 ],
-	    pipeline = Pipeline( array.slice() );
+```javascript
+var array = [ fn1, fn2, fn3 ],
+    pipeline = Pipeline( array.slice() );
+```
 
 
 <a name="pipeline--remarks" />
@@ -543,9 +574,11 @@ Stops execution and resolves the pipeline’s deferral.
 <a name="multiplex" />
 # Multiplex
 
-	var Multiplex = Fate.Multiplex;
-	
-	[new] Multiplex( /*Number*/ width, /*Array*/ operations )
+```javascript
+var Multiplex = Fate.Multiplex;
+
+[new] Multiplex( /*Number*/ width, /*Array*/ operations )
+```
 
 A **multiplex** employs a specific number of concurrent pipelines to process an array of operations in parallel. Its `width`, which is the maximum number of pipelines that are allowed to operate concurrently, can be adjusted dynamically as the multiplex is running; this will cause pipelines to be automatically added as necessary, or removed as necessary once their current operations complete.
 
@@ -618,9 +651,11 @@ Stops execution and resolves the multiplex’s deferral.
 <a name="procedure" />
 # Procedure
 
-	var Procedure = Fate.Procedure;
-	
-	[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
+```javascript
+var Procedure = Fate.Procedure;
+
+[new] Procedure( [ ... ] | [[ ... ]] | {n:[ ... ]} )
+```
 
 A **procedure** conveniently employs `Pipeline`, `when`, and `Multiplex`, using symbolic JSON literals, to describe a concerted progression of serial, parallel, and fixed-width–parallel execution flows. It is constructed by grouping multiple functions into nested array structures of arbitrary depth, where:
 
@@ -650,86 +685,90 @@ Initiates the procedure. (Does not currently define behavior for arguments.)
 
 In the following example, a procedure is constructed from both parallel and serial sets of asynchronous functions that return promises. Each function must execute in the order indicated by its specific `n` value for the procedure to complete successfully. Note in particular the timing sequence going from `fn(3)` to `fn(6)`, illustrating the consequences of nesting parallel and serial sets inside one another.
 
-	var Deferral = Fate.Deferral,
-	    Procedure = Fate.Procedure,
-	    number = 0;
-	
-	function fn ( n ) {
-		return function () {
-			var deferral = new Deferral;
-			setTimeout( function () {
-				n === ++number ? deferral.affirm() : deferral.negate( n );
-			}, 100 );
-			return deferral.promise();
-		};
-	}
-	
-	Procedure([
-		fn(1),
-		[[
-			fn(2),
-			[ fn(3), fn(6) ],
-			[[ fn(4), fn(5) ]]
-		]],
-		[ fn(7), fn(8) ]
-	])
-		.start()
-		.then( function () {
-			window.console && console.log( number ); // 8
-		});
-	
+```javascript
+var Deferral = Fate.Deferral,
+    Procedure = Fate.Procedure,
+    number = 0;
+
+function fn ( n ) {
+	return function () {
+		var deferral = new Deferral;
+		setTimeout( function () {
+			n === ++number ? deferral.affirm() : deferral.negate( n );
+		}, 100 );
+		return deferral.promise();
+	};
+}
+
+Procedure([
+	fn(1),
+	[[
+		fn(2),
+		[ fn(3), fn(6) ],
+		[[ fn(4), fn(5) ]]
+	]],
+	[ fn(7), fn(8) ]
+])
+	.start()
+	.then( function () {
+		window.console && console.log( number ); // 8
+	});
+```
+
 The next example further illustrates this principle using a significantly more complex graph. Again, each function must execute in the proper order for the procedure to complete successfully (this time with a final `number` value of `22`). Even amidst the apparent tangle, the logic of the execution order indicated is discernable, keeping in mind that: (a) the function elements of a series (`[ ]`) must await the completion of their preceeding element; (b) elements of a parallel set (`[[ ]]`) are invoked as soon as possible; and (c) elements of a multiplexed set (`{n:[ ]}`) are invoked as soon as possible but no sooner than `n` elements at a time.
 
-	var Deferral = Fate.Deferral,
-	    Procedure = Fate.Procedure,
-	    number = 0;
-	
-	function fn ( n ) {
-		return function () {
-			var deferral = new Deferral;
-			setTimeout( function () {
-				n === ++number ? deferral.affirm() : deferral.negate( n );
-			}, 100 );
-			return deferral.promise();
-		};
-	}
-	
-	Procedure([
-		fn(1),
-		[[
-			fn(2),
-			{ 2:[
-				fn(3),
-				fn(4),
-				[
-					fn(6),
-					[[
-						fn(9),
-						fn(10),
-						[[ fn(11), fn(12) ]]
-					]],
-					fn(15),
-					[
-						fn(17),
-						fn(19)
-					]
-				],
-				fn(7),
+```javascript
+var Deferral = Fate.Deferral,
+    Procedure = Fate.Procedure,
+    number = 0;
+
+function fn ( n ) {
+	return function () {
+		var deferral = new Deferral;
+		setTimeout( function () {
+			n === ++number ? deferral.affirm() : deferral.negate( n );
+		}, 100 );
+		return deferral.promise();
+	};
+}
+
+Procedure([
+	fn(1),
+	[[
+		fn(2),
+		{ 2:[
+			fn(3),
+			fn(4),
+			[
+				fn(6),
 				[[
-					fn(13),
-					[ fn(14), fn(16) ]
+					fn(9),
+					fn(10),
+					[[ fn(11), fn(12) ]]
 				]],
-				fn(18)
-			]},
-			[ fn(5), fn(8) ]
-		]],
-		[ fn(20), fn(21) ],
-		fn(22)
-	])
-		.start()
-		.then( function () {
-			window.console && console.log( number ); // 22
-		});
+				fn(15),
+				[
+					fn(17),
+					fn(19)
+				]
+			],
+			fn(7),
+			[[
+				fn(13),
+				[ fn(14), fn(16) ]
+			]],
+			fn(18)
+		]},
+		[ fn(5), fn(8) ]
+	]],
+	[ fn(20), fn(21) ],
+	fn(22)
+])
+	.start()
+	.then( function () {
+		window.console && console.log( number );  // log <<< 22
+	});
+```
 
 
 ## Future directions
