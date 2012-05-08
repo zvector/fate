@@ -1,13 +1,13 @@
 {
     "name"          : "fate",
     "version"       : "0.0.1",
-    "description"   : "",
-    "homepage"      : "",
+    "description"   : "A framework of asynchronous tools, including multivalent deferrals, promises, pipelines, multiplexes, and procedures.",
+    "homepage"      : "https://github.com/zvector/fate",
     "keywords"      : [ "async", "promise", "defer", "deferred", "deferral", "pipeline", "parallel", "multiplex", "procedure" ],
     "author"        : "Nick Fargo <nick@zvector.com>",
     "contributors"  : [],
     "dependencies"  : {
-        "zcore"     : ">=0.1.0"
+        "zcore"     : ">=0.1.5"
     },
     "repository"    : {
         "type"      : "git",
