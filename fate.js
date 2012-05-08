@@ -318,7 +318,7 @@ function CallbackQueueTree ( rootState ) {
 		 * Returns the callback queue Array associated with the specified `state`; creates it if necessary.
 		 */
 		get: function ( state, flags ) {
-			flags = flags ? Z.splitToHash( flags, ' ' ) : {};
+			flags = flags ? Z.assign( flags ) : {};
 			
 			var	bubble = flags.bubble,
 				capture = flags.capture || !bubble,
@@ -532,7 +532,7 @@ function Deferral ( potential, fn, args ) {
 		
 		/**
 		 * Returns whether or not the deferral has resolved, or whether it was resolved **to or beyond**
-		 * the state associated with the resolver method named `test`.
+		 * the state associated with the resolver method with a matching `name`.
 		 */
 		did: function ( name ) {
 			var state = resolution.state;
@@ -622,7 +622,7 @@ function Deferral ( potential, fn, args ) {
 Z.extend( true, Deferral, {
 	privileged: {
 		/**
-		 * Outer closure for the registrar method factory.
+		 * Closure of the registrar method factory.
 		 */
 		register: function ( self, callbacks ) {
 			var potential = self.potential();
@@ -632,8 +632,8 @@ Z.extend( true, Deferral, {
 			 * associated with the specified state.
 			 */
 			return function ( state ) {
-				Z.type( state ) === 'string' && ( state = potential.substate( state ) );
-				if ( !( state && ( potential.isOrIsSuperstateOf( state ) ) ) ) {
+				typeof state === 'string' && ( state = potential.substate( state ) );
+				if ( !( state && potential.isOrIsSuperstateOf( state ) ) ) {
 					throw new ReferenceError( "Bad state reference" );
 				}
 				
@@ -653,7 +653,7 @@ Z.extend( true, Deferral, {
 		},
 		
 		/**
-		 * Outer closure for the resolver method factory.
+		 * Closure of the resolver method factory.
 		 */
 		resolve: function ( self, callbacks, resolution ) {
 			var	invokeFn = this.invoke( self, callbacks ),
@@ -696,14 +696,12 @@ Z.extend( true, Deferral, {
 					// Disable progress notification
 					this.progress = this.notify = selfFn;
 					
-					/*
-					 * First modify the behavior of the explicit registrar and resolver methods.
-					 * `registerTo` will now invoke callbacks immediately if they are registered
-					 * to the resolution state or one of its superstates, or silently return the
-					 * deferral if registered to any other state; `resolveTo` will now simply
-					 * return the deferral, since the resolution state transition is by definition
-					 * irreversible.
-					 */
+					// First modify the behavior of the explicit registrar and resolver methods.
+					// `registerTo` will now invoke callbacks immediately if they are registered
+					// to the resolution state or one of its superstates, or silently return the
+					// deferral if registered to any other state; `resolveTo` will now simply
+					// return the deferral, since the resolution state transition is by definition
+					// irreversible.
 					Z.extend( self, {
 						registerTo: function ( state_ ) {
 							Z.isString( state_ ) && ( state_ = potential.substate( state_ ) );
@@ -717,13 +715,11 @@ Z.extend( true, Deferral, {
 						resolveTo: selfFn
 					});
 					
-					/*
-					 * Next, the deferral's nested registrar methods must be redefined such that
-					 * only those related to the selected `state` will respond to further callback
-					 * registrations by immediately invoking the specified callback(s). Those
-					 * methods are changed to a copy of the invoke function, and all others are
-					 * changed to a return-self function.
-					 */
+					// Next, the deferral's nested registrar methods must be redefined such that
+					// only those related to the selected `state` will respond to further callback
+					// registrations by immediately invoking the specified callback(s). Those
+					// methods are changed to a copy of the invoke function, and all others are
+					// changed to a return-self function.
 					Z.extend( self, self.resolved = ( function () {
 						function invokeFnFn () {
 							return invokeFn( context, args );
@@ -741,36 +737,28 @@ Z.extend( true, Deferral, {
 						var	result, cursor = result = invokeFnFn(),
 							i = 1, l = derivation.length;
 						
-						/*
-						 * First create the functional branches of the function tree, i.e. those that
-						 * will be responsive to any subsequent callback registrations ...
-						 */
+						// First create the functional branches of the function tree, i.e. those that
+						// will be responsive to any subsequent callback registrations ...
 						while ( i < l ) {
 							cursor = cursor[ derivation[ i++ ].name() ] = invokeFnFn();
 						}
 						
-						/**
-						 * ... then fill out the remaining functions with return-self (the functions
-						 * just created will be skipped over and not overwritten).
-						 */
+						// ... then fill out the remaining functions with return-self (the functions
+						// just created will be skipped over and not overwritten).
 						return map( self.resolved, result );
 					})() );
 					
-					/*
-					 * Just as with `resolveTo`, there is no longer any use for the named resolver
-					 * methods, so these are also changed to the return-self function.
-					 */
+					// Just as with `resolveTo`, there is no longer any use for the named resolver
+					// methods, so these are also changed to the return-self function.
 					( function () {
 						var	resolvers = self.resolvers(),
 							i = 0, l = resolvers.length;
 						while ( i < l ) { self[ resolvers[ i++ ] ] = selfFn; }
 					})();
 					
-					/*
-					 * With the deferral's behavior alterations complete, we can now invoke all of the
-					 * previously queued callbacks along the path of `state`, first in a "capture"
-					 * phase from root to target, then in a "bubble" phase from target to root ...
-					 */
+					// With the deferral's behavior alterations complete, we can now invoke all of the
+					// previously queued callbacks along the path of `state`, first in a "capture"
+					// phase from root to target, then in a "bubble" phase from target to root ...
 					( function () {
 						var	i = 0, l = derivation.length,
 							queue,
@@ -785,7 +773,7 @@ Z.extend( true, Deferral, {
 						}
 					})();
 					
-					/* ... and then finally dispense with the callback queues. */
+					// ... and then finally dispense with the callback queues.
 					self.empty();
 					callbacks = null;
 					
@@ -797,13 +785,18 @@ Z.extend( true, Deferral, {
 		},
 		
 		/**
-		 * Produces a function that invokes a queued callback. In addition, when the deferral is
-		 * resolved, the function returned here will become the registrar method (e.g., 'yes' | 'no')
-		 * for the state (and its superstates) to which the deferral has resolved, such that any
-		 * subsequent registration of a callback will result in that callback being invoked immediately.
+		 * Closure of the invocation method factory.
 		 */
 		invoke: function ( self, callbacks ) {
 			var privileged = this;
+
+			/**
+			 * Invocation method factory: produces a function that invokes a queued callback. In
+			 * addition, when the deferral is resolved, the function returned here will become the
+			 * registrar method (e.g., 'yes' | 'no') for the state (and its superstates) to which
+			 * the deferral has resolved, such that any subsequent registration of a callback will
+			 * result in that callback being invoked immediately.
+			 */
 			return function ( context, args ) {
 				function invoke ( fn ) {
 					try {
@@ -819,6 +812,7 @@ Z.extend( true, Deferral, {
 		/** Analogue of `invoke`, for an array of callbacks. */
 		invokeAll: function ( self, callbacks ) {
 			var privileged = this;
+
 			return function ( context, args ) {
 				var invoke = privileged.invoke( self, callbacks )( context, args );
 				function invokeAll ( fns ) {
@@ -854,8 +848,7 @@ Z.extend( true, Deferral, {
 		}),
 		
 		/**
-		 * Binds together the fate of multiple Futures by testing the eventual resolution of each
-		 * against certain conditions.
+		 * Binds together the fate of multiple Futures.
 		 * 
 		 * Returns a `Promise` to a master `BinaryDeferral` that will resolve to either `yes` or
 		 * `no` as soon as it can be determined that the specified set of Futures collectively will
@@ -944,13 +937,11 @@ Z.extend( true, Deferral, {
 				return { affirmative: result[0], negative: result[1] };
 			}
 			
-			// FIXME(?): The section below is bloated, perhaps overly generous as to argument flexibility
-			
 			/*
 			 * Parse out the flags and relevant collections from the argument list
 			 */
 			if ( Z.isString( arg ) ) {
-				flags = Z.splitToHash( arg );
+				flags = Z.assign( arg );
 				arg = args.shift();
 			} else {
 				flags = {};
@@ -1036,12 +1027,12 @@ Z.extend( true, Deferral, {
 				}
 				
 				/*
-				 * For foreign promise-like objects, there is no explict concept of variadic state,
-				 * so just coerce the first listed state to a boolean, and use that to determine
-				 * how this `future` will affect the master deferral.
+				 * For foreign promise-like objects, there is no concept of multivalent state, so
+				 * just coerce the first listed state to a boolean, and use that to determine how
+				 * this `future` will affect the master deferral.
 				 */
 				else {
-					states.length && states[0] in Z.splitToHash([ 'no resolved.no negate false' ]) ?
+					states.length && states[0] in Z.assign('no resolved.no negate false') ?
 						future.then( negative, affirmative ) :
 						future.then( affirmative, negative );
 				}
@@ -1076,8 +1067,8 @@ Z.extend( true, Deferral, {
 	},
 	
 	/**
-	 * Returns an outer deferral that wraps an inner `future` object. Useful for coercing foreign
-	 * promise implementations to a `Deferral` type.
+	 * Creates and returns a deferral that wraps an inner `future` object. Useful for coercing
+	 * foreign promise implementations to a `Deferral` type.
 	 */
 	cast: function ( future ) {
 		if ( !Future.resembles( future ) ) {
@@ -1305,7 +1296,7 @@ function Pipeline ( operations ) {
 		continuation,
 		running = false,
 		pausePending = false,
-		events = Z.nullHash([ 'didContinue', 'willContinue' ]);
+		events = Z.assign( 'didContinue willContinue', null );
 	
 	function returnSelf () {
 		return self;
