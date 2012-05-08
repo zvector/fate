@@ -7,17 +7,20 @@ require '../build/combine.php';
 	<head>
 		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 		<title>Fate.js Test Suite</title>
-		<link rel="stylesheet" media="screen" href="qunit.css" />
+		<link rel="stylesheet" media="screen" href="../../qunit/qunit/qunit.css" />
 		
 		<!-- libs -->
 		<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.6.2/jquery.js"></script>
+		<script src="../../qunit/qunit/qunit.js"></script>
 		
 		<!-- includes -->
 		<script src="../../zcore/zcore.js"></script>
+		<script>
+			Z.env.debug = true;
+		</script>
 		<script src="../fate.js"></script>
 		
 		<!-- tests -->
-		<script src="qunit.js"></script>
 		<script src="unit/State.test.js"></script>
 		<script src="unit/Deferral.test.js"></script>
 		<script src="unit/Promise.test.js"></script>
